@@ -209,6 +209,8 @@ static void interface_rs232_send(void *parameter)
             if(tx_custom_obj->txb.pub_succ_event == RT_NULL)
                 continue;
 
+            custom_obj_bind_link_xfer(tx_custom_obj, custom_obj, tx_custom_obj->txb.len, RT_FALSE);
+
             rt_ssize_t len = 0;
             while(len < tx_custom_obj->txb.len)
             {
@@ -219,6 +221,7 @@ static void interface_rs232_send(void *parameter)
             }
 
             LOG_D("%s send to %s: %d\r\n", tx_custom_obj->parent.name, rt_obj->name, len);
+            custom_obj_bind_ext_add_send(custom_obj, (rt_size_t)len, RT_FALSE);
 
             LOG_I("%s ---> %s send txb.pub_succ_event: 0x%X\r\n", rt_obj->name, tx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(tx_custom_obj->txb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
@@ -238,6 +241,7 @@ static rt_err_t interface_rs232_handle_rx_bind_next(interface_rs232_obj_t obj,
       || custom_obj->rxb.pub_succ_event == RT_NULL || custom_obj->rxb.next_event_mask == 0 )
         return -RT_EINVAL;
 
+    custom_obj_bind_ext_add_recv(custom_obj, (rt_size_t)len, RT_TRUE);
     custom_obj->rxb.buffer = obj->rx_buffer;
     custom_obj->rxb.len = len;
 

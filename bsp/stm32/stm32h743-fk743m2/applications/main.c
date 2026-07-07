@@ -135,3 +135,4 @@ int main(void)
 // 步骤四:追加在步骤三后面测试并发
 // create_interface_rs232 interface_rs232_3 -u uart1 -p 77 -r 10240 -d 5120
 // create_bind interface_rs232_3 protocol_logv1_1
+

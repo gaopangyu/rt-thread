@@ -382,6 +382,7 @@ MSH_CMD_EXPORT_ALIAS(cmd_delete_bind, delete_bind, Delete bind: delete_bind <pre
 
 #define BIND_PATH_MAX_DEPTH   16
 #define BIND_PATH_PREFIX_MAX  128
+#define BIND_PATH_LABEL_MAX   (RT_NAME_MAX + 32)
 
 struct bind_path_tree_ctx
 {
@@ -500,10 +501,21 @@ static void bind_path_print_sibling(struct bind_path_tree_ctx *ctx, int depth,
     }
 }
 
+static custom_obj_t bind_path_tx_branch_child(custom_obj_t obj)
+{
+    custom_obj_t children[BIND_PATH_MAX_DEPTH];
+
+    if (bind_path_collect_children(obj, RT_FALSE, children, BIND_PATH_MAX_DEPTH) == 1)
+        return children[0];
+
+    return RT_NULL;
+}
+
 static void bind_path_print_tree_recur(custom_obj_t node, struct bind_path_tree_ctx *ctx,
                                        int depth, rt_bool_t is_rx)
 {
     custom_obj_t children[BIND_PATH_MAX_DEPTH];
+    char label[BIND_PATH_LABEL_MAX];
     int n;
 
     if (node == RT_NULL || ctx == RT_NULL)
@@ -521,10 +533,13 @@ static void bind_path_print_tree_recur(custom_obj_t node, struct bind_path_tree_
 
     for (int i = 0; i < n; i++)
     {
-        const char *name = ((rt_object_t)children[i])->name;
         char saved_prefix[BIND_PATH_PREFIX_MAX];
         int parent_col = ctx->line_pos;
         int saved_line_pos = ctx->line_pos;
+
+        custom_obj_t branch_child = is_rx ? RT_NULL : bind_path_tx_branch_child(children[i]);
+
+        custom_obj_bind_format_path_label(label, sizeof(label), children[i], node, branch_child, is_rx);
 
         rt_strncpy(saved_prefix, ctx->branch_prefix, sizeof(saved_prefix));
         saved_prefix[sizeof(saved_prefix) - 1] = '\0';
@@ -533,12 +548,12 @@ static void bind_path_print_tree_recur(custom_obj_t node, struct bind_path_tree_
         {
             const char *arrow = (depth == 0) ? ctx->root_arrow : ctx->arrow;
 
-            rt_kprintf("%s%s", arrow, name);
-            ctx->line_pos += (int)rt_strlen(arrow) + (int)rt_strlen(name);
+            rt_kprintf("%s%s", arrow, label);
+            ctx->line_pos += (int)rt_strlen(arrow) + (int)rt_strlen(label);
         }
         else
         {
-            bind_path_print_sibling(ctx, depth, parent_col, name);
+            bind_path_print_sibling(ctx, depth, parent_col, label);
         }
 
         bind_path_print_tree_recur(children[i], ctx, depth + 1, is_rx);
@@ -551,6 +566,7 @@ static void bind_path_print_tree_recur(custom_obj_t node, struct bind_path_tree_
 static void bind_path_init_tree_ctx(struct bind_path_tree_ctx *ctx, custom_obj_t root, rt_bool_t is_rx)
 {
     custom_obj_t root_children[BIND_PATH_MAX_DEPTH];
+    char root_label[BIND_PATH_LABEL_MAX];
     rt_size_t root_len;
 
     rt_memset(ctx, 0, sizeof(*ctx));
@@ -559,14 +575,15 @@ static void bind_path_init_tree_ctx(struct bind_path_tree_ctx *ctx, custom_obj_t
     ctx->branch_arrow = is_rx ? "--->" : "<---";
     ctx->root_multi_branch = bind_path_collect_children(root, is_rx, root_children, BIND_PATH_MAX_DEPTH) > 1;
 
-    root_len = rt_strlen(((rt_object_t)root)->name);
+    custom_obj_bind_format_path_label(root_label, sizeof(root_label), root, RT_NULL, RT_NULL, is_rx);
+    root_len = rt_strnlen(root_label, sizeof(root_label));
     if (root_len + 1 < sizeof(ctx->branch_prefix))
     {
         rt_memset(ctx->branch_prefix, ' ', root_len + 1);
         ctx->branch_prefix[root_len + 1] = '\0';
     }
 
-    rt_kprintf("%s", ((rt_object_t)root)->name);
+    rt_kprintf("%s", root_label);
     ctx->line_pos = (int)root_len;
 }
 

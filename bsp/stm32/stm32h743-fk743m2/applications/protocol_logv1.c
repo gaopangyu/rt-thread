@@ -257,6 +257,7 @@ static void protocol_logv1_recv(void *parameter)
                 break;
 
             LOG_D("%s recv from %s: %d\r\n", rt_obj->name, rx_custom_obj->parent.name, rx_custom_obj->rxb.len);
+            custom_obj_bind_link_xfer(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
 
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
@@ -328,6 +329,7 @@ static void protocol_logv1_send(void *parameter)
             {
                 custom_obj->txb.buffer = tx_custom_obj->txb.buffer;
                 custom_obj->txb.len = tx_custom_obj->txb.len;
+                custom_obj_bind_link_xfer(tx_custom_obj, custom_obj, tx_custom_obj->txb.len, RT_FALSE);
 
                 LOG_D("%s send to %s: %d\r\n", tx_custom_obj->parent.name, rt_obj->name, tx_custom_obj->txb.len);
 

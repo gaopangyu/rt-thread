@@ -33,6 +33,11 @@ struct bind_node
     rt_mailbox_t sub_mb;
     rt_event_t pub_event;
     rt_event_t pub_succ_event;
+
+    rt_atomic_t ext_recv_bytes;
+    rt_atomic_t ext_send_bytes;
+    rt_atomic_t link_recv_bytes[CUSTOM_PER_LAYER_OBJ_MAX];
+    rt_atomic_t link_send_bytes[CUSTOM_PER_LAYER_OBJ_MAX];
 };
 
 struct custom_obj
@@ -69,5 +74,15 @@ rt_bool_t custom_obj_msh_has_opt(int argc, char *argv[], const char *opt);
 const char *custom_obj_msh_get_pos(int argc, char *argv[], int index, const char *flag_only_opts);
 rt_err_t custom_obj_msh_check_create_name(const char *name, const char *type_prefix);
 rt_err_t custom_obj_msh_check_delete_name(const char *name);
+
+void custom_obj_bind_ext_add_recv(custom_obj_t obj, rt_size_t len, rt_bool_t is_rx);
+void custom_obj_bind_ext_add_send(custom_obj_t obj, rt_size_t len, rt_bool_t is_rx);
+void custom_obj_bind_link_xfer(custom_obj_t pre, custom_obj_t next, rt_size_t len, rt_bool_t is_rx);
+rt_size_t custom_obj_bind_path_recv_bytes(custom_obj_t obj, custom_obj_t parent,
+                                          custom_obj_t branch_child, rt_bool_t is_rx);
+rt_size_t custom_obj_bind_path_send_bytes(custom_obj_t obj, custom_obj_t parent, rt_bool_t is_rx);
+rt_size_t custom_obj_bind_format_path_label(char *buf, rt_size_t size, custom_obj_t obj,
+                                            custom_obj_t parent, custom_obj_t branch_child,
+                                            rt_bool_t is_rx);
 
 #endif /* __CUSTOM_OBJ_H__ */

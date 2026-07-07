@@ -1,4 +1,5 @@
 #include "upload_muart.h"
+#include "custom_obj.h"
 
 #define DBG_TAG "upload_muart"
 #define DBG_LVL DBG_LOG
@@ -894,8 +895,11 @@ static rt_err_t upload_muart_handle_bind_pre(upload_obj_t self, const void *buff
     }
 
     upload_muart_obj_t obj = (upload_muart_obj_t)self;
+    custom_obj_t custom_obj = (custom_obj_t)obj;
+    rt_size_t sent;
 
-    upload_muart_parent_send(obj, buffer, size);
+    sent = upload_muart_parent_send(obj, buffer, size);
+    custom_obj_bind_ext_add_send(custom_obj, sent, RT_TRUE);
 
     return RT_EOK;
 }
@@ -944,6 +948,7 @@ static void upload_muart_recv(void *parameter)
                 break;
 
             LOG_D("%s recv from %s: %d\r\n", rt_obj->name, rx_custom_obj->parent.name, rx_custom_obj->rxb.len);
+            custom_obj_bind_link_xfer(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
 
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
