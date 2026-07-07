@@ -338,6 +338,40 @@ struct rt_device *fal_mtd_nor_device_create(const char *parition_name)
     return RT_DEVICE(&mtd_nor_dev->parent);
 }
 
+rt_err_t fal_mtd_nor_device_destroy(const char *partition_name)
+{
+    rt_device_t dev;
+    struct rt_mtd_nor_device *mtd;
+    struct fal_mtd_nor_device *mtd_nor_dev;
+
+    if (partition_name == RT_NULL)
+    {
+        return -RT_ERROR;
+    }
+
+    dev = rt_device_find(partition_name);
+    if (dev == RT_NULL)
+    {
+        return -RT_ERROR;
+    }
+
+    if (dev->type != RT_Device_Class_MTD)
+    {
+        return -RT_ERROR;
+    }
+
+    mtd = (struct rt_mtd_nor_device *)(void *)dev;
+    mtd_nor_dev = rt_container_of(mtd, struct fal_mtd_nor_device, parent);
+
+    if (rt_device_unregister(dev) != RT_EOK)
+    {
+        return -RT_ERROR;
+    }
+
+    rt_free(mtd_nor_dev);
+    return RT_EOK;
+}
+
 #endif /* defined(RT_USING_MTD_NOR) */
 
 

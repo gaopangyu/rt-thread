@@ -360,7 +360,7 @@ rt_weak int rt_kprintf(const char *fmt, ...)
 {
     va_list args;
     rt_size_t length = 0;
-    static char rt_log_buf[RT_CONSOLEBUF_SIZE];
+    static rt_align(32) char rt_log_buf[RT_CONSOLEBUF_SIZE];
 
     va_start(args, fmt);
     PRINTF_BUFFER_TAKE;

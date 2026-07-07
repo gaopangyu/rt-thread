@@ -44,6 +44,24 @@
 #define LIST_DFS_OPT_ID 0x100
 #define LIST_FIND_OBJ_NR 8
 
+static void rt_susp_list_print_unsafe(rt_list_t *list)
+{
+#ifdef RT_USING_CONSOLE
+    struct rt_thread *thread;
+    struct rt_list_node *node;
+    for (node = list->next; node != list; node = node->next)
+    {
+        thread = RT_THREAD_LIST_NODE_ENTRY(node);
+        rt_kprintf("%.*s", RT_NAME_MAX, thread->parent.name);
+
+        if (node->next != list)
+            rt_kprintf("/");
+    }
+#else
+    (void)list;
+#endif
+}
+
 static long clear(void)
 {
     rt_kprintf("\x1b[2J\x1b[H");
@@ -333,7 +351,7 @@ long list_sem(void)
                                sem->parent.parent.name,
                                sem->value,
                                rt_list_len(&sem->parent.suspend_thread));
-                    rt_susp_list_print(&(sem->parent.suspend_thread));
+                    rt_susp_list_print_unsafe(&(sem->parent.suspend_thread));
                     rt_kprintf("\n");
                 }
                 else
@@ -402,7 +420,7 @@ long list_event(void)
                                e->parent.parent.name,
                                e->set,
                                rt_list_len(&e->parent.suspend_thread));
-                    rt_susp_list_print(&(e->parent.suspend_thread));
+                    rt_susp_list_print_unsafe(&(e->parent.suspend_thread));
                     rt_kprintf("\n");
                 }
                 else
@@ -471,7 +489,7 @@ long list_mutex(void)
                            m->hold,
                            m->priority,
                            rt_list_len(&m->parent.suspend_thread));
-                    rt_susp_list_print(&(m->parent.suspend_thread));
+                    rt_susp_list_print_unsafe(&(m->parent.suspend_thread));
                     rt_kprintf("\n");
                 }
                 else
@@ -544,7 +562,7 @@ long list_mailbox(void)
                                m->entry,
                                m->size,
                                rt_list_len(&m->parent.suspend_thread));
-                    rt_susp_list_print(&(m->parent.suspend_thread));
+                    rt_susp_list_print_unsafe(&(m->parent.suspend_thread));
                     rt_kprintf("\n");
                 }
                 else
@@ -614,7 +632,7 @@ long list_msgqueue(void)
                                m->parent.parent.name,
                                m->entry,
                                rt_list_len(&m->parent.suspend_thread));
-                    rt_susp_list_print(&(m->parent.suspend_thread));
+                    rt_susp_list_print_unsafe(&(m->parent.suspend_thread));
                     rt_kprintf("\n");
                 }
                 else
@@ -751,7 +769,7 @@ long list_mempool(void)
                                mp->block_total_count,
                                mp->block_free_count,
                                suspend_thread_count);
-                    rt_susp_list_print(&(mp->suspend_thread));
+                    rt_susp_list_print_unsafe(&(mp->suspend_thread));
                     rt_kprintf("\n");
                 }
                 else
@@ -935,6 +953,66 @@ long list_device(void)
 }
 #endif /* RT_USING_DEVICE */
 
+#ifdef RT_USING_CUSTOM
+#if defined(RT_USING_HEAP)
+long list_custom(void)
+{
+    rt_base_t level;
+    list_get_next_t find_arg;
+    struct rt_object_information *info;
+    rt_list_t *obj_list[LIST_FIND_OBJ_NR];
+    rt_list_t *next = (rt_list_t *)RT_NULL;
+    int maxlen = RT_NAME_MAX;
+
+    if (rt_object_get_information(RT_Object_Class_Custom) == RT_NULL)
+    {
+        rt_kprintf("(no custom object container)\n");
+        return 0;
+    }
+
+    list_find_init(&find_arg, RT_Object_Class_Custom, obj_list, sizeof(obj_list) / sizeof(obj_list[0]));
+    info = rt_list_entry(find_arg.list, struct rt_object_information, object_list);
+
+    rt_kprintf("%-*.*s\n", maxlen, maxlen, "custom object");
+    object_split(maxlen);
+    rt_kprintf("\n");
+
+    do
+    {
+        next = list_get_next(next, &find_arg);
+        {
+            int i;
+
+            for (i = 0; i < find_arg.nr_out; i++)
+            {
+                struct rt_object *obj;
+
+                obj = rt_list_entry(obj_list[i], struct rt_object, list);
+                level = rt_spin_lock_irqsave(&info->spinlock);
+                if ((obj->type & ~RT_Object_Class_Static) != find_arg.type)
+                {
+                    rt_spin_unlock_irqrestore(&info->spinlock, level);
+                    continue;
+                }
+                rt_spin_unlock_irqrestore(&info->spinlock, level);
+
+                rt_kprintf("%-*.*s\n", maxlen, RT_NAME_MAX, obj->name);
+            }
+        }
+    }
+    while (next != (rt_list_t *)RT_NULL);
+
+    return 0;
+}
+#else /* !RT_USING_HEAP */
+long list_custom(void)
+{
+    rt_kprintf("(RT_USING_HEAP off, no custom object container)\n");
+    return 0;
+}
+#endif /* RT_USING_HEAP */
+#endif /* RT_USING_CUSTOM */
+
 #ifndef FINSH_USING_OPTION_COMPLETION
 static int cmd_list(int argc, char **argv)
 {
@@ -1003,6 +1081,12 @@ static int cmd_list(int argc, char **argv)
             list_fd();
         }
 #endif /* RT_USING_DFS */
+#ifdef RT_USING_CUSTOM
+        else if(strcmp(argv[1], "custom") == 0)
+        {
+            list_custom();
+        }
+#endif /* RT_USING_CUSTOM */
         else
         {
             goto _usage;
@@ -1043,7 +1127,9 @@ _usage:
 #ifdef RT_USING_DFS
     rt_kprintf("    %-12s - list file descriptors\n", "fd");
 #endif /* RT_USING_DFS */
-
+#ifdef RT_USING_CUSTOM
+    rt_kprintf("    %-12s - list custom objects\n", "custom_obj");
+#endif /* RT_USING_CUSTOM */
     return 0;
 }
 
@@ -1089,6 +1175,10 @@ static int cmd_list(int argc, char **argv)
             break;
         }
 #endif /* RT_USING_DFS */
+#ifdef RT_USING_CUSTOM
+        case RT_Object_Class_Custom: list_custom(); break;
+#endif /* RT_USING_CUSTOM */
+
         default:
             goto _usage;
         };
@@ -1132,6 +1222,9 @@ CMD_OPTIONS_NODE(RT_Object_Class_Device,       device,   list devices)
 #ifdef RT_USING_DFS
 CMD_OPTIONS_NODE(LIST_DFS_OPT_ID,              fd,       list file descriptors)
 #endif /* RT_USING_DFS */
+#ifdef RT_USING_CUSTOM
+CMD_OPTIONS_NODE(RT_Object_Class_Custom,       custom_obj,       list custom objects)
+#endif /* RT_USING_CUSTOM */
 CMD_OPTIONS_NODE_END
 #endif /* FINSH_USING_OPTION_COMPLETION */
 MSH_CMD_EXPORT_ALIAS(cmd_list, list, list objects, optenable);

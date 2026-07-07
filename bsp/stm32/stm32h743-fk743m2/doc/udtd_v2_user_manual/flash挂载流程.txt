@@ -1,0 +1,23 @@
+cd /cygdrive/f/job_hyjx/udtd_v2/tool/littlefs-fuse
+cat /proc/partitions
+./lfs.exe --format --block_size=4096 --block_count=40 /dev/sdb
+./lfs.exe --block_size=4096 --block_count=40 /dev/sdb H:
+ls /cygdrive/
+
+./lfs.exe --block_size=4096 --block_count=40 /dev/sdb "D:\lfs_mnt"
+
+cd F:/job_hyjx/udtd_v2/tool/littlefs-fuse
+wmic diskdrive list brief 
+./lfs.exe --format --block_size=4096 --block_count=40 \\.\PHYSICALDRIVE1
+./lfs.exe --block_size=4096 --block_count=40 \\.\PHYSICALDRIVE1
+Get-Volume
+
+
+
+
+
+cp /cygdrive/f/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/doc/udtd_v2_user_manual/part_table.txt /cygdrive/h/init/
+
+cp /cygdrive/f/job_hyjx/udtd_v2/lib/libtx3016a.so /cygdrive/h/lib/
+
+taskkill /f /im lfs.exe

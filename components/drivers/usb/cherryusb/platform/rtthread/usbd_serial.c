@@ -37,6 +37,8 @@ static uint32_t g_devinuse = 0;
 
 static USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t g_usbd_serial_cdc_acm_rx_buf[CONFIG_USBDEV_MAX_CDC_ACM_CLASS][USB_ALIGN_UP(512, CONFIG_USB_ALIGN_SIZE)];
 
+static USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t g_usbd_serial_crlf[2];
+
 static struct usbd_serial g_usbd_serial_cdc_acm[CONFIG_USBDEV_MAX_CDC_ACM_CLASS];
 
 static struct usbd_serial *usbd_serial_alloc(void)
@@ -81,6 +83,10 @@ static rt_err_t usbd_serial_open(struct rt_device *dev, rt_uint16_t oflag)
         return -RT_EPERM;
     }
 
+    /* same as rt_serial_open: line discipline uses RT_DEVICE_FLAG_STREAM (CR before LF on TX) */
+    if ((oflag & RT_DEVICE_FLAG_STREAM) || (dev->open_flag & RT_DEVICE_FLAG_STREAM))
+        dev->open_flag |= RT_DEVICE_FLAG_STREAM;
+
     usbd_ep_start_read(serial->busid, serial->out_ep,
                        g_usbd_serial_cdc_acm_rx_buf[serial->minor],
                        usbd_get_ep_mps(serial->busid, serial->out_ep));
@@ -116,6 +122,10 @@ static rt_ssize_t usbd_serial_write(struct rt_device *dev,
 
     RT_ASSERT(dev != RT_NULL);
 
+    if (size == 0) {
+        return 0;
+    }
+
     serial = (struct usbd_serial *)dev;
 
     if (!usb_device_is_configured(serial->busid)) {
@@ -134,14 +144,37 @@ static rt_ssize_t usbd_serial_write(struct rt_device *dev,
         usb_memcpy(align_buf, buffer, size);
     }
 #endif
-    usb_osal_sem_reset(serial->tx_done);
-    usbd_ep_start_write(serial->busid, serial->in_ep, align_buf, size);
+
     ret = usb_osal_sem_take(serial->tx_done, 3000);
     if (ret < 0) {
         USB_LOG_ERR("serial write timeout\n");
         ret = -RT_ETIMEOUT;
+        usb_osal_sem_reset(serial->tx_done);
     } else {
-        ret = size;
+        ret = (int)size;
+        if ((dev->open_flag & RT_DEVICE_FLAG_STREAM) && (align_buf[size - 1] == '\n') ) {
+            if(size == 1)
+            {
+                usbd_ep_start_write(serial->busid, serial->in_ep, g_usbd_serial_crlf, 2);
+            }
+            else
+            {
+                usbd_ep_start_write(serial->busid, serial->in_ep, align_buf, size - 1);
+                ret = usb_osal_sem_take(serial->tx_done, 3000);
+                if (ret < 0) {
+                    USB_LOG_ERR("serial write timeout\n");
+                    ret = -RT_ETIMEOUT;
+                    usb_osal_sem_reset(serial->tx_done);
+                }
+                else
+                {
+                    usbd_ep_start_write(serial->busid, serial->in_ep, g_usbd_serial_crlf, 2);
+                    ret = (int)size;
+                }                
+            }
+        } else {
+            usbd_ep_start_write(serial->busid, serial->in_ep, align_buf, size);
+        }
     }
 
 #ifdef CONFIG_USB_DCACHE_ENABLE
@@ -164,7 +197,7 @@ const static struct rt_device_ops usbd_serial_ops = {
 };
 #endif
 
-rt_err_t usbd_serial_register(struct usbd_serial *serial,
+static rt_err_t usbd_serial_register(struct usbd_serial *serial,
                               void *data)
 {
     rt_err_t ret;
@@ -197,6 +230,7 @@ rt_err_t usbd_serial_register(struct usbd_serial *serial,
     device->fops = NULL;
 #endif
     rt_ringbuffer_init(&serial->rx_rb, serial->rx_rb_buffer, sizeof(serial->rx_rb_buffer));
+    usb_memcpy(g_usbd_serial_crlf, "\r\n", 2);
 
     return ret;
 }
@@ -262,7 +296,7 @@ void usbd_cdc_acm_serial_init(uint8_t busid, uint8_t in_ep, uint8_t out_ep)
     serial->busid = busid;
     serial->in_ep = in_ep;
     serial->out_ep = out_ep;
-    serial->tx_done = usb_osal_sem_create(0);
+    serial->tx_done = usb_osal_sem_create(1);
 
     usbd_add_interface(busid, usbd_cdc_acm_init_intf(busid, &serial->intf_ctrl));
     usbd_add_interface(busid, usbd_cdc_acm_init_intf(busid, &serial->intf_data));
@@ -276,4 +310,25 @@ void usbd_cdc_acm_serial_init(uint8_t busid, uint8_t in_ep, uint8_t out_ep)
     }
 
     USB_LOG_INFO("USB CDC ACM Serial Device %s initialized\n", serial->name);
+}
+
+void usbd_cdc_acm_serial_detach(uint8_t busid)
+{
+    for (uint8_t devno = 0; devno < CONFIG_USBDEV_MAX_CDC_ACM_CLASS; devno++) {
+        struct usbd_serial *serial = &g_usbd_serial_cdc_acm[devno];
+
+        if ((g_devinuse & (1U << devno)) == 0) {
+            continue;
+        }
+        if (serial->busid != busid) {
+            continue;
+        }
+        rt_device_unregister((struct rt_device *)serial);
+        if (serial->tx_done) {
+            usb_osal_sem_delete(serial->tx_done);
+            serial->tx_done = NULL;
+        }
+        usbd_serial_free(serial);
+        break;
+    }
 }

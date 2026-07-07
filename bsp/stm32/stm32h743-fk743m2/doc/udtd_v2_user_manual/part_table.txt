@@ -1,0 +1,1 @@
+0x45503130,filesystem,norflash0,4194304,6291456,0

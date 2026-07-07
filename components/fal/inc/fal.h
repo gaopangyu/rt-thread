@@ -141,6 +141,14 @@ struct rt_device *fal_blk_device_create(const char *parition_name);
  *            NULL: created failed
  */
 struct rt_device *fal_mtd_nor_device_create(const char *parition_name);
+/**
+ * destroy MTD NOR device created by fal_mtd_nor_device_create (unregister + free).
+ *
+ * @param partition_name same name passed to fal_mtd_nor_device_create
+ *
+ * @return RT_EOK on success, -RT_ERROR if device not found or not an FAL MTD NOR device
+ */
+rt_err_t fal_mtd_nor_device_destroy(const char *partition_name);
 #endif /* defined(RT_USING_MTD_NOR) */
 
 /**

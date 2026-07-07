@@ -322,7 +322,7 @@ rt_err_t rt_hw_qspi_device_attach(const char *bus_name, const char *device_name,
         result = -RT_ENOMEM;
         goto __exit;
     }
-
+    rt_memset(qspi_device, 0, sizeof(struct rt_qspi_device));//fix by gaopangyu
     qspi_device->enter_qspi_mode = enter_qspi_mode;
     qspi_device->exit_qspi_mode = exit_qspi_mode;
     qspi_device->config.qspi_dl_width = data_line_width;

@@ -1073,16 +1073,16 @@ static void stm32_uart_get_config(void)
     uart_obj[UART8_INDEX].serial.config.tx_bufsz = BSP_UART8_TX_BUFSIZE;
 
 #ifdef BSP_UART8_RX_USING_DMA
-    uart_obj[UART8_INDEX].uart_dma_flag   |= RT_DEVICE_FLAG_DMA_RX;
-    static struct dma_config uart8_dma_rx  = UART8_DMA_RX_CONFIG;
-    uart_config[UART8_INDEX].dma_rx        = &uart8_dma_rx;
+    uart_obj[UART8_INDEX].serial.config.dma_ping_bufsz  = BSP_UART8_DMA_PING_BUFSIZE;
+    uart_obj[UART8_INDEX].uart_dma_flag                |= RT_DEVICE_FLAG_DMA_RX;
+    static struct dma_config uart8_dma_rx               = UART8_DMA_RX_CONFIG;
+    uart_config[UART8_INDEX].dma_rx                     = &uart8_dma_rx;
 #endif
 
 #ifdef BSP_UART8_TX_USING_DMA
-    uart_obj[UART8_INDEX].serial.config.dma_ping_bufsz  = BSP_UART8_DMA_PING_BUFSIZE;
-    uart_obj[UART8_INDEX].uart_dma_flag                |= RT_DEVICE_FLAG_DMA_TX;
-    static struct dma_config uart8_dma_tx               = UART8_DMA_TX_CONFIG;
-    uart_config[UART8_INDEX].dma_tx                     = &uart8_dma_tx;
+    uart_obj[UART8_INDEX].uart_dma_flag   |= RT_DEVICE_FLAG_DMA_TX;
+    static struct dma_config uart8_dma_tx  = UART8_DMA_TX_CONFIG;
+    uart_config[UART8_INDEX].dma_tx        = &uart8_dma_tx;
 #endif
 #endif
 

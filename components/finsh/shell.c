@@ -237,8 +237,8 @@ void finsh_set_device(const char *device_name)
         if (shell->device != RT_NULL)
         {
             /* close old finsh device */
-            rt_device_close(shell->device);
             rt_device_set_rx_indicate(shell->device, RT_NULL);
+            rt_device_close(shell->device);
         }
 
         /* clear line buffer before switch to new device */
@@ -260,6 +260,10 @@ void finsh_set_device(const char *device_name)
 const char *finsh_get_device()
 {
     RT_ASSERT(shell != RT_NULL);
+    if (shell->device == RT_NULL)
+    {
+        return RT_NULL;
+    }
     return shell->device->parent.name;
 }
 #endif /* !defined(RT_USING_POSIX_STDIO) && defined(RT_USING_DEVICE) */

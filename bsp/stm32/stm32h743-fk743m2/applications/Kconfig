@@ -1,0 +1,16 @@
+menu "Applications Config"
+
+    config RT_USING_CUSTOM
+        bool "Enable RT_USING_CUSTOM (application custom macros)"
+        default y
+        help
+            When enabled, the build generates #define RT_USING_CUSTOM in rtconfig.h.
+            Use #ifdef RT_USING_CUSTOM in application source for conditional code.
+
+    config LIB_PATH
+        string "Directory for prebuilt library (.so) files"
+        default "filesystem/lib/"
+        help
+            Path to the directory containing prebuilt static libraries.
+
+endmenu

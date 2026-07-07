@@ -22,6 +22,12 @@
 #define FAL_DEV_BLK_MAX 6
 #endif
 
+/* partition magic word */
+#define FAL_PART_MAGIC_WORD         0x45503130
+#define FAL_PART_MAGIC_WORD_H       0x4550L
+#define FAL_PART_MAGIC_WORD_L       0x3130L
+#define FAL_PART_MAGIC_WROD         0x45503130
+
 struct flash_blk
 {
     rt_size_t size;
