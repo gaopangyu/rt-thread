@@ -314,10 +314,10 @@ static rt_err_t interface_rs232_delete(interface_obj_t self)
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
-    bind_delete_all_for_obj(custom_obj);
-
     if(rt_object_find(rt_obj->name, RT_Object_Class_Custom) != RT_NULL)
         rt_object_detach(rt_obj);
+
+    bind_delete_all_for_obj(custom_obj);
 
     if (obj->uart != RT_NULL) {
         rt_device_set_rx_indicate(obj->uart, RT_NULL);
@@ -326,17 +326,17 @@ static rt_err_t interface_rs232_delete(interface_obj_t self)
         obj->uart = RT_NULL;
     }
 
-    if (obj->tx_sub_event_tid != RT_NULL)
-    {
-        rt_thread_delete(obj->tx_sub_event_tid);
-        obj->tx_sub_event_tid = RT_NULL;
-    }
-
     // if (obj->rx_sub_event_tid != RT_NULL)
     // {
     //     rt_thread_delete(obj->rx_sub_event_tid);
     //     obj->rx_sub_event_tid = RT_NULL;
     // }
+
+    if (obj->tx_sub_event_tid != RT_NULL)
+    {
+        rt_thread_delete(obj->tx_sub_event_tid);
+        obj->tx_sub_event_tid = RT_NULL;
+    }
 
     if (obj->rx_tid != RT_NULL)
     {

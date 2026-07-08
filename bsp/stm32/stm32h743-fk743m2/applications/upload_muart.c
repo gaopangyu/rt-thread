@@ -974,10 +974,10 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
-    bind_delete_all_for_obj(custom_obj);
-
     if(rt_object_find(rt_obj->name, RT_Object_Class_Custom) != RT_NULL)
         rt_object_detach(rt_obj);
+
+    bind_delete_all_for_obj(custom_obj);
 
     struct upload_muart_obj *muart_obj, *next_muart_obj;
     rt_list_for_each_entry_safe(muart_obj, next_muart_obj, &muart_uart_list, list)

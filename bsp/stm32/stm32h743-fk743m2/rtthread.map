@@ -11310,7 +11310,7 @@ LOAD f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-
  .debug_abbrev  0x0000eeea      0x2d0 build\kernel\src\thread.o
  .debug_abbrev  0x0000f1ba      0x316 build\kernel\src\timer.o
 
-.debug_line     0x00000000    0x3b857
+.debug_line     0x00000000    0x3b855
  *(.debug_line)
  .debug_line    0x00000000      0x765 F:\job_hyjx\udtd_v2\rt-thread\bsp\stm32\libraries\HAL_Drivers\drivers\drv_gpio.o
  .debug_line    0x00000765      0x603 F:\job_hyjx\udtd_v2\rt-thread\bsp\stm32\libraries\HAL_Drivers\drivers\drv_qspi.o
@@ -11359,70 +11359,70 @@ LOAD f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-
  .debug_line    0x000127d4      0xabd build\applications\interface_rs232.o
  .debug_line    0x00013291      0x170 build\applications\main.o
  .debug_line    0x00013401      0x9ef build\applications\protocol_logv1.o
- .debug_line    0x00013df0     0x12a0 build\applications\upload_muart.o
- .debug_line    0x00015090      0x612 build\applications\usb0_device.o
- .debug_line    0x000156a2      0x5b5 build\board\CubeMX_Config\Src\stm32h7xx_hal_msp.o
- .debug_line    0x00015c57      0x246 build\board\board.o
- .debug_line    0x00015e9d      0x2de build\board\port\drv_mpu.o
- .debug_line    0x0001617b      0x348 build\board\port\drv_qspi_flash.o
- .debug_line    0x000164c3      0x7e0 build\packages\CmBacktrace-latest\cm_backtrace.o
- .debug_line    0x00016ca3      0x3e0 build\packages\CmBacktrace-latest\cmb_port.o
- .debug_line    0x00017083      0xde8 build\packages\littlefs-latest\dfs_lfs.o
- .debug_line    0x00017e6b     0x4c33 build\packages\littlefs-latest\lfs.o
- .debug_line    0x0001ca9e      0x203 build\packages\littlefs-latest\lfs_crc.o
- .debug_line    0x0001cca1       0xb1 packages\stm32h7_cmsis_driver-latest\Source\Templates\gcc\startup_stm32h743xx.o
- .debug_line    0x0001cd52      0x404 packages\stm32h7_cmsis_driver-latest\Source\Templates\system_stm32h7xx.o
- .debug_line    0x0001d156      0x7b2 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal.o
- .debug_line    0x0001d908      0x7cb packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_cortex.o
- .debug_line    0x0001e0d3     0x20d4 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_dma.o
- .debug_line    0x000201a7      0x633 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_gpio.o
- .debug_line    0x000207da      0x8d8 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_pwr_ex.o
- .debug_line    0x000210b2      0xe15 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_qspi.o
- .debug_line    0x00021ec7      0xdd8 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_rcc.o
- .debug_line    0x00022c9f     0x1702 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_rcc_ex.o
- .debug_line    0x000243a1     0x3892 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_uart.o
- .debug_line    0x00027c33      0x875 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_uart_ex.o
- .debug_line    0x000284a8      0x808 build\kernel\components\dfs\dfs_v1\filesystems\devfs\devfs.o
- .debug_line    0x00028cb0      0xc65 build\kernel\components\dfs\dfs_v1\src\dfs.o
- .debug_line    0x00029915      0xcbb build\kernel\components\dfs\dfs_v1\src\dfs_file.o
- .debug_line    0x0002a5d0      0x8ee build\kernel\components\dfs\dfs_v1\src\dfs_fs.o
- .debug_line    0x0002aebe      0x99e build\kernel\components\dfs\dfs_v1\src\dfs_posix.o
- .debug_line    0x0002b85c      0x622 build\kernel\components\drivers\core\device.o
- .debug_line    0x0002be7e      0x221 build\kernel\components\drivers\ipc\completion_comm.o
- .debug_line    0x0002c09f      0x311 build\kernel\components\drivers\ipc\completion_up.o
- .debug_line    0x0002c3b0      0x5f9 build\kernel\components\drivers\ipc\dataqueue.o
- .debug_line    0x0002c9a9      0x913 build\kernel\components\drivers\ipc\ringblk_buf.o
- .debug_line    0x0002d2bc      0x6d6 build\kernel\components\drivers\ipc\ringbuffer.o
- .debug_line    0x0002d992      0x363 build\kernel\components\drivers\mtd\mtd_nor.o
- .debug_line    0x0002dcf5      0x6d0 build\kernel\components\drivers\pin\dev_pin.o
- .debug_line    0x0002e3c5     0x105b build\kernel\components\drivers\serial\dev_serial_v2.o
- .debug_line    0x0002f420      0x56b build\kernel\components\drivers\spi\dev_qspi_core.o
- .debug_line    0x0002f98b      0x367 build\kernel\components\drivers\spi\dev_spi.o
- .debug_line    0x0002fcf2      0x814 build\kernel\components\drivers\spi\dev_spi_core.o
- .debug_line    0x00030506      0xca5 build\kernel\components\drivers\spi\dev_spi_flash_sfud.o
- .debug_line    0x000311ab      0xc04 build\kernel\components\drivers\spi\sfud\src\sfud.o
- .debug_line    0x00031daf      0x58f build\kernel\components\drivers\spi\sfud\src\sfud_sfdp.o
- .debug_line    0x0003233e      0xafb build\kernel\components\finsh\cmd.o
- .debug_line    0x00032e39      0xaab build\kernel\components\finsh\msh.o
- .debug_line    0x000338e4      0xa50 build\kernel\components\finsh\msh_file.o
- .debug_line    0x00034334      0x22f build\kernel\components\finsh\msh_parse.o
- .debug_line    0x00034563      0x91e build\kernel\components\finsh\shell.o
- .debug_line    0x00034e81      0x24a build\kernel\src\clock.o
- .debug_line    0x000350cb      0x2d2 build\kernel\src\components.o
- .debug_line    0x0003539d      0x218 build\kernel\src\cpu_up.o
- .debug_line    0x000355b5      0x2ed build\kernel\src\defunct.o
- .debug_line    0x000358a2      0x30d build\kernel\src\idle.o
- .debug_line    0x00035baf     0x1c8c build\kernel\src\ipc.o
- .debug_line    0x0003783b      0x1f7 build\kernel\src\irq.o
- .debug_line    0x00037a32      0x89f build\kernel\src\kservice.o
- .debug_line    0x000382d1      0x64c build\kernel\src\mem.o
- .debug_line    0x0003891d      0x55e build\kernel\src\mempool.o
- .debug_line    0x00038e7b      0x767 build\kernel\src\object.o
- .debug_line    0x000395e2      0x466 build\kernel\src\scheduler_comm.o
- .debug_line    0x00039a48      0x5f9 build\kernel\src\scheduler_up.o
- .debug_line    0x0003a041      0x781 build\kernel\src\signal.o
- .debug_line    0x0003a7c2      0x855 build\kernel\src\thread.o
- .debug_line    0x0003b017      0x840 build\kernel\src\timer.o
+ .debug_line    0x00013df0     0x129e build\applications\upload_muart.o
+ .debug_line    0x0001508e      0x612 build\applications\usb0_device.o
+ .debug_line    0x000156a0      0x5b5 build\board\CubeMX_Config\Src\stm32h7xx_hal_msp.o
+ .debug_line    0x00015c55      0x246 build\board\board.o
+ .debug_line    0x00015e9b      0x2de build\board\port\drv_mpu.o
+ .debug_line    0x00016179      0x348 build\board\port\drv_qspi_flash.o
+ .debug_line    0x000164c1      0x7e0 build\packages\CmBacktrace-latest\cm_backtrace.o
+ .debug_line    0x00016ca1      0x3e0 build\packages\CmBacktrace-latest\cmb_port.o
+ .debug_line    0x00017081      0xde8 build\packages\littlefs-latest\dfs_lfs.o
+ .debug_line    0x00017e69     0x4c33 build\packages\littlefs-latest\lfs.o
+ .debug_line    0x0001ca9c      0x203 build\packages\littlefs-latest\lfs_crc.o
+ .debug_line    0x0001cc9f       0xb1 packages\stm32h7_cmsis_driver-latest\Source\Templates\gcc\startup_stm32h743xx.o
+ .debug_line    0x0001cd50      0x404 packages\stm32h7_cmsis_driver-latest\Source\Templates\system_stm32h7xx.o
+ .debug_line    0x0001d154      0x7b2 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal.o
+ .debug_line    0x0001d906      0x7cb packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_cortex.o
+ .debug_line    0x0001e0d1     0x20d4 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_dma.o
+ .debug_line    0x000201a5      0x633 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_gpio.o
+ .debug_line    0x000207d8      0x8d8 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_pwr_ex.o
+ .debug_line    0x000210b0      0xe15 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_qspi.o
+ .debug_line    0x00021ec5      0xdd8 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_rcc.o
+ .debug_line    0x00022c9d     0x1702 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_rcc_ex.o
+ .debug_line    0x0002439f     0x3892 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_uart.o
+ .debug_line    0x00027c31      0x875 packages\stm32h7_hal_driver-latest\Src\stm32h7xx_hal_uart_ex.o
+ .debug_line    0x000284a6      0x808 build\kernel\components\dfs\dfs_v1\filesystems\devfs\devfs.o
+ .debug_line    0x00028cae      0xc65 build\kernel\components\dfs\dfs_v1\src\dfs.o
+ .debug_line    0x00029913      0xcbb build\kernel\components\dfs\dfs_v1\src\dfs_file.o
+ .debug_line    0x0002a5ce      0x8ee build\kernel\components\dfs\dfs_v1\src\dfs_fs.o
+ .debug_line    0x0002aebc      0x99e build\kernel\components\dfs\dfs_v1\src\dfs_posix.o
+ .debug_line    0x0002b85a      0x622 build\kernel\components\drivers\core\device.o
+ .debug_line    0x0002be7c      0x221 build\kernel\components\drivers\ipc\completion_comm.o
+ .debug_line    0x0002c09d      0x311 build\kernel\components\drivers\ipc\completion_up.o
+ .debug_line    0x0002c3ae      0x5f9 build\kernel\components\drivers\ipc\dataqueue.o
+ .debug_line    0x0002c9a7      0x913 build\kernel\components\drivers\ipc\ringblk_buf.o
+ .debug_line    0x0002d2ba      0x6d6 build\kernel\components\drivers\ipc\ringbuffer.o
+ .debug_line    0x0002d990      0x363 build\kernel\components\drivers\mtd\mtd_nor.o
+ .debug_line    0x0002dcf3      0x6d0 build\kernel\components\drivers\pin\dev_pin.o
+ .debug_line    0x0002e3c3     0x105b build\kernel\components\drivers\serial\dev_serial_v2.o
+ .debug_line    0x0002f41e      0x56b build\kernel\components\drivers\spi\dev_qspi_core.o
+ .debug_line    0x0002f989      0x367 build\kernel\components\drivers\spi\dev_spi.o
+ .debug_line    0x0002fcf0      0x814 build\kernel\components\drivers\spi\dev_spi_core.o
+ .debug_line    0x00030504      0xca5 build\kernel\components\drivers\spi\dev_spi_flash_sfud.o
+ .debug_line    0x000311a9      0xc04 build\kernel\components\drivers\spi\sfud\src\sfud.o
+ .debug_line    0x00031dad      0x58f build\kernel\components\drivers\spi\sfud\src\sfud_sfdp.o
+ .debug_line    0x0003233c      0xafb build\kernel\components\finsh\cmd.o
+ .debug_line    0x00032e37      0xaab build\kernel\components\finsh\msh.o
+ .debug_line    0x000338e2      0xa50 build\kernel\components\finsh\msh_file.o
+ .debug_line    0x00034332      0x22f build\kernel\components\finsh\msh_parse.o
+ .debug_line    0x00034561      0x91e build\kernel\components\finsh\shell.o
+ .debug_line    0x00034e7f      0x24a build\kernel\src\clock.o
+ .debug_line    0x000350c9      0x2d2 build\kernel\src\components.o
+ .debug_line    0x0003539b      0x218 build\kernel\src\cpu_up.o
+ .debug_line    0x000355b3      0x2ed build\kernel\src\defunct.o
+ .debug_line    0x000358a0      0x30d build\kernel\src\idle.o
+ .debug_line    0x00035bad     0x1c8c build\kernel\src\ipc.o
+ .debug_line    0x00037839      0x1f7 build\kernel\src\irq.o
+ .debug_line    0x00037a30      0x89f build\kernel\src\kservice.o
+ .debug_line    0x000382cf      0x64c build\kernel\src\mem.o
+ .debug_line    0x0003891b      0x55e build\kernel\src\mempool.o
+ .debug_line    0x00038e79      0x767 build\kernel\src\object.o
+ .debug_line    0x000395e0      0x466 build\kernel\src\scheduler_comm.o
+ .debug_line    0x00039a46      0x5f9 build\kernel\src\scheduler_up.o
+ .debug_line    0x0003a03f      0x781 build\kernel\src\signal.o
+ .debug_line    0x0003a7c0      0x855 build\kernel\src\thread.o
+ .debug_line    0x0003b015      0x840 build\kernel\src\timer.o
 
 .debug_frame    0x00000000    0x13fd8
  *(.debug_frame)
