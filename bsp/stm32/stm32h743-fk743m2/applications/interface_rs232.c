@@ -323,28 +323,8 @@ static rt_err_t interface_rs232_delete(interface_obj_t self)
         rt_device_set_rx_indicate(obj->uart, RT_NULL);
         obj->uart->user_data = RT_NULL;
         rt_device_close(obj->uart);
+        obj->uart = RT_NULL;
     }
-
-    if(obj->rx_ind_sem != RT_NULL)
-        rt_sem_delete(obj->rx_ind_sem);
-    
-    // if(custom_obj->rxb.sub_mb != RT_NULL)
-    //     rt_mb_delete(custom_obj->rxb.sub_mb);
-
-    if(custom_obj->txb.sub_mb != RT_NULL)
-        rt_mb_delete(custom_obj->txb.sub_mb);
-
-    if(custom_obj->rxb.bind_mutex != RT_NULL)
-        rt_mutex_delete(custom_obj->rxb.bind_mutex);
-
-    if(custom_obj->txb.bind_mutex != RT_NULL)
-        rt_mutex_delete(custom_obj->txb.bind_mutex);
-
-    if(custom_obj->rxb.pub_succ_event  != RT_NULL)
-        rt_event_delete(custom_obj->rxb.pub_succ_event);
-
-    if(custom_obj->txb.pub_succ_event != RT_NULL)
-        rt_event_delete(custom_obj->txb.pub_succ_event);
 
     if (obj->tx_sub_event_tid != RT_NULL)
     {
@@ -370,10 +350,53 @@ static rt_err_t interface_rs232_delete(interface_obj_t self)
         obj->tx_tid = RT_NULL;
     }
 
+    if(obj->rx_ind_sem != RT_NULL)
+    {
+        rt_sem_delete(obj->rx_ind_sem);
+        obj->rx_ind_sem = RT_NULL;
+    }
+    
+    // if(custom_obj->rxb.sub_mb != RT_NULL)
+    // {
+    //     rt_mb_delete(custom_obj->rxb.sub_mb);
+    //     custom_obj->rxb.sub_mb = RT_NULL;
+    // }
+
+    if(custom_obj->txb.sub_mb != RT_NULL)
+    {
+        rt_mb_delete(custom_obj->txb.sub_mb);
+        custom_obj->txb.sub_mb = RT_NULL;
+    }
+
+    if(custom_obj->rxb.bind_mutex != RT_NULL)
+    {
+        rt_mutex_delete(custom_obj->rxb.bind_mutex);
+        custom_obj->rxb.bind_mutex = RT_NULL;
+    }
+
+    if(custom_obj->txb.bind_mutex != RT_NULL)
+    {
+        rt_mutex_delete(custom_obj->txb.bind_mutex);
+        custom_obj->txb.bind_mutex = RT_NULL;
+    }
+
+    if(custom_obj->rxb.pub_succ_event  != RT_NULL)
+    {
+        rt_event_delete(custom_obj->rxb.pub_succ_event);
+        custom_obj->rxb.pub_succ_event = RT_NULL;
+    }
+
+    if(custom_obj->txb.pub_succ_event != RT_NULL)
+    {
+        rt_event_delete(custom_obj->txb.pub_succ_event);
+        custom_obj->txb.pub_succ_event = RT_NULL;
+    }
+
     if (obj->rx_buffer != RT_NULL)
     {
         rt_free(obj->rx_buffer);
         obj->rx_buffer = RT_NULL;
+        obj->rx_bufsz = 0;
     }
 
     rt_free(obj);

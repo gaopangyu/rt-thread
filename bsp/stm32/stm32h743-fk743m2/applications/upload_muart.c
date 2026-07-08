@@ -985,6 +985,18 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
         if(muart_obj == obj)
             rt_list_remove(&muart_obj->list);
     }
+
+    if (obj->rx_sub_event_tid != RT_NULL)
+    {
+        rt_thread_delete(obj->rx_sub_event_tid);
+        obj->rx_sub_event_tid = RT_NULL;
+    }
+
+    if (obj->rx_tid != RT_NULL)
+    {
+        rt_thread_delete(obj->rx_tid);
+        obj->rx_tid = RT_NULL;
+    }
     
     if(obj->ack_sem != RT_NULL)
         rt_sem_delete(obj->ack_sem);
@@ -1006,19 +1018,6 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
 
     if(custom_obj->txb.pub_succ_event != RT_NULL)
         rt_event_delete(custom_obj->txb.pub_succ_event);
-
-    if (obj->rx_sub_event_tid != RT_NULL)
-    {
-        rt_thread_delete(obj->rx_sub_event_tid);
-        obj->rx_sub_event_tid = RT_NULL;
-    }
-
-    if (obj->rx_tid != RT_NULL)
-    {
-        rt_thread_delete(obj->rx_tid);
-        obj->rx_tid = RT_NULL;
-    }
-
 
     rt_free(obj);
     obj = RT_NULL;

@@ -377,24 +377,6 @@ static rt_err_t protocol_logv1_delete(protocol_obj_t self)
     if(rt_object_find(rt_obj->name, RT_Object_Class_Custom) != RT_NULL)
         rt_object_detach(rt_obj);
     
-    if(custom_obj->rxb.sub_mb != RT_NULL)
-        rt_mb_delete(custom_obj->rxb.sub_mb);
-
-    if(custom_obj->txb.sub_mb != RT_NULL)
-        rt_mb_delete(custom_obj->txb.sub_mb);
-
-    if(custom_obj->rxb.bind_mutex != RT_NULL)
-        rt_mutex_delete(custom_obj->rxb.bind_mutex);
-
-    if(custom_obj->txb.bind_mutex != RT_NULL)
-        rt_mutex_delete(custom_obj->txb.bind_mutex);
-
-    if(custom_obj->rxb.pub_succ_event  != RT_NULL)
-        rt_event_delete(custom_obj->rxb.pub_succ_event);
-
-    if(custom_obj->txb.pub_succ_event != RT_NULL)
-        rt_event_delete(custom_obj->txb.pub_succ_event);
-
     if (obj->rx_sub_event_tid != RT_NULL)
     {
         rt_thread_delete(obj->rx_sub_event_tid);
@@ -419,11 +401,48 @@ static rt_err_t protocol_logv1_delete(protocol_obj_t self)
         obj->tx_tid = RT_NULL;
     }
 
+    if(custom_obj->rxb.sub_mb != RT_NULL)
+    {
+        rt_mb_delete(custom_obj->rxb.sub_mb);
+        custom_obj->rxb.sub_mb = RT_NULL;
+    }
+
+    if(custom_obj->txb.sub_mb != RT_NULL)
+    {
+        rt_mb_delete(custom_obj->txb.sub_mb);
+        custom_obj->txb.sub_mb = RT_NULL;
+    }
+
+    if(custom_obj->rxb.bind_mutex != RT_NULL)
+    {
+        rt_mutex_delete(custom_obj->rxb.bind_mutex);
+        custom_obj->rxb.bind_mutex = RT_NULL;
+    }
+
+    if(custom_obj->txb.bind_mutex != RT_NULL)
+    {
+        rt_mutex_delete(custom_obj->txb.bind_mutex);
+        custom_obj->txb.bind_mutex = RT_NULL;
+    }
+
+    if(custom_obj->rxb.pub_succ_event  != RT_NULL)
+    {
+        rt_event_delete(custom_obj->rxb.pub_succ_event);
+        custom_obj->rxb.pub_succ_event = RT_NULL;
+    }
+
+    if(custom_obj->txb.pub_succ_event != RT_NULL)
+    {
+        rt_event_delete(custom_obj->txb.pub_succ_event);
+        custom_obj->txb.pub_succ_event = RT_NULL;
+    }
+
     if (obj->lib_handle != RT_NULL)
     {
         dlclose(obj->lib_handle);
         obj->lib_handle = RT_NULL;
     }
+
     rt_free(obj);
     obj = RT_NULL;
 
