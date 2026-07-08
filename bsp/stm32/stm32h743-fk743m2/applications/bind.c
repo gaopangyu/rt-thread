@@ -135,13 +135,18 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
         {
             pre_obj->rxb.next_event_mask &= ~next_obj->event_flag;
             next_obj->rxb.pre_event_mask &= ~pre_obj->event_flag;
-            rt_event_control(next_obj->rxb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
-
-            bind_try_release_obj(pre_obj);
-            bind_try_release_obj(next_obj);
+            if (next_obj->rxb.sub_event != RT_NULL)
+                rt_event_control(next_obj->rxb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
+            if (pre_obj->rxb.pub_succ_event != RT_NULL)
+                rt_event_control(pre_obj->rxb.pub_succ_event, RT_IPC_CMD_RESET, RT_NULL);
         }
-        else
-            LOG_E("One of the objects does not apply for event flag: %s %d, %s %d", pre_obj->parent.name, pre_obj->event_flag, next_obj->parent.name, next_obj->event_flag);
+        else if ((next_obj->event_flag != 0 && (pre_obj->rxb.next_event_mask & next_obj->event_flag) != 0)
+              || (pre_obj->event_flag != 0 && (next_obj->rxb.pre_event_mask & pre_obj->event_flag) != 0))
+        {
+            LOG_E("One of the objects does not apply for event flag: %s %d, %s %d",
+                  pre_obj->parent.name, pre_obj->event_flag,
+                  next_obj->parent.name, next_obj->event_flag);
+        }
 
         rt_mutex_release(next_obj->rxb.bind_mutex);
         rt_mutex_release(pre_obj->rxb.bind_mutex);
@@ -167,13 +172,18 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
         {
             next_obj->txb.pre_event_mask &= ~pre_obj->event_flag;
             pre_obj->txb.next_event_mask &= ~next_obj->event_flag;
-            rt_event_control(pre_obj->txb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
-
-            bind_try_release_obj(pre_obj);
-            bind_try_release_obj(next_obj);
+            if (pre_obj->txb.sub_event != RT_NULL)
+                rt_event_control(pre_obj->txb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
+            if (next_obj->txb.pub_succ_event != RT_NULL)
+                rt_event_control(next_obj->txb.pub_succ_event, RT_IPC_CMD_RESET, RT_NULL);
         }
-        else
-            LOG_E("One of the objects does not apply for event flag: %s %d, %s %d", pre_obj->parent.name, pre_obj->event_flag, next_obj->parent.name, next_obj->event_flag);
+        else if ((next_obj->event_flag != 0 && (pre_obj->txb.next_event_mask & next_obj->event_flag) != 0)
+              || (pre_obj->event_flag != 0 && (next_obj->txb.pre_event_mask & pre_obj->event_flag) != 0))
+        {
+            LOG_E("One of the objects does not apply for event flag: %s %d, %s %d",
+                  pre_obj->parent.name, pre_obj->event_flag,
+                  next_obj->parent.name, next_obj->event_flag);
+        }
 
         rt_mutex_release(pre_obj->txb.bind_mutex);
         rt_mutex_release(next_obj->txb.bind_mutex);
@@ -184,10 +194,17 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
     return RT_EOK;
 }
 
+static void bind_try_release_peers(custom_obj_t pre_obj, custom_obj_t next_obj)
+{
+    bind_try_release_obj(pre_obj);
+    bind_try_release_obj(next_obj);
+}
+
 static void bind_delete_pair(custom_obj_t pre_obj, custom_obj_t next_obj)
 {
     bind_delete(pre_obj, next_obj, RT_TRUE);
     bind_delete(pre_obj, next_obj, RT_FALSE);
+    bind_try_release_peers(pre_obj, next_obj);
 }
 
 void bind_delete_all_for_obj(custom_obj_t self)
@@ -375,6 +392,9 @@ static int cmd_delete_bind(int argc, char *argv[])
             err = err_tx;
         }
     }
+
+    if (do_rx || do_tx)
+        bind_try_release_peers(pre_obj, next_obj);
 
     return err;
 }
