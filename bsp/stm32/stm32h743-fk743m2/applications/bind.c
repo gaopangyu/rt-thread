@@ -42,6 +42,8 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
         else
             LOG_E("One of the objects does not apply for event flag: %s %d, %s %d", pre_obj->parent.name, pre_obj->event_flag, next_obj->parent.name, next_obj->event_flag);
 
+        rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
+
         rt_mutex_release(next_obj->rxb.bind_mutex);
         rt_mutex_release(pre_obj->rxb.bind_mutex);
         
@@ -80,13 +82,13 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
         else
             LOG_E("One of the objects does not apply for event flag: %s %d, %s %d", pre_obj->parent.name, pre_obj->event_flag, next_obj->parent.name, next_obj->event_flag);
 
+        rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
+
         rt_mutex_release(pre_obj->txb.bind_mutex);
         rt_mutex_release(next_obj->txb.bind_mutex);
         
         LOG_I("Bind tx created: %s <--- %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
     }
-
-    rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
 
     return RT_EOK;
 }
@@ -148,6 +150,8 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
                   next_obj->parent.name, next_obj->event_flag);
         }
 
+        rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
+
         rt_mutex_release(next_obj->rxb.bind_mutex);
         rt_mutex_release(pre_obj->rxb.bind_mutex);
 
@@ -184,6 +188,8 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
                   pre_obj->parent.name, pre_obj->event_flag,
                   next_obj->parent.name, next_obj->event_flag);
         }
+        
+        rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
 
         rt_mutex_release(pre_obj->txb.bind_mutex);
         rt_mutex_release(next_obj->txb.bind_mutex);
