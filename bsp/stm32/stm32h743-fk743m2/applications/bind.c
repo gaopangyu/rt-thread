@@ -159,12 +159,14 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
     }
     else
     {
+        rt_kprintf("22222222222222222222take tx_bind_mutex: %s\r\n", ((rt_object_t)next_obj)->name);
         if(rt_mutex_take(next_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("Failed to take tx_bind_mutex");
             return -RT_ERROR;
         }
 
+        rt_kprintf("33333333333333333333take tx_bind_mutex: %s\r\n", ((rt_object_t)pre_obj)->name);
         if(rt_mutex_take(pre_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("Failed to take tx_bind_mutex");
@@ -172,6 +174,8 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
             return -RT_ERROR;
         }
 
+        rt_kprintf("44444444444444444444delete bind tx: %s <--- %s\r\n", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
+        
         if (pre_obj->event_flag != 0 && next_obj->event_flag != 0)
         {
             next_obj->txb.pre_event_mask &= ~pre_obj->event_flag;
@@ -222,7 +226,7 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
     while (self->rxb.pre_event_mask)
     {
-        peer = get_obj_from_event_flag(self, self->rxb.pre_obj_list, &self->rxb.pre_event_mask, RT_TRUE);
+        peer = get_obj_from_event_flag(self, self->rxb.pre_obj_list, &self->rxb.pre_event_mask, RT_FALSE);
         if (peer == RT_NULL)
             break;
 
@@ -231,7 +235,16 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
     while (self->rxb.next_event_mask)
     {
-        peer = get_obj_from_event_flag(self, self->rxb.next_obj_list, &self->rxb.next_event_mask, RT_TRUE);
+        peer = get_obj_from_event_flag(self, self->rxb.next_obj_list, &self->rxb.next_event_mask, RT_FALSE);
+        if (peer == RT_NULL)
+            break;
+
+        bind_delete_pair(self, peer);
+    }
+
+    while (self->txb.next_event_mask)
+    {
+        peer = get_obj_from_event_flag(self, self->txb.next_obj_list, &self->txb.next_event_mask, RT_FALSE);
         if (peer == RT_NULL)
             break;
 
@@ -240,21 +253,14 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
     while (self->txb.pre_event_mask)
     {
-        peer = get_obj_from_event_flag(self, self->txb.pre_obj_list, &self->txb.pre_event_mask, RT_TRUE);
+        peer = get_obj_from_event_flag(self, self->txb.pre_obj_list, &self->txb.pre_event_mask, RT_FALSE);
         if (peer == RT_NULL)
             break;
 
         bind_delete_pair(peer, self);
     }
 
-    while (self->txb.next_event_mask)
-    {
-        peer = get_obj_from_event_flag(self, self->txb.next_obj_list, &self->txb.next_event_mask, RT_TRUE);
-        if (peer == RT_NULL)
-            break;
 
-        bind_delete_pair(self, peer);
-    }
 }
 
 static void bind_msh_parse_rt_flags(int argc, char *argv[], rt_bool_t *do_rx, rt_bool_t *do_tx)

@@ -54,16 +54,25 @@ static void protocol_logv1_send_sub_event(void *parameter)
     while (1)
     {
         while(custom_obj->txb.sub_event == RT_NULL || custom_obj->txb.next_event_mask == 0)
+        {
+            rt_kprintf("xxxxxxxxxxxxxxxxxxxxtx_sub_event wait bind: %s mask=0x%X sub=%p\r\n", rt_obj->name, custom_obj->txb.next_event_mask, custom_obj->txb.sub_event);
             rt_thread_mdelay(100);
-
+        }
+            
+        rt_kprintf("55555555555555555555tx_sub_event entering recv: %s mask=0x%X\r\n", rt_obj->name, custom_obj->txb.next_event_mask);
         rt_uint32_t recv_event_flag = 0;
         if(rt_event_recv(custom_obj->txb.sub_event, custom_obj->txb.next_event_mask, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
         {
             if (custom_obj->txb.sub_event == RT_NULL || custom_obj->txb.next_event_mask == 0 || recv_event_flag == 0)
+            {
+                rt_kprintf("66666666666666666666tx_sub_event recv fail continue: %s err=%d flag=0x%X\r\n", rt_obj->name, recv_event_flag, custom_obj->txb.next_event_mask);
                 continue;
+            }
             LOG_E("%s recv tx_sub_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->txb.next_event_mask);
             break;
         }
+
+        rt_kprintf("77777777777777777777tx_sub_event recv: %s: %d\r\n", rt_obj->name, recv_event_flag);
 
         if (rt_mb_send(custom_obj->txb.sub_mb, recv_event_flag) != RT_EOK)
         {
@@ -324,6 +333,9 @@ static void protocol_logv1_send(void *parameter)
             if(tx_custom_obj == RT_NULL)
                 break;
 
+            if(tx_custom_obj->txb.pub_succ_event == RT_NULL)
+                continue;
+
             if (custom_obj->txb.pub_event != RT_NULL
              && custom_obj->txb.pub_succ_event != RT_NULL && custom_obj->txb.pre_event_mask != 0)
             {
@@ -349,13 +361,10 @@ static void protocol_logv1_send(void *parameter)
                 custom_obj->txb.len = 0;
             }
 
-            if(tx_custom_obj->txb.pub_succ_event != RT_NULL)
-            {
-                LOG_I("%s ---> %s send txb.pub_succ_event: 0x%X\r\n", rt_obj->name, tx_custom_obj->parent.name, custom_obj->event_flag);
-                if( rt_event_send(tx_custom_obj->txb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
-                        LOG_E("%s send tx_pub_succ_event error: %d/%d\r\n", rt_obj->name, custom_obj->event_flag, tx_custom_obj->txb.pre_event_mask);
-            }
-                
+            
+            LOG_E("%s ---> %s send txb.pub_succ_event: 0x%X\r\n", rt_obj->name, tx_custom_obj->parent.name, custom_obj->event_flag);
+            if( rt_event_send(tx_custom_obj->txb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
+                    LOG_E("%s send tx_pub_succ_event error: %d/%d\r\n", rt_obj->name, custom_obj->event_flag, tx_custom_obj->txb.pre_event_mask);
         }
 
         rt_mutex_release(custom_obj->txb.bind_mutex); 
