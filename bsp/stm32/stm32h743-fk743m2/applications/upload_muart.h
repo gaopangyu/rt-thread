@@ -21,6 +21,7 @@ struct upload_muart_obj
     rt_uint8_t            rx_seq;       /* 最近已处理的数据包流水号 */
     rt_thread_t rx_tid;
     rt_thread_t rx_sub_event_tid;
+    volatile rt_bool_t thread1_idle_flag;
 };
 
 typedef struct upload_muart_obj *upload_muart_obj_t;

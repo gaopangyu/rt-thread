@@ -143,6 +143,7 @@ static struct rt_semaphore muart_rx_sem;
 static union muart_pkt muart_tx_pkt;
 static uint8_t muart_wire_tx[MUART_PKT_WIRE_MAX];
 static uint8_t muart_raw_decode[MUART_PKT_MAX];
+volatile rt_bool_t thread2_idle_flag = RT_FALSE;
 
 static rt_bool_t upload_muart_pkt_ppp_need(uint8_t byte)
 {
@@ -567,11 +568,16 @@ static upload_muart_obj_t upload_muart_pkt_find_by_id(rt_uint8_t uart_id)
 {
     struct upload_muart_obj *node;
 
+    rt_enter_critical();
     rt_list_for_each_entry(node, &muart_uart_list, list)
     {
         if (node->config.number == uart_id)
+        {
+            rt_exit_critical();
             return node;
+        }
     }
+    rt_exit_critical();
 
     return RT_NULL;
 }
@@ -778,11 +784,13 @@ static void upload_muart_parent_recv(void *parameter)
 
     while (1)
     {
+        thread2_idle_flag = RT_TRUE;
         if (rt_sem_take(&muart_rx_sem, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("%s take muart_rx_sem error", rt_obj->name);
             break;
         }
+        thread2_idle_flag = RT_FALSE;
 
         rt_size_t len;
         while (muart_recv_index < sizeof(muart_recv_buffer) &&
@@ -919,13 +927,15 @@ static void upload_muart_recv(void *parameter)
 
     while (1)
     {
+        obj->thread1_idle_flag = RT_TRUE;
         rt_uint32_t recv_event_flag = 0;
         if(rt_mb_recv(custom_obj->rxb.sub_mb, (rt_ubase_t *)&recv_event_flag, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("%s recv rxb.sub_mb error", rt_obj->name);
             break;
         }
-
+        obj->thread1_idle_flag = RT_FALSE;
+        
         rt_thread_yield();
 
         if (rt_mutex_take(custom_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
@@ -979,17 +989,29 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
 
     bind_delete_all_for_obj(custom_obj);
 
+    rt_enter_critical();
     struct upload_muart_obj *muart_obj, *next_muart_obj;
     rt_list_for_each_entry_safe(muart_obj, next_muart_obj, &muart_uart_list, list)
     {
         if(muart_obj == obj)
             rt_list_remove(&muart_obj->list);
     }
+    rt_exit_critical();
 
     if (obj->rx_sub_event_tid != RT_NULL)
     {
         rt_thread_delete(obj->rx_sub_event_tid);
         obj->rx_sub_event_tid = RT_NULL;
+    }
+
+    while(obj->rx_tid != RT_NULL && obj->thread1_idle_flag == RT_FALSE)
+    {
+        rt_thread_mdelay(20);
+    }
+
+    while(thread2_idle_flag == RT_FALSE)
+    {
+        rt_thread_mdelay(20);
     }
 
     if (obj->rx_tid != RT_NULL)
@@ -999,25 +1021,46 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
     }
     
     if(obj->ack_sem != RT_NULL)
+    {
         rt_sem_delete(obj->ack_sem);
+        obj->ack_sem = RT_NULL;
+    }
 
     if(custom_obj->rxb.sub_mb != RT_NULL)
+    {
         rt_mb_delete(custom_obj->rxb.sub_mb);
+        custom_obj->rxb.sub_mb = RT_NULL;
+    }
 
     if(custom_obj->txb.sub_mb != RT_NULL)
+    {
         rt_mb_delete(custom_obj->txb.sub_mb);
+        custom_obj->txb.sub_mb = RT_NULL;
+    }
 
     if(custom_obj->rxb.bind_mutex != RT_NULL)
+    {
         rt_mutex_delete(custom_obj->rxb.bind_mutex);
+        custom_obj->rxb.bind_mutex = RT_NULL;
+    }
 
     if(custom_obj->txb.bind_mutex != RT_NULL)
+    {
         rt_mutex_delete(custom_obj->txb.bind_mutex);
+        custom_obj->txb.bind_mutex = RT_NULL;
+    }
 
     if(custom_obj->rxb.pub_succ_event  != RT_NULL)
+    {
         rt_event_delete(custom_obj->rxb.pub_succ_event);
+        custom_obj->rxb.pub_succ_event = RT_NULL;
+    }
 
     if(custom_obj->txb.pub_succ_event != RT_NULL)
+    {
         rt_event_delete(custom_obj->txb.pub_succ_event);
+        custom_obj->txb.pub_succ_event = RT_NULL;
+    }
 
     rt_free(obj);
     obj = RT_NULL;
@@ -1128,7 +1171,10 @@ static upload_obj_t  upload_muart_create(upload_obj_t self, char *name, void *co
     rt_thread_startup(obj->rx_tid);
     rt_thread_startup(obj->rx_sub_event_tid);
 
+    rt_enter_critical();
     rt_list_insert_after(&muart_uart_list, &obj->list);
+    rt_exit_critical();
+
     rt_object_init(rt_obj, RT_Object_Class_Custom, name);
 
     LOG_I("create success: %s", name);
@@ -1172,6 +1218,8 @@ static int upload_muart_init(void)
         return -RT_ERROR;
 
     custom_obj->type = Custom_Object_Class_Upload;
+
+    obj->thread1_idle_flag = RT_FALSE;
 
     static rt_uint32_t event_mask = 0;
     custom_obj->event_mask = &event_mask;    
