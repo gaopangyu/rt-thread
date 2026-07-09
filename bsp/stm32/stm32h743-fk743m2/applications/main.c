@@ -30,12 +30,7 @@
 int main(void)
 {
     #ifdef ULOG_USING_FILTER
-        // #define LOG_LVL_ASSERT                 0
-        // #define LOG_LVL_ERROR                  3
-        // #define LOG_LVL_WARNING                4
-        // #define LOG_LVL_INFO                   6
-        // #define LOG_LVL_DBG                    7
-        ulog_global_filter_lvl_set(LOG_LVL_ASSERT);//LOG_LVL_DBG
+        ulog_global_filter_lvl_set(LOG_LVL_DBG);
     #endif
 
 
@@ -76,15 +71,6 @@ int main(void)
     rt_kprintf("GET_PIN(E, 13): %d\r\n", GET_PIN(E, 13));
     rt_kprintf("GET_PIN(B, 7): %d\r\n", GET_PIN(B, 7));
     rt_kprintf("GET_PIN(A, 10): %d\r\n", GET_PIN(A, 10));
-
-    rt_thread_mdelay(10000);
-
-    #include "protocol_logv1.h"
-    rt_kprintf("11111111111111111111delete protocol_logv1_2\r\n");
-    protocol_obj_t obj = (protocol_obj_t)rt_object_find("protocol_logv1_2", RT_Object_Class_Custom);
-    if (obj != RT_NULL)
-        obj->ops->delete(obj);
-
 
     while (1) {
 

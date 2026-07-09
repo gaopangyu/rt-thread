@@ -159,14 +159,12 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
     }
     else
     {
-        rt_kprintf("22222222222222222222take tx_bind_mutex: %s\r\n", ((rt_object_t)next_obj)->name);
         if(rt_mutex_take(next_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("Failed to take tx_bind_mutex");
             return -RT_ERROR;
         }
 
-        rt_kprintf("33333333333333333333take tx_bind_mutex: %s\r\n", ((rt_object_t)pre_obj)->name);
         if(rt_mutex_take(pre_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("Failed to take tx_bind_mutex");
@@ -174,8 +172,6 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
             return -RT_ERROR;
         }
 
-        rt_kprintf("44444444444444444444delete bind tx: %s <--- %s\r\n", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
-        
         if (pre_obj->event_flag != 0 && next_obj->event_flag != 0)
         {
             next_obj->txb.pre_event_mask &= ~pre_obj->event_flag;

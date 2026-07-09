@@ -698,11 +698,11 @@ static rt_ssize_t upload_muart_send(upload_obj_t self, const void *buffer, rt_si
     LOG_D("%s send to all bind: %d\r\n", rt_obj->name, size);
 
     rt_thread_yield();
-    LOG_E("%s send txb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);
+    LOG_I("%s send txb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);
     if (rt_event_send(custom_obj->txb.pub_event, custom_obj->event_flag) == RT_EOK)
     {
         rt_uint32_t recv_event_flag = 0;
-        LOG_E("%s recv txb.pub_succ_event: 0x%X\r\n", rt_obj->name, custom_obj->txb.pre_event_mask);
+        LOG_I("%s recv txb.pub_succ_event: 0x%X\r\n", rt_obj->name, custom_obj->txb.pre_event_mask);
         if (rt_event_recv(custom_obj->txb.pub_succ_event, custom_obj->txb.pre_event_mask, RT_EVENT_FLAG_AND | RT_EVENT_FLAG_CLEAR, RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
             LOG_E("%s recv tx_pub_succ_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->txb.pre_event_mask);
     }
