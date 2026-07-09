@@ -30,7 +30,7 @@
 int main(void)
 {
     #ifdef ULOG_USING_FILTER
-        ulog_global_filter_lvl_set(LOG_LVL_DBG);
+        ulog_global_filter_lvl_set(LOG_LVL_ERROR);
     #endif
 
 
@@ -136,3 +136,16 @@ int main(void)
 // create_interface_rs232 interface_rs232_3 -u uart1 -p 77 -r 10240 -d 5120
 // create_bind interface_rs232_3 protocol_logv1_1
 
+
+
+// delete_protocol_logv1 -n protocol_logv1_1
+// delete_protocol_logv1 -n protocol_logv1_2
+// delete_protocol_logv1 -n protocol_logv1_3
+
+// delete_upload_muart -n  upload_muart_1
+// delete_upload_muart -n  upload_muart_2
+// delete_upload_muart -n  upload_muart_3
+
+// delete_interface_rs232 -n interface_rs232_1
+// delete_interface_rs232 -n interface_rs232_2
+// delete_interface_rs232 -n interface_rs232_3
