@@ -1221,8 +1221,7 @@ static int upload_muart_init(void)
 
     obj->thread1_idle_flag = RT_FALSE;
 
-    static rt_uint32_t event_mask = 0;
-    custom_obj->event_mask = &event_mask;    
+    custom_obj->event_mask = upload_obj_init();    
     static custom_obj_t obj_list[CUSTOM_PER_LAYER_OBJ_MAX] = {0};
     custom_obj->obj_list = obj_list;
     static struct rt_event rx_pub_event;

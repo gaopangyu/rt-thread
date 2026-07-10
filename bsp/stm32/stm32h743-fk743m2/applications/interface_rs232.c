@@ -578,8 +578,7 @@ static int interface_rs232_init(void)
 
     custom_obj->type = Custom_Object_Class_Interface;
 
-    static rt_uint32_t event_mask = 0;
-    custom_obj->event_mask = &event_mask;
+    custom_obj->event_mask = interface_obj_init();
     static custom_obj_t obj_list[CUSTOM_PER_LAYER_OBJ_MAX] = {0};
     custom_obj->obj_list = obj_list;
     static struct rt_event rx_pub_event;

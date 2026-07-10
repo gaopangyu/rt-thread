@@ -22,4 +22,6 @@ struct protocol_obj_ops
     double_ret    (*set_param)  (protocol_obj_t self, void *config);
 };
 
+rt_uint32_t * protocol_obj_init(void);
+
 #endif /* __PROTOCOL_OBJ_H__ */

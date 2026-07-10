@@ -25,4 +25,6 @@ struct upload_obj_ops
     double_ret    (*set_param)  (upload_obj_t self, void *config);
 };
 
+rt_uint32_t * upload_obj_init(void);
+
 #endif /* __UPLOAD_OBJ_H__ */
