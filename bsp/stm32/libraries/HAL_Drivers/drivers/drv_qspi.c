@@ -6,6 +6,7 @@
  * Change Logs:
  * Date           Author       Notes
  * 2018-11-27     zylx         first version
+ * 2026-07-13     gaopangyu    STM32H7 QSPI uses MDMA (not DMA1/2)
  */
 
 #include "board.h"
@@ -25,27 +26,115 @@ struct stm32_qspi_bus
     QSPI_HandleTypeDef QSPI_Handler;
     char *bus_name;
 #ifdef BSP_QSPI_USING_DMA
+#if defined(SOC_SERIES_STM32H7)
+    MDMA_HandleTypeDef hmdma_quadspi;
+#else
     DMA_HandleTypeDef hdma_quadspi;
+#endif
 #endif
 };
 
 struct rt_spi_bus _qspi_bus1;
 struct stm32_qspi_bus _stm32_qspi_bus;
+#ifdef BSP_QSPI_USING_DMA
+static rt_uint8_t _qspi_dma_ready = 0;
+#endif
+
+#ifdef BSP_QSPI_USING_DMA
+#if defined(SOC_SERIES_STM32H7)
+/* 与 MDMA BufferTransferLength / QSPI FifoThreshold 一致 */
+#ifndef QSPI_MDMA_BTL
+#define QSPI_MDMA_BTL   4u
+#endif
+
+/*
+ * H7 MDMA 限制：
+ * 1) 不能访问 DTCM(0x20000000)
+ * 2) FIFO_TH 模式下长度需为 BufferTransferLength 的整数倍
+ * 否则 SFUD 探测等小包读会 HardFault / Transfer Error
+ */
+static rt_bool_t qspi_recv_can_use_mdma(const rt_uint8_t *buf, rt_int32_t length)
+{
+    rt_uint32_t addr = (rt_uint32_t)buf;
+
+    if (!_qspi_dma_ready || buf == RT_NULL || length <= 0)
+        return RT_FALSE;
+    if ((rt_uint32_t)length < QSPI_MDMA_BTL ||
+        ((rt_uint32_t)length % QSPI_MDMA_BTL) != 0)
+        return RT_FALSE;
+    /* DTCM：仅 CPU 可访问 */
+    if (addr >= 0x20000000u && addr < 0x20020000u)
+        return RT_FALSE;
+    /* 堆 / 常用 SRAM：AXI D1、D2、D3 */
+    if ((addr >= 0x24000000u && addr < 0x24080000u) ||
+        (addr >= 0x30000000u && addr < 0x30048000u) ||
+        (addr >= 0x38000000u && addr < 0x38010000u))
+        return RT_TRUE;
+
+    return RT_FALSE;
+}
+#endif /* SOC_SERIES_STM32H7 */
+
+static rt_err_t qspi_dma_wait_ready(QSPI_HandleTypeDef *hqspi)
+{
+    rt_tick_t start = rt_tick_get();
+
+    while (hqspi->State != HAL_QSPI_STATE_READY)
+    {
+        if (hqspi->ErrorCode != HAL_QSPI_ERROR_NONE)
+            return -RT_ERROR;
+        if ((rt_tick_get() - start) > rt_tick_from_millisecond(5000))
+        {
+            LOG_E("QSPI DMA wait timeout, state=%u err=0x%X",
+                  (unsigned)hqspi->State, (unsigned)hqspi->ErrorCode);
+            hqspi->State = HAL_QSPI_STATE_READY;
+            return -RT_ETIMEOUT;
+        }
+    }
+    return RT_EOK;
+}
+#endif
 
 static int stm32_qspi_init(struct rt_qspi_device *device, struct rt_qspi_configuration *qspi_cfg)
 {
     int result = RT_EOK;
     unsigned int i = 1;
+#ifdef BSP_QSPI_USING_DMA
+#if defined(SOC_SERIES_STM32H7)
+    MDMA_HandleTypeDef *hmdma_save;
+#else
+    DMA_HandleTypeDef *hdma_save;
+#endif
+#endif
 
     RT_ASSERT(device != RT_NULL);
     RT_ASSERT(qspi_cfg != RT_NULL);
 
     struct rt_spi_configuration *cfg = &qspi_cfg->parent;
     struct stm32_qspi_bus *qspi_bus = device->parent.bus->parent.user_data;
-    rt_memset(&qspi_bus->QSPI_Handler, 0, sizeof(qspi_bus->QSPI_Handler));
 
-    QSPI_HandleTypeDef QSPI_Handler_config = QSPI_BUS_CONFIG;
-    qspi_bus->QSPI_Handler = QSPI_Handler_config;
+    /*
+     * 禁止整结构 memset：会把已 link 的 hmdma 清成 NULL，
+     * 而 MDMA IRQ 仍使能 → 空指针 HardFault（MMFAR=0）。
+     */
+#ifdef BSP_QSPI_USING_DMA
+#if defined(SOC_SERIES_STM32H7)
+    hmdma_save = qspi_bus->QSPI_Handler.hmdma;
+#else
+    hdma_save = qspi_bus->QSPI_Handler.hdma;
+#endif
+#endif
+    {
+        QSPI_HandleTypeDef QSPI_Handler_config = QSPI_BUS_CONFIG;
+        qspi_bus->QSPI_Handler = QSPI_Handler_config;
+    }
+#ifdef BSP_QSPI_USING_DMA
+#if defined(SOC_SERIES_STM32H7)
+    qspi_bus->QSPI_Handler.hmdma = hmdma_save;
+#else
+    qspi_bus->QSPI_Handler.hdma = hdma_save;
+#endif
+#endif
 
 #if defined(SOC_SERIES_STM32MP1)
     while (cfg->max_hz < HAL_RCC_GetACLKFreq() / (i + 1))
@@ -60,7 +149,7 @@ static int stm32_qspi_init(struct rt_qspi_device *device, struct rt_qspi_configu
             return -RT_ERROR;
         }
     }
-    /* 80/(1+i) */
+    /* f_qspi = f_kernel / (1+i) */
     qspi_bus->QSPI_Handler.Init.ClockPrescaler = i;
 
     if (!(cfg->mode & RT_SPI_CPOL))
@@ -77,6 +166,11 @@ static int stm32_qspi_init(struct rt_qspi_device *device, struct rt_qspi_configu
     /* flash size */
     qspi_bus->QSPI_Handler.Init.FlashSize = POSITION_VAL(qspi_cfg->medium_size) - 1;
 
+#if defined(BSP_QSPI_USING_DMA) && defined(SOC_SERIES_STM32H7)
+    /* FifoThreshold 必须与 MDMA BufferTransferLength 一致 */
+    qspi_bus->QSPI_Handler.Init.FifoThreshold = QSPI_MDMA_BTL;
+#endif
+
     result = HAL_QSPI_Init(&qspi_bus->QSPI_Handler);
     if (result  == HAL_OK)
     {
@@ -85,35 +179,86 @@ static int stm32_qspi_init(struct rt_qspi_device *device, struct rt_qspi_configu
     else
     {
         LOG_E("qspi init failed (%d)!", result);
+        return result;
     }
 
 #ifdef BSP_QSPI_USING_DMA
-    /* QSPI interrupts must be enabled when using the HAL_QSPI_Receive_DMA */
-    HAL_NVIC_SetPriority(QSPI_IRQn, 0, 0);
+    /* MDMA/DMA 只初始化一次；反复 DeInit/EnableIRQ 易在 SFUD probe 时踩空指针 */
+    if (_qspi_dma_ready)
+    {
+#if defined(SOC_SERIES_STM32H7)
+        __HAL_LINKDMA(&qspi_bus->QSPI_Handler, hmdma, qspi_bus->hmdma_quadspi);
+#else
+        __HAL_LINKDMA(&qspi_bus->QSPI_Handler, hdma, qspi_bus->hdma_quadspi);
+#endif
+        return RT_EOK;
+    }
+
+#if defined(SOC_SERIES_STM32H7)
+    /* H7 QUADSPI 只能挂 MDMA（对齐 ST QSPI_ReadWrite_DMA 例程） */
+    __HAL_RCC_MDMA_CLK_ENABLE();
+
+    rt_memset(&qspi_bus->hmdma_quadspi, 0, sizeof(qspi_bus->hmdma_quadspi));
+    /* 初始按 TX 方向配置，Receive_DMA 运行时会改 CTCR */
+    qspi_bus->hmdma_quadspi.Instance                 = MDMA_Channel1;
+    qspi_bus->hmdma_quadspi.Init.Request             = MDMA_REQUEST_QUADSPI_FIFO_TH;
+    qspi_bus->hmdma_quadspi.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
+    qspi_bus->hmdma_quadspi.Init.Priority            = MDMA_PRIORITY_HIGH;
+    qspi_bus->hmdma_quadspi.Init.Endianness          = MDMA_LITTLE_ENDIANNESS_PRESERVE;
+    qspi_bus->hmdma_quadspi.Init.SourceInc           = MDMA_SRC_INC_BYTE;
+    qspi_bus->hmdma_quadspi.Init.DestinationInc      = MDMA_DEST_INC_DISABLE;
+    qspi_bus->hmdma_quadspi.Init.SourceDataSize      = MDMA_SRC_DATASIZE_BYTE;
+    qspi_bus->hmdma_quadspi.Init.DestDataSize        = MDMA_DEST_DATASIZE_BYTE;
+    qspi_bus->hmdma_quadspi.Init.DataAlignment       = MDMA_DATAALIGN_PACKENABLE;
+    qspi_bus->hmdma_quadspi.Init.BufferTransferLength = QSPI_MDMA_BTL;
+    qspi_bus->hmdma_quadspi.Init.SourceBurst         = MDMA_SOURCE_BURST_SINGLE;
+    qspi_bus->hmdma_quadspi.Init.DestBurst           = MDMA_DEST_BURST_SINGLE;
+    qspi_bus->hmdma_quadspi.Init.SourceBlockAddressOffset = 0;
+    qspi_bus->hmdma_quadspi.Init.DestBlockAddressOffset   = 0;
+
+    __HAL_LINKDMA(&qspi_bus->QSPI_Handler, hmdma, qspi_bus->hmdma_quadspi);
+    HAL_MDMA_DeInit(&qspi_bus->hmdma_quadspi);
+    if (HAL_MDMA_Init(&qspi_bus->hmdma_quadspi) != HAL_OK)
+    {
+        LOG_E("qspi mdma init failed!");
+        qspi_bus->QSPI_Handler.hmdma = RT_NULL;
+        return -RT_ERROR;
+    }
+
+    HAL_NVIC_SetPriority(QSPI_IRQn, 0x0F, 0);
     HAL_NVIC_EnableIRQ(QSPI_IRQn);
-    HAL_NVIC_SetPriority(QSPI_DMA_IRQ, 0, 0);
+    HAL_NVIC_SetPriority(MDMA_IRQn, 0x0F, 0);
+    HAL_NVIC_EnableIRQ(MDMA_IRQn);
+
+    _qspi_dma_ready = 1;
+    LOG_I("QSPI MDMA ready (Ch1, BTL=%u); small/DTCM -> poll",
+          (unsigned)QSPI_MDMA_BTL);
+#else
+    HAL_NVIC_SetPriority(QSPI_IRQn, 5, 0);
+    HAL_NVIC_EnableIRQ(QSPI_IRQn);
+    HAL_NVIC_SetPriority(QSPI_DMA_IRQ, 5, 0);
     HAL_NVIC_EnableIRQ(QSPI_DMA_IRQ);
 
-    /* init QSPI DMA */
-    if(QSPI_DMA_RCC  == RCC_AHB1ENR_DMA1EN)
-    {
+    if (QSPI_DMA_RCC == RCC_AHB1ENR_DMA1EN)
         __HAL_RCC_DMA1_CLK_ENABLE();
-    }
     else
-    {
         __HAL_RCC_DMA2_CLK_ENABLE();
+
+    {
+        DMA_HandleTypeDef hdma_quadspi_config = QSPI_DMA_CONFIG;
+        qspi_bus->hdma_quadspi = hdma_quadspi_config;
     }
-
-    HAL_DMA_DeInit(qspi_bus->QSPI_Handler.hdma);
-    DMA_HandleTypeDef hdma_quadspi_config = QSPI_DMA_CONFIG;
-    qspi_bus->hdma_quadspi = hdma_quadspi_config;
-
+    __HAL_LINKDMA(&qspi_bus->QSPI_Handler, hdma, qspi_bus->hdma_quadspi);
+    if (qspi_bus->QSPI_Handler.hdma != RT_NULL)
+        HAL_DMA_DeInit(qspi_bus->QSPI_Handler.hdma);
     if (HAL_DMA_Init(&qspi_bus->hdma_quadspi) != HAL_OK)
     {
-        LOG_E("qspi dma init failed (%d)!", result);
+        LOG_E("qspi dma init failed!");
+        return -RT_ERROR;
     }
-
-    __HAL_LINKDMA(&qspi_bus->QSPI_Handler, hdma, qspi_bus->hdma_quadspi);
+    _qspi_dma_ready = 1;
+    LOG_I("QSPI DMA enabled");
+#endif /* SOC_SERIES_STM32H7 */
 #endif /* BSP_QSPI_USING_DMA */
 
     return result;
@@ -243,15 +388,42 @@ static rt_ssize_t qspixfer(struct rt_spi_device *device, struct rt_spi_message *
     {
         qspi_send_cmd(qspi_bus, qspi_message);
 #ifdef BSP_QSPI_USING_DMA
-        if (HAL_QSPI_Receive_DMA(&qspi_bus->QSPI_Handler, rcvb) == HAL_OK)
-#else
-        if (HAL_QSPI_Receive(&qspi_bus->QSPI_Handler, rcvb, 5000) == HAL_OK)
-#endif
+#if defined(SOC_SERIES_STM32H7)
+        if (qspi_recv_can_use_mdma(rcvb, length))
+        {
+            if (HAL_QSPI_Receive_DMA(&qspi_bus->QSPI_Handler, rcvb) == HAL_OK &&
+                qspi_dma_wait_ready(&qspi_bus->QSPI_Handler) == RT_EOK)
+            {
+                result = length;
+            }
+            else
+            {
+                LOG_E("QSPI MDMA recv failed(%d)!", qspi_bus->QSPI_Handler.ErrorCode);
+                qspi_bus->QSPI_Handler.State = HAL_QSPI_STATE_READY;
+                result = -RT_ERROR;
+                goto __exit;
+            }
+        }
+        else if (HAL_QSPI_Receive(&qspi_bus->QSPI_Handler, rcvb, 5000) == HAL_OK)
         {
             result = length;
-#ifdef BSP_QSPI_USING_DMA
-            while (qspi_bus->QSPI_Handler.RxXferCount != 0);
-#endif
+        }
+        else
+        {
+            LOG_E("QSPI poll recv failed(%d)!", qspi_bus->QSPI_Handler.ErrorCode);
+            qspi_bus->QSPI_Handler.State = HAL_QSPI_STATE_READY;
+            result = -RT_ERROR;
+            goto __exit;
+        }
+#else
+        if (HAL_QSPI_Receive_DMA(&qspi_bus->QSPI_Handler, rcvb) == HAL_OK)
+        {
+            if (qspi_dma_wait_ready(&qspi_bus->QSPI_Handler) != RT_EOK)
+            {
+                result = -RT_ERROR;
+                goto __exit;
+            }
+            result = length;
         }
         else
         {
@@ -260,6 +432,20 @@ static rt_ssize_t qspixfer(struct rt_spi_device *device, struct rt_spi_message *
             result = -RT_ERROR;
             goto __exit;
         }
+#endif /* SOC_SERIES_STM32H7 */
+#else
+        if (HAL_QSPI_Receive(&qspi_bus->QSPI_Handler, rcvb, 5000) == HAL_OK)
+        {
+            result = length;
+        }
+        else
+        {
+            LOG_E("QSPI recv data failed(%d)!", qspi_bus->QSPI_Handler.ErrorCode);
+            qspi_bus->QSPI_Handler.State = HAL_QSPI_STATE_READY;
+            result = -RT_ERROR;
+            goto __exit;
+        }
+#endif /* BSP_QSPI_USING_DMA */
     }
 
 __exit:
@@ -322,7 +508,7 @@ rt_err_t rt_hw_qspi_device_attach(const char *bus_name, const char *device_name,
         result = -RT_ENOMEM;
         goto __exit;
     }
-    rt_memset(qspi_device, 0, sizeof(struct rt_qspi_device));//fix by gaopangyu
+    rt_memset(qspi_device, 0, sizeof(struct rt_qspi_device));
     qspi_device->enter_qspi_mode = enter_qspi_mode;
     qspi_device->exit_qspi_mode = exit_qspi_mode;
     qspi_device->config.qspi_dl_width = data_line_width;
@@ -357,6 +543,15 @@ void QSPI_IRQHandler(void)
     rt_interrupt_leave();
 }
 
+#if defined(SOC_SERIES_STM32H7)
+void MDMA_IRQHandler(void)
+{
+    rt_interrupt_enter();
+    if (_stm32_qspi_bus.hmdma_quadspi.Instance != RT_NULL)
+        HAL_MDMA_IRQHandler(&_stm32_qspi_bus.hmdma_quadspi);
+    rt_interrupt_leave();
+}
+#else
 void QSPI_DMA_IRQHandler(void)
 {
     /* enter interrupt */
@@ -367,6 +562,7 @@ void QSPI_DMA_IRQHandler(void)
     /* leave interrupt */
     rt_interrupt_leave();
 }
+#endif /* SOC_SERIES_STM32H7 */
 #endif /* BSP_QSPI_USING_DMA */
 
 static int rt_hw_qspi_bus_init(void)

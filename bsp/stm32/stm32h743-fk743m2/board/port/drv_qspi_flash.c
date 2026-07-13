@@ -77,6 +77,11 @@ static void qspi_flash_dump_hw(void)
     struct rt_qspi_device *qspi_dev;
 
     LOG_I("---- QSPI HW ----");
+#ifdef BSP_QSPI_USING_DMA
+    LOG_I("recv path: MDMA/DMA (BSP_QSPI_USING_DMA)");
+#else
+    LOG_I("recv path: polling HAL_QSPI_Receive");
+#endif
     LOG_I("HCLK=%u Hz, RT_SFUD_SPI_MAX_HZ=%u", (unsigned)hclk, (unsigned)RT_SFUD_SPI_MAX_HZ);
     LOG_I("QUADSPI->CR=0x%08X PRESCALER=%u => QSPI_CLK~%u Hz",
           (unsigned)QUADSPI->CR, (unsigned)presc, (unsigned)qspi_clk);

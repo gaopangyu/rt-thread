@@ -22,10 +22,18 @@ menu "On-chip Peripheral Drivers"
     config BSP_USING_QSPI
         bool "Enable QSPI"
         default n
-    
+
+    config BSP_QSPI_USING_DMA
+        bool "Enable QSPI DMA/MDMA for flash read"
+        depends on BSP_USING_QSPI
+        default y
+        help
+            STM32H7 uses MDMA (not DMA1/2) for QUADSPI receive.
+
     config BSP_USING_QSPI_FLASH
         bool "Enable QSPI_FLASH"
         default n
+        depends on BSP_USING_QSPI
 
     menuconfig BSP_USING_UART
         bool "Enable UART"
