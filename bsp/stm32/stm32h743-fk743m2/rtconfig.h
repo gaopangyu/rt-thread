@@ -115,6 +115,7 @@
 #define RT_USING_MEMPOOL
 #define RT_USING_SMALL_MEM
 #define RT_USING_SMALL_MEM_AS_HEAP
+#define RT_USING_MEMHEAP
 #define RT_USING_HEAP
 /* end of Memory Management */
 #define RT_USING_DEVICE
@@ -164,6 +165,7 @@
 #define DFS_FILESYSTEMS_MAX 4
 #define DFS_FILESYSTEM_TYPES_MAX 4
 #define RT_USING_DFS_DEVFS
+#define RT_USING_DFS_RAMFS
 /* end of DFS: device virtual file system */
 #define RT_USING_FAL
 #define FAL_USING_DEBUG

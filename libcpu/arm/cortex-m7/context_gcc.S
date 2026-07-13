@@ -206,9 +206,13 @@ rt_hw_context_switch_to:
     LDR r1, =NVIC_PENDSVSET
     STR r1, [r0]
 
-    /* restore MSP */
-    LDR     r0, =SCB_VTOR
-    LDR     r0, [r0]
+    /*
+     * Restore MSP from the vector table in Flash.
+     * Never do MSP = **(SCB->VTOR) when VTOR may still be 0: with ITCM at
+     * 0x00000000 that loads the first ITCM instruction word as SP → HardFault
+     * (MMFAR=0 / FORCED). Always use Flash alias of the vector table.
+     */
+    LDR     r0, =0x08000000
     LDR     r0, [r0]
     NOP
     MSR     msp, r0

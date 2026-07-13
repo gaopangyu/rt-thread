@@ -24,8 +24,19 @@ extern "C" {
 #define STM32_FLASH_SIZE             (2048 * 1024)
 #define STM32_FLASH_END_ADDRESS      ((uint32_t)(STM32_FLASH_START_ADRESS + STM32_FLASH_SIZE))
 
+/* 堆放在 D1 AXI SRAM */
 #define STM32_SRAM_SIZE           (512)
 #define STM32_SRAM_END            (0x24000000 + STM32_SRAM_SIZE * 1024)
+
+/* D2：ramfs = SRAM1+2 (256KB)，AUX = SRAM3 (32KB) */
+#define STM32_RAMFS_POOL_ADDR     ((uint32_t)0x30000000)
+#define STM32_RAMFS_POOL_SIZE     (256U * 1024U)
+#define STM32_RAM_D2_AUX_ADDR     ((uint32_t)0x30040000)
+#define STM32_RAM_D2_AUX_SIZE     (32U * 1024U)
+
+/* D3：USB/DMA noncacheable */
+#define STM32_RAM_D3_ADDR         ((uint32_t)0x38000000)
+#define STM32_RAM_D3_SIZE         (64U * 1024U)
 
 #if defined(__ARMCC_VERSION)
 extern int Image$$RW_IRAM1$$ZI$$Limit;
@@ -41,6 +52,7 @@ extern int __bss_end;
 #define HEAP_END        STM32_SRAM_END
 
 void SystemClock_Config(void);
+void board_memory_early_init(void);
 
 #ifdef __cplusplus
 }
