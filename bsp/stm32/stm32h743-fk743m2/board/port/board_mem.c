@@ -83,10 +83,29 @@ void board_memory_early_init(void)
 #include <dfs_fs.h>
 #include <dfs_ramfs.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #ifndef RAMFS_MOUNT_POINT
 #define RAMFS_MOUNT_POINT   "/ramfs"
 #endif
+
+/* 确保 path 为已存在的目录；不存在则创建 */
+static int ensure_dir(const char *path)
+{
+    struct stat st;
+
+    if (stat(path, &st) == 0)
+    {
+        if (S_ISDIR(st.st_mode))
+            return 0;
+        LOG_E("%s exists but is not a directory", path);
+        return -1;
+    }
+    if (mkdir(path, 0777) == 0)
+        return 0;
+    LOG_E("mkdir %s failed", path);
+    return -1;
+}
 
 static int board_ramfs_init(void)
 {
@@ -121,16 +140,19 @@ static int board_ramfs_init(void)
         return -RT_ERROR;
     }
 
+    /* 挂载点不存在则先在根文件系统上创建 */
+    if (ensure_dir(RAMFS_MOUNT_POINT) != 0)
+        return -RT_ERROR;
+
     if (dfs_mount(RT_NULL, RAMFS_MOUNT_POINT, "ram", 0, (const void *)ramfs) != 0)
     {
         LOG_E("mount %s failed", RAMFS_MOUNT_POINT);
         return -RT_ERROR;
     }
 
-    mkdir(RAMFS_MOUNT_POINT "/log", 0777);
     LOG_I("ramfs mounted on %s, pool=%p size=%u", RAMFS_MOUNT_POINT, pool, (unsigned)size);
 
     return RT_EOK;
 }
-INIT_ENV_EXPORT(board_ramfs_init);
+INIT_APP_EXPORT(board_ramfs_init);
 #endif /* RT_USING_DFS_RAMFS */

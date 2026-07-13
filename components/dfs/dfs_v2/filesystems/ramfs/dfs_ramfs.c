@@ -307,8 +307,13 @@ int dfs_ramfs_stat(struct dfs_filesystem *fs,
         return -ENOENT;
 
     st->st_dev = 0;
-    st->st_mode = S_IFREG | S_IRUSR | S_IRGRP | S_IROTH |
-                  S_IWUSR | S_IWGRP | S_IWOTH;
+    /* root is a directory; other entries are flat files */
+    if (dirent == &(ramfs->root))
+        st->st_mode = S_IFDIR | S_IRUSR | S_IRGRP | S_IROTH |
+                      S_IWUSR | S_IWGRP | S_IWOTH | S_IXUSR | S_IXGRP | S_IXOTH;
+    else
+        st->st_mode = S_IFREG | S_IRUSR | S_IRGRP | S_IROTH |
+                      S_IWUSR | S_IWGRP | S_IWOTH;
 
     st->st_size = dirent->size;
     st->st_mtime = 0;
@@ -374,6 +379,10 @@ int dfs_ramfs_unlink(struct dfs_filesystem *fs, const char *path)
     dirent = dfs_ramfs_lookup(ramfs, path, &size);
     if (dirent == NULL)
         return -ENOENT;
+
+    /* root is embedded in dfs_ramfs, not allocated from memheap */
+    if (dirent == &(ramfs->root))
+        return -EPERM;
 
     rt_list_remove(&(dirent->list));
     if (dirent->data != NULL)
