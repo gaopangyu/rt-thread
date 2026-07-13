@@ -9,61 +9,13 @@
  */
 
 #include "board.h"
-
 #define DBG_TAG "board"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
 /**
- * 覆盖 drv_common 弱符号：在开 Cache / HAL 之前先完成 VTOR + ITCM/DTCM。
- * （与 artpi 一样把板级逻辑放 board.c，不改 CubeMX system 文件）
- */
-void rt_hw_board_init(void)
-{
-    board_memory_early_init();
-
-#ifdef BSP_SCB_ENABLE_I_CACHE
-    SCB_EnableICache();
-#endif
-
-#ifdef BSP_SCB_ENABLE_D_CACHE
-    SCB_EnableDCache();
-#endif
-
-    HAL_Init();
-    SystemClock_Config();
-
-#if defined(RT_USING_HEAP)
-    rt_system_heap_init((void *)HEAP_BEGIN, (void *)HEAP_END);
-#endif
-
-#ifdef RT_USING_PIN
-    rt_hw_pin_init();
-#endif
-
-#ifdef RT_USING_SERIAL
-    rt_hw_usart_init();
-#endif
-
-#if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
-    rt_console_set_device(RT_CONSOLE_DEVICE_NAME);
-#endif
-
-#if defined(RT_USING_CONSOLE) && defined(RT_USING_NANO)
-    extern void rt_hw_console_init(void);
-    rt_hw_console_init();
-#endif
-
-#ifdef RT_USING_COMPONENTS_INIT
-    rt_components_board_init();
-#endif
-}
-
-/**
   * @brief System Clock Configuration
   * @retval None
-  *
-  * 由 rt_hw_board_init() 调用（与 stm32h750-artpi 相同）。
   */
 void SystemClock_Config(void)
 {

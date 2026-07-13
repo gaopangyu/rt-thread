@@ -27,7 +27,7 @@ extern rt_uint32_t _sramfs_pool, _eramfs_pool;
 
 /**
  * 使能 D2/D3 SRAM 时钟，并从 Flash 拷贝 ITCM/DTCM 映像。
- * 由 board.c 的 SystemClock_Config() 开头调用（与 artpi 一样把板级初始化放 board.c）。
+ * 必须在跳入 ITCM 代码之前调用（当前由 startup Reset_Handler 调用）。
  */
 void board_memory_early_init(void)
 {
