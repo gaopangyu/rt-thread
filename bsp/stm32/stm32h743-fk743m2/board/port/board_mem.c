@@ -83,10 +83,17 @@ void board_memory_early_init(void)
 #include <dfs_fs.h>
 #include <dfs_ramfs.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <stdlib.h>
+#include <finsh.h>
 
 #ifndef RAMFS_MOUNT_POINT
 #define RAMFS_MOUNT_POINT   "/ramfs"
+#endif
+
+#ifndef RAMFS_BENCH_PATH
+#define RAMFS_BENCH_PATH    RAMFS_MOUNT_POINT "/bench.bin"
 #endif
 
 /* 确保 path 为已存在的目录；不存在则创建 */
@@ -106,6 +113,123 @@ static int ensure_dir(const char *path)
     LOG_E("mkdir %s failed", path);
     return -1;
 }
+
+/**
+ * ramfs 读写测速（走 DFS 文件接口）。
+ * 用法: ramfs_bench [总字节,默认65536] [块大小,默认4096]
+ * 注意: ramfs 总池约 256KB，总字节勿过大。
+ */
+static int ramfs_bench(int argc, char **argv)
+{
+    rt_size_t total = 64U * 1024U;
+    rt_size_t chunk = 4096;
+    rt_uint8_t *buf;
+    int fd;
+    rt_size_t off;
+    rt_tick_t t0, t1, dt;
+    rt_ssize_t n;
+    rt_uint32_t ms, bps;
+
+    if (argc >= 2)
+        total = (rt_size_t)strtoul(argv[1], RT_NULL, 0);
+    if (argc >= 3)
+        chunk = (rt_size_t)strtoul(argv[2], RT_NULL, 0);
+    if (chunk == 0 || total == 0)
+    {
+        rt_kprintf("usage: ramfs_bench [total_bytes] [chunk_bytes]\n");
+        return 0;
+    }
+
+    buf = (rt_uint8_t *)rt_malloc(chunk);
+    if (buf == RT_NULL)
+    {
+        rt_kprintf("malloc %u failed\n", (unsigned)chunk);
+        return 0;
+    }
+    for (off = 0; off < chunk; off++)
+        buf[off] = (rt_uint8_t)(off & 0xFF);
+
+    unlink(RAMFS_BENCH_PATH);
+
+    /* ---- write ---- */
+    fd = open(RAMFS_BENCH_PATH, O_WRONLY | O_CREAT | O_TRUNC, 0);
+    if (fd < 0)
+    {
+        rt_kprintf("open %s for write failed\n", RAMFS_BENCH_PATH);
+        rt_free(buf);
+        return 0;
+    }
+
+    rt_kprintf("ramfs write: total=%u chunk=%u -> %s\n",
+               (unsigned)total, (unsigned)chunk, RAMFS_BENCH_PATH);
+    t0 = rt_tick_get();
+    for (off = 0; off < total; off += chunk)
+    {
+        rt_size_t len = chunk;
+        if (off + len > total)
+            len = total - off;
+        n = write(fd, buf, len);
+        if (n != (rt_ssize_t)len)
+        {
+            rt_kprintf("write fail @%u ret=%d (pool full?)\n", (unsigned)off, (int)n);
+            close(fd);
+            rt_free(buf);
+            unlink(RAMFS_BENCH_PATH);
+            return 0;
+        }
+    }
+    t1 = rt_tick_get();
+    close(fd);
+    dt = t1 - t0;
+    ms = (rt_uint32_t)(dt * 1000U / RT_TICK_PER_SECOND);
+    if (ms == 0)
+        ms = 1;
+    bps = (rt_uint32_t)((total * 1000ULL) / ms);
+    rt_kprintf("write OK: %u bytes in %u ms => %u B/s (%u KB/s)\n",
+               (unsigned)total, (unsigned)ms, (unsigned)bps, (unsigned)(bps / 1024U));
+
+    /* ---- read ---- */
+    fd = open(RAMFS_BENCH_PATH, O_RDONLY, 0);
+    if (fd < 0)
+    {
+        rt_kprintf("open %s for read failed\n", RAMFS_BENCH_PATH);
+        rt_free(buf);
+        unlink(RAMFS_BENCH_PATH);
+        return 0;
+    }
+
+    rt_kprintf("ramfs read: total=%u chunk=%u\n", (unsigned)total, (unsigned)chunk);
+    t0 = rt_tick_get();
+    for (off = 0; off < total; off += chunk)
+    {
+        rt_size_t len = chunk;
+        if (off + len > total)
+            len = total - off;
+        n = read(fd, buf, len);
+        if (n != (rt_ssize_t)len)
+        {
+            rt_kprintf("read fail @%u ret=%d\n", (unsigned)off, (int)n);
+            close(fd);
+            rt_free(buf);
+            unlink(RAMFS_BENCH_PATH);
+            return 0;
+        }
+    }
+    t1 = rt_tick_get();
+    close(fd);
+    dt = t1 - t0;
+    ms = (rt_uint32_t)(dt * 1000U / RT_TICK_PER_SECOND);
+    if (ms == 0)
+        ms = 1;
+    bps = (rt_uint32_t)((total * 1000ULL) / ms);
+    rt_kprintf("read OK: %u bytes in %u ms => %u B/s (%u KB/s)\n",
+               (unsigned)total, (unsigned)ms, (unsigned)bps, (unsigned)(bps / 1024U));
+
+    unlink(RAMFS_BENCH_PATH);
+    rt_free(buf);
+    return 0;
+}
+MSH_CMD_EXPORT(ramfs_bench, ramfs DFS read/write speed test);
 
 static int board_ramfs_init(void)
 {
