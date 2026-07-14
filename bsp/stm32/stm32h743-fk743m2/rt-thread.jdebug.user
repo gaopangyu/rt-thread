@@ -1,7 +1,11 @@
 
 
+Breakpoint=F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/board/port/board_mem.c:133:8, State=BP_STATE_DISABLED
 Breakpoint=F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/upload_muart.c:886:13, State=BP_STATE_DISABLED
 Breakpoint=F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/interface_rs232.c:706, State=BP_STATE_DISABLED
+OpenDocument="dfs_fs.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/dfs/dfs_v1/src/dfs_fs.c", Line=243
+OpenDocument="board_mem.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/board/port/board_mem.c", Line=80
+OpenDocument="startup_stm32h743xx.s", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_cmsis_driver-latest/Source/Templates/gcc/startup_stm32h743xx.s", Line=46
 OpenDocument="drv_mpu.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/board/port/drv_mpu.c", Line=3
 OpenDocument="context_gcc.S", FilePath="F:/job_hyjx/udtd_v2/rt-thread/libcpu/arm/cortex-m7/context_gcc.S", Line=206
 OpenDocument="main.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/main.c", Line=16
@@ -18,22 +22,22 @@ OpenDocument="thread.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/src/thread.c", 
 OpenDocument="shell.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/finsh/shell.c", Line=524
 OpenDocument="atomic_arm.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/libcpu/arm/common/atomic_arm.c", Line=88
 OpenDocument="upload_muart.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/upload_muart.c", Line=724
-OpenDocument="startup_stm32h743xx.s", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_cmsis_driver-latest/Source/Templates/gcc/startup_stm32h743xx.s", Line=46
+OpenDocument="components.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/src/components.c", Line=175
 OpenDocument="msh.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/finsh/msh.c", Line=586
 OpenDocument="interface_rs232.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/interface_rs232.c", Line=661
 OpenDocument="ipc.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/src/ipc.c", Line=1570
 OpenDocument="custom_obj.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/custom_obj.c", Line=28
 OpenToolbar="Debug", Floating=0, x=0, y=0
-OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=1, w=1005, h=350, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Registers 1", DockArea=RIGHT, x=0, y=4, w=1005, h=244, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, FilteredItems=[], RefreshRate=1
-OpenWindow="Source Files", DockArea=LEFT, x=0, y=3, w=804, h=363, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=0, w=1005, h=265, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Break & Tracepoints", DockArea=LEFT, x=0, y=1, w=804, h=339, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VectorCatchIndexMask=254
+OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=1, w=1005, h=345, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Registers 1", DockArea=RIGHT, x=0, y=4, w=1005, h=247, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, FilteredItems=[], RefreshRate=1
+OpenWindow="Source Files", DockArea=LEFT, x=0, y=3, w=804, h=362, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=0, w=1005, h=266, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Break & Tracepoints", DockArea=LEFT, x=0, y=1, w=804, h=340, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VectorCatchIndexMask=254
 OpenWindow="Memory 1", DockArea=BOTTOM, x=1, y=0, w=1121, h=371, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, EditorAddress=0x24011A70
-OpenWindow="Global Data", DockArea=RIGHT, x=0, y=2, w=1005, h=234, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Local Data", DockArea=RIGHT, x=0, y=3, w=1005, h=308, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=804, h=383, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Functions", DockArea=LEFT, x=0, y=2, w=804, h=317, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Global Data", DockArea=RIGHT, x=0, y=2, w=1005, h=237, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Local Data", DockArea=RIGHT, x=0, y=3, w=1005, h=306, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=804, h=381, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Functions", DockArea=LEFT, x=0, y=2, w=804, h=319, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=2078, h=371, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
 TableHeader="Global Data", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[350;355;138;100;195;498]

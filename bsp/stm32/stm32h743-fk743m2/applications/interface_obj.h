@@ -24,6 +24,6 @@ struct interface_obj_ops
     double_ret    (*set_param)  (interface_obj_t self, void *config);
 };
 
-rt_uint32_t * interface_obj_init(void);
+void interface_obj_init(custom_obj_t custom_obj);
 
 #endif /* __INTERFACE_OBJ_H__ */

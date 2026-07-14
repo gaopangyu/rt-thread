@@ -572,7 +572,7 @@
 /* Applications Config */
 
 #define RT_USING_CUSTOM
-#define LIB_PATH "/filesystem/lib/"
+#define LIB_PATH "/diskfs/lib/"
 /* end of Applications Config */
 
 #endif

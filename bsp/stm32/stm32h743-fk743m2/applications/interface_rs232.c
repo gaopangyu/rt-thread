@@ -80,7 +80,7 @@ static double_ret interface_rs232_set_param(interface_obj_t self, void *config)
     }
 
     rt_strncpy(obj_cfg->uart_name, cfg->uart_name, RT_NAME_MAX - 1);
-    (obj_cfg->uart_name)[rt_strlen(obj_cfg->uart_name)] = 0;
+    obj_cfg->uart_name[RT_NAME_MAX - 1] = 0;
     result.succ++;
 
     struct serial_configure serial_cfg;
@@ -578,16 +578,7 @@ static int interface_rs232_init(void)
 
     custom_obj->type = Custom_Object_Class_Interface;
 
-    custom_obj->event_mask = interface_obj_init();
-    static custom_obj_t obj_list[CUSTOM_PER_LAYER_OBJ_MAX] = {0};
-    custom_obj->obj_list = obj_list;
-    static struct rt_event rx_pub_event;
-    rt_event_init(&rx_pub_event, "interface_rx_pub_event", RT_IPC_FLAG_PRIO);
-    custom_obj->rxb.pub_event = &rx_pub_event;
-
-    static struct rt_event tx_pub_event;
-    rt_event_init(&tx_pub_event, "interface_tx_pub_event", RT_IPC_FLAG_PRIO);
-    custom_obj->txb.pub_event = &tx_pub_event;
+    interface_obj_init(custom_obj);
 
     custom_obj->ops = &custom_obj_ops;
 

@@ -1,1 +1,1 @@
-0x45503130,filesystem,norflash0,4194304,6291456,0
+echo 0x45503130,diskfs,norflash0,2097152,6291456,0 /init/part_table.txt

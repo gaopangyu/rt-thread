@@ -9,6 +9,7 @@
 #include "protocol_obj.h"
 
 #define UPLOAD_MUART_PARENT_NAME "upload_muart_parent"
+#define UPLOAD_STORE_PARENT_NAME "upload_store_parent"
 
 struct upload_obj
 {
@@ -25,6 +26,6 @@ struct upload_obj_ops
     double_ret    (*set_param)  (upload_obj_t self, void *config);
 };
 
-rt_uint32_t * upload_obj_init(void);
+void upload_obj_init(custom_obj_t custom_obj);
 
 #endif /* __UPLOAD_OBJ_H__ */

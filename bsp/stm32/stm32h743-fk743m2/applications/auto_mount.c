@@ -16,6 +16,14 @@
 #define PART_FS_RESERVED_LITTLEFS 0u
 #define PART_FS_RESERVED_FAT32    1u
 
+int ensure_dir(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) == 0)
+        return S_ISDIR(st.st_mode) ? 0 : -1;
+    return mkdir(path, 0x777);
+}
+
 static void part_str_trim(char *s)
 {
     char *p = s;
@@ -75,24 +83,6 @@ static int read_one_line(int fd, char *line, size_t cap)
     }
 }
 
-/* 确保 path 为已存在的目录；不存在则创建 */
-static int ensure_mount_point_dir(const char *path)
-{
-    struct stat st;
-
-    if (stat(path, &st) == 0)
-    {
-        if (S_ISDIR(st.st_mode))
-            return 0;
-        LOG_W("%s exists but is not a directory", path);
-        return -1;
-    }
-    if (mkdir(path, 0777) == 0)
-        return 0;
-    LOG_W("mkdir %s failed", path);
-    return -1;
-}
-
 /**
  * 从 /init/init.txt 读取分区描述，写入 part_table。
  * 每行：magic_word, name, flash_name, offset, len, reserved（逗号分隔，# 开头为注释）。
@@ -113,7 +103,7 @@ static rt_size_t load_partitions_from_init_txt(struct fal_partition *part_table,
     if (fd < 0)
     {
         LOG_W("open %s failed, try mkdir %s", INIT_PART_LIST_PATH, INIT_DIR_PATH);
-        ensure_mount_point_dir(INIT_DIR_PATH);
+        ensure_dir(INIT_DIR_PATH);
         return 0;
     }
 
@@ -221,7 +211,7 @@ static void mount_extra_partitions(struct fal_partition *part_table, rt_size_t p
 
         rt_snprintf(mnt_path, sizeof(mnt_path), "/%s", part->name);
 
-        if (ensure_mount_point_dir(mnt_path) != 0)
+        if (ensure_dir(mnt_path) != 0)
             continue;
 
         if (fal_mtd_nor_device_create(part->name) == RT_NULL)

@@ -126,7 +126,7 @@ static double_ret protocol_logv1_set_param(protocol_obj_t self, void *config){
         obj->lib_handle = handle;
 
         rt_strncpy(obj->config.lib_name, cfg->lib_name, RT_NAME_MAX - 1);
-        (obj->config.lib_name)[rt_strlen(obj->config.lib_name)] = 0;
+        obj->config.lib_name[RT_NAME_MAX - 1] = 0;
         result.succ++;
     }
 
@@ -602,16 +602,7 @@ static int protocol_logv1_init(void)
 
     custom_obj->type = Custom_Object_Class_Protocol;
 
-    custom_obj->event_mask = protocol_obj_init();
-    static custom_obj_t obj_list[CUSTOM_PER_LAYER_OBJ_MAX] = {0};
-    custom_obj->obj_list = obj_list;
-    static struct rt_event rx_pub_event;
-    rt_event_init(&rx_pub_event, "protocol_rx_pub_event", RT_IPC_FLAG_PRIO);
-    custom_obj->rxb.pub_event = &rx_pub_event;
-
-    static struct rt_event tx_pub_event;
-    rt_event_init(&tx_pub_event, "protocol_tx_pub_event", RT_IPC_FLAG_PRIO);
-    custom_obj->txb.pub_event = &tx_pub_event;
+    protocol_obj_init(custom_obj);
 
     custom_obj->ops = &custom_obj_ops;
     protocol_obj->ops = &protocol_logv1_ops;

@@ -9,7 +9,7 @@ menu "Applications Config"
 
     config LIB_PATH
         string "Directory for prebuilt library (.so) files"
-        default "filesystem/lib/"
+        default "diskfs/lib/"
         help
             Path to the directory containing prebuilt static libraries.
 
