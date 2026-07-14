@@ -11,8 +11,10 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define RAM_STORE_DIR_PATH      "/ramfs/log/"  //超时写+半满写 0x3000 0000 + 0x0004 0000(256kB)
-#define DISK_STORE_DIR_PATH     "/diskfs/log/"
+#define RAM_STORE_BASE          "/ramfs"       /* ramfs 为扁平 FS，不支持 mkdir 子目录 */
+#define DISK_STORE_DIR          "/diskfs/log"  /* littlefs 等支持目录 */
+#define DISK_STORE_DIR_PATH     DISK_STORE_DIR "/"
+/* ramfs 文件名最长 RAMFS_NAME_MAX(32)，含 '\\0'，有效约 31 字节 */
 
 static void upload_store_recv_sub_event(void *parameter)
 {
@@ -63,15 +65,10 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config){
 
     char path[RT_NAME_MAX] = {0};
 
-    rt_snprintf(path, sizeof(path), "%s%s", RAM_STORE_DIR_PATH, cfg->path);
+    /* ramfs 不支持 mkdir：只拼前缀路径，真正建文件靠 open(O_CREAT) */
+    rt_snprintf(path, sizeof(path), "%s/%s", RAM_STORE_BASE, cfg->path);
     if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
     {
-        result.fail++;
-        return result;
-    }
-    if (ensure_dir(RAM_STORE_DIR_PATH) != 0)
-    {
-        rt_mutex_release(obj->ramfs_fd_mutex);
         result.fail++;
         return result;
     }
@@ -85,7 +82,7 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config){
         result.fail++;
         return result;
     }
-    if (ensure_dir(DISK_STORE_DIR_PATH))
+    if (ensure_dir(DISK_STORE_DIR) != 0)
     {
         rt_mutex_release(obj->diskfs_fd_mutex);
         result.fail++;
@@ -102,6 +99,36 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config){
 
 static void upload_store_handle_bind_pre(upload_store_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
 {
+    if (buffer == RT_NULL || len == 0)
+        return;
+
+    /* ramfs 扁平：/ramfs/<path>_20260714_fire.log，勿 mkdir 子目录 */
+    char path[RT_NAME_MAX] = {0};
+    int fd;
+    int flags = O_WRONLY | O_CREAT | O_APPEND;
+#ifdef O_BINARY
+    flags |= O_BINARY;
+#endif
+
+    rt_snprintf(path, sizeof(path), "%s_20260714_fire.log", obj->ramfs_path);
+
+    if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        return;
+
+    fd = open(path, flags, 0);
+    if (fd < 0)
+    {
+        LOG_E("%s open %s failed", rt_obj->name, path);
+        rt_mutex_release(obj->ramfs_fd_mutex);
+        return;
+    }
+
+    if (write(fd, buffer, len) != (int)len)
+        LOG_E("%s write %s failed, len=%d", rt_obj->name, path, (int)len);
+
+    close(fd);
+    rt_mutex_release(obj->ramfs_fd_mutex);
+
     return;
 }
 
@@ -198,16 +225,34 @@ static rt_err_t upload_store_delete(upload_obj_t self)
         custom_obj->rxb.sub_mb = RT_NULL;
     }
 
+    if(custom_obj->txb.sub_mb != RT_NULL)
+    {
+        rt_mb_delete(custom_obj->txb.sub_mb);
+        custom_obj->txb.sub_mb = RT_NULL;
+    }
+
     if(custom_obj->rxb.bind_mutex != RT_NULL)
     {
         rt_mutex_delete(custom_obj->rxb.bind_mutex);
         custom_obj->rxb.bind_mutex = RT_NULL;
     }
 
+    if(custom_obj->txb.bind_mutex != RT_NULL)
+    {
+        rt_mutex_delete(custom_obj->txb.bind_mutex);
+        custom_obj->txb.bind_mutex = RT_NULL;
+    }
+
     if(custom_obj->rxb.pub_succ_event  != RT_NULL)
     {
         rt_event_delete(custom_obj->rxb.pub_succ_event);
         custom_obj->rxb.pub_succ_event = RT_NULL;
+    }
+
+    if(custom_obj->txb.pub_succ_event != RT_NULL)
+    {
+        rt_event_delete(custom_obj->txb.pub_succ_event);
+        custom_obj->txb.pub_succ_event = RT_NULL;
     }
 
     if(obj->ramfs_fd_mutex != RT_NULL)
@@ -301,15 +346,33 @@ static upload_obj_t  upload_store_create(upload_obj_t self, char *name, void *co
         goto exit;
     }
 
+    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_bind_mutex");
+    if(((custom_obj->txb.bind_mutex = rt_mutex_create(name_buf, RT_IPC_FLAG_FIFO)) == RT_NULL)) {
+        LOG_E("create error: tx mutex create");
+        goto exit;
+    }
+
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_mb");
     if ((custom_obj->rxb.sub_mb = rt_mb_create(name_buf, CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
         LOG_E("create error: rx mailbox create");
         goto exit;
     }
 
+    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_sub_mb");
+    if ((custom_obj->txb.sub_mb = rt_mb_create(name_buf, CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
+        LOG_E("create error: tx mailbox create");
+        goto exit;
+    }
+
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_pub_succ");
     if((custom_obj->rxb.pub_succ_event = rt_event_create(name_buf, RT_IPC_FLAG_PRIO)) == RT_NULL) {
         LOG_E("create error: rx pub succ event create");
+        goto exit;
+    }
+
+    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_pub_succ");
+    if((custom_obj->txb.pub_succ_event = rt_event_create(name_buf, RT_IPC_FLAG_PRIO)) == RT_NULL) {
+        LOG_E("create error: tx pub succ event create");
         goto exit;
     }
 
@@ -377,8 +440,8 @@ static int cmd_create_upload_store(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_upload_store <name> [-l lib_name]\n");
-        rt_kprintf("Example: create_upload_store upload_store_1 -l 208\n");
+        rt_kprintf("Usage: create_upload_store <name> -p <path>\n");
+        rt_kprintf("Example: create_upload_store upload_store_1 -p site1\n");
         return -RT_ERROR;
     }
 
@@ -403,23 +466,25 @@ static int cmd_create_upload_store(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    struct upload_store_config *config_ptr = RT_NULL;
+    const char *path = custom_obj_msh_get_opt(argc, argv, "p");
+    if (path == RT_NULL || path[0] == '\0')
+    {
+        rt_kprintf("Usage: create_upload_store <name> -p <path>\n");
+        rt_kprintf("Example: create_upload_store upload_store_1 -p site1\n");
+        return -RT_ERROR;
+    }
+
     struct upload_store_config config = {0};
-    const char *lib_name = custom_obj_msh_get_opt(argc, argv, "l");
+    rt_strncpy(config.path, path, RT_NAME_MAX - 1);
+    config.path[RT_NAME_MAX - 1] = '\0';
 
-    // if (lib_name != RT_NULL)
-    // {
-    //     config_ptr = &config;
-    //     rt_strncpy(config.lib_name, lib_name, RT_NAME_MAX - 1);
-    // }
-
-    if (parent->ops->create(parent, (char *)name, config_ptr) == RT_NULL)
+    if (parent->ops->create(parent, (char *)name, &config) == RT_NULL)
     {
         rt_kprintf("Failed to create upload_store: %s\n", name);
         return -RT_ERROR;
     }
 
-    rt_kprintf("Created upload_store: %s\n", name);
+    rt_kprintf("Created upload_store: %s path=%s\n", name, config.path);
     return RT_EOK;
 }
 MSH_CMD_EXPORT_ALIAS(cmd_create_upload_store, create_upload_store, Create upload_store object);

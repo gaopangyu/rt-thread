@@ -114,6 +114,7 @@ int main(void)
 // create_bind protocol_logv1_1 upload_muart_1
 // create_bind protocol_logv1_2 upload_muart_2
 // create_bind protocol_logv1_3 upload_muart_3
+
 // 步骤二:
 // create_interface_rs232 interface_rs232_1 -u uart8 -p 80 -r 10240 -d 5120
 // create_protocol_logv1 protocol_logv1_1 -l libtx3016a.so
@@ -135,6 +136,11 @@ int main(void)
 // 步骤四:追加在步骤三后面测试并发
 // create_interface_rs232 interface_rs232_3 -u uart1 -p 77 -r 10240 -d 5120
 // create_bind interface_rs232_3 protocol_logv1_1
+
+//步骤五: 测试日志系统
+// create_upload_store upload_store_1 -p tx3016a
+// create_bind protocol_logv1_1 upload_store_1
+// delete_upload_store -n upload_store_1
 
 
 //777

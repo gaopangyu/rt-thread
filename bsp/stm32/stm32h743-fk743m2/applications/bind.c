@@ -11,6 +11,9 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
 
     if (is_rx)
     {
+        if (pre_obj->rxb.bind_mutex == RT_NULL || next_obj->rxb.bind_mutex == RT_NULL)
+            return -RT_ERROR;
+
         if(rt_mutex_take(pre_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("Failed to take rx_bind_mutex");
@@ -51,6 +54,9 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
     }
     else
     {
+        if (next_obj->txb.bind_mutex == RT_NULL || pre_obj->txb.bind_mutex == RT_NULL)
+            return -RT_ERROR;
+
         if(rt_mutex_take(next_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("Failed to take tx_bind_mutex");
