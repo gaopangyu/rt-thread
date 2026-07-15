@@ -234,7 +234,7 @@ unlock:
     rt_mutex_release(obj->ramfs_fd_mutex);
 }
 
-#define STORE_OBJ_MAX           16
+#define STORE_OBJ_MAX   CUSTOM_PER_LAYER_OBJ_MAX
 
 struct store_collect_ctx
 {
@@ -265,6 +265,9 @@ static rt_err_t store_upload_store_collect(struct rt_object *object, void *data)
 
     name_len = rt_strnlen(object->name, RT_NAME_MAX);
     if (name_len >= 7 && rt_strncmp(object->name + name_len - 7, "_parent", 7) == 0)
+        return RT_EOK;
+
+    if (rt_strncmp(object->name, "upload_store", 12) != 0)
         return RT_EOK;
 
     /* for_each 持有 spinlock/critical，这里只能收集指针，禁止 take mutex / 调 DFS */
@@ -304,7 +307,8 @@ static void store_run_entry(void *parameter)
 
     while (1)
     {
-        if (rt_sem_take(&store_run_sem, RT_WAITING_FOREVER) != RT_EOK)
+        rt_err_t err = rt_sem_take(&store_run_sem, 60 *60 * 1000);
+        if (err != RT_EOK && err != -RT_ETIMEOUT)
         {
             rt_thread_mdelay(5000);
             continue;

@@ -73,8 +73,6 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config)
     obj->config.path[RT_NAME_MAX - 1] = 0;
     rt_strncpy(obj->ramfs_path, path, RT_NAME_MAX - 1);
     obj->ramfs_path[RT_NAME_MAX - 1] = 0;
-    rt_snprintf(obj->diskfs_path, sizeof(obj->diskfs_path), "/diskfs/log/%s", cfg->path);
-    obj->diskfs_path[RT_NAME_MAX - 1] = 0;
 
     rt_mutex_release(obj->ramfs_fd_mutex);
 
