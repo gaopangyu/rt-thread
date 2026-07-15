@@ -249,7 +249,8 @@ int dfs_ramfs_open(struct dfs_file *file)
                 {
                     name_ptr++;
                 }
-                strncpy(dirent->name, name_ptr, RAMFS_NAME_MAX);
+                rt_strncpy(dirent->name, name_ptr, RAMFS_NAME_MAX - 1);
+                dirent->name[RAMFS_NAME_MAX - 1] = '\0';
 
                 rt_list_init(&(dirent->list));
                 dirent->data = NULL;
@@ -411,7 +412,8 @@ int dfs_ramfs_rename(struct dfs_filesystem *fs,
     if (dirent == NULL)
         return -ENOENT;
 
-    strncpy(dirent->name, newpath, RAMFS_NAME_MAX);
+    rt_strncpy(dirent->name, newpath, RAMFS_NAME_MAX - 1);
+    dirent->name[RAMFS_NAME_MAX - 1] = '\0';
 
     return RT_EOK;
 }

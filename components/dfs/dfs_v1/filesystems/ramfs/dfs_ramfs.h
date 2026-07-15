@@ -15,7 +15,7 @@
 #include <rtthread.h>
 #include <rtservice.h>
 
-#define RAMFS_NAME_MAX  32
+#define RAMFS_NAME_MAX  RT_NAME_MAX
 #define RAMFS_MAGIC     0x0A0A0A0A
 
 struct ramfs_dirent

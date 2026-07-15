@@ -16,11 +16,16 @@
 #define PART_FS_RESERVED_LITTLEFS 0u
 #define PART_FS_RESERVED_FAT32    1u
 
-int ensure_dir(const char *path)
+static int ensure_dir(const char *path)
 {
     struct stat st;
+
+    if (path == RT_NULL || path[0] == '\0')
+        return -1;
+
     if (stat(path, &st) == 0)
         return S_ISDIR(st.st_mode) ? 0 : -1;
+
     return mkdir(path, 0x777);
 }
 

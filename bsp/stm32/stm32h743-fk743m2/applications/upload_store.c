@@ -5,16 +5,13 @@
 #include <sys/stat.h>
 #include "upload_store.h"
 #include "bind.h"
-#include "auto_mount.h"
+#include "store.h"
 
 #define DBG_TAG "upload_store"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define RAM_STORE_BASE          "/ramfs"       /* ramfs 为扁平 FS，不支持 mkdir 子目录 */
-#define DISK_STORE_DIR          "/diskfs/log"  /* littlefs 等支持目录 */
-#define DISK_STORE_DIR_PATH     DISK_STORE_DIR "/"
-/* ramfs 文件名最长 RAMFS_NAME_MAX(32)，含 '\\0'，有效约 31 字节 */
+#define RAM_STORE_BASE          "/ramfs<log>"       /* ramfs 为扁平 FS，不支持 mkdir 子目录 */
 
 static void upload_store_recv_sub_event(void *parameter)
 {
@@ -50,9 +47,9 @@ static void upload_store_recv_sub_event(void *parameter)
     }
 }
 
-static double_ret upload_store_set_param(upload_obj_t self, void *config){
+static double_ret upload_store_set_param(upload_obj_t self, void *config)
+{
     double_ret result = {0, 0};
-
     if (self == RT_NULL || config == RT_NULL) 
     {
         result.fail++;
@@ -64,33 +61,18 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config){
     upload_store_config_t obj_cfg = &(obj->config);
 
     char path[RT_NAME_MAX] = {0};
+    rt_snprintf(path, sizeof(path), "%s<%s>", RAM_STORE_BASE, cfg->path);
 
-    /* ramfs 不支持 mkdir：只拼前缀路径，真正建文件靠 open(O_CREAT) */
-    rt_snprintf(path, sizeof(path), "%s/%s", RAM_STORE_BASE, cfg->path);
     if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
     {
         result.fail++;
         return result;
     }
+
     rt_strncpy(obj->ramfs_path, path, RT_NAME_MAX - 1);
     obj->ramfs_path[RT_NAME_MAX - 1] = 0;
-    rt_mutex_release(obj->ramfs_fd_mutex);
 
-    rt_snprintf(path, sizeof(path), "%s%s", DISK_STORE_DIR_PATH, cfg->path);
-    if(rt_mutex_take(obj->diskfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
-    {
-        result.fail++;
-        return result;
-    }
-    if (ensure_dir(DISK_STORE_DIR) != 0)
-    {
-        rt_mutex_release(obj->diskfs_fd_mutex);
-        result.fail++;
-        return result;
-    }
-    rt_strncpy(obj->diskfs_path, path, RT_NAME_MAX - 1);
-    obj->diskfs_path[RT_NAME_MAX - 1] = 0;
-    rt_mutex_release(obj->diskfs_fd_mutex);
+    rt_mutex_release(obj->ramfs_fd_mutex);
 
     result.succ++;
 
@@ -102,20 +84,13 @@ static void upload_store_handle_bind_pre(upload_store_obj_t obj, rt_object_t rt_
     if (buffer == RT_NULL || len == 0)
         return;
 
-    /* ramfs 扁平：/ramfs/<path>_20260714_fire.log，勿 mkdir 子目录 */
     char path[RT_NAME_MAX] = {0};
-    int fd;
-    int flags = O_WRONLY | O_CREAT | O_APPEND;
-#ifdef O_BINARY
-    flags |= O_BINARY;
-#endif
-
-    rt_snprintf(path, sizeof(path), "%s_20260714_fire.log", obj->ramfs_path);
+    rt_snprintf(path, sizeof(path), "%s<20260714><fire.log>", obj->ramfs_path);
 
     if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return;
 
-    fd = open(path, flags, 0);
+    int fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_BINARY, 0);
     if (fd < 0)
     {
         LOG_E("%s open %s failed", rt_obj->name, path);
