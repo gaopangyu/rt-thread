@@ -68,47 +68,30 @@ static int ensure_parent_dirs(const char *filepath)
 }
 
 /*
- * /ramfs<log><site1><20260714><fire.log>
+ * /ramfs/log/site1/20260714/fire.log
  *   -> /diskfs/log/site1/20260714/fire.log
+ * 相对路径相同，只换挂载根。
  */
-static int angle_path_to_diskfs(const char *src, char *dst, rt_size_t dst_sz)
+static int ramfs_path_to_diskfs(const char *src, char *dst, rt_size_t dst_sz)
 {
-    const char *p;
-    rt_size_t n;
+    const char *rel;
 
     if (src == RT_NULL || dst == RT_NULL || dst_sz < 2)
         return -1;
 
-    p = src;
-    if (rt_strncmp(p, RAMFS_MOUNT, sizeof(RAMFS_MOUNT) - 1) == 0)
-        p += sizeof(RAMFS_MOUNT) - 1;
-
-    n = rt_snprintf(dst, dst_sz, "%s", DISKFS_ROOT);
-    if (n >= dst_sz)
+    if (rt_strncmp(src, RAMFS_MOUNT, sizeof(RAMFS_MOUNT) - 1) != 0)
         return -1;
 
-    while (*p == '<')
-    {
-        const char *end;
-        rt_size_t seg_len;
+    rel = src + (sizeof(RAMFS_MOUNT) - 1);
+    if (*rel == '/')
+        rel++;
+    if (*rel == '\0')
+        return -1;
 
-        p++;
-        end = strchr(p, '>');
-        if (end == RT_NULL || end == p)
-            return -1;
+    if (rt_snprintf(dst, dst_sz, "%s/%s", DISKFS_ROOT, rel) >= (int)dst_sz)
+        return -1;
 
-        seg_len = (rt_size_t)(end - p);
-        if (n + 1 + seg_len >= dst_sz)
-            return -1;
-
-        dst[n++] = '/';
-        rt_memcpy(dst + n, p, seg_len);
-        n += seg_len;
-        dst[n] = '\0';
-        p = end + 1;
-    }
-
-    return (*p == '\0' && n > sizeof(DISKFS_ROOT) - 1) ? 0 : -1;
+    return 0;
 }
 
 static int store_copy_file(const char *src, const char *dst)
@@ -180,8 +163,13 @@ static void store_migrate_one(upload_store_obj_t obj)
     if (rt_strncmp(ramfs_path, RAMFS_MOUNT, sizeof(RAMFS_MOUNT) - 1) != 0)
         return;
 
-    rt_strncpy(prefix, ramfs_path + (sizeof(RAMFS_MOUNT) - 1), sizeof(prefix) - 1);
-    prefix[sizeof(prefix) - 1] = '\0';
+    {
+        const char *rest = ramfs_path + (sizeof(RAMFS_MOUNT) - 1);
+        if (*rest == '/')
+            rest++;
+        rt_strncpy(prefix, rest, sizeof(prefix) - 1);
+        prefix[sizeof(prefix) - 1] = '\0';
+    }
     prefix_len = rt_strlen(prefix);
     if (prefix_len == 0)
         return;
@@ -215,20 +203,19 @@ static void store_migrate_one(upload_store_obj_t obj)
             continue;
         if (rt_strncmp(dent->d_name, prefix, prefix_len) != 0)
             continue;
-        /* 避免 site1 匹配到 site12：前缀后必须是下一段 <... > 或结束 */
-        if (dent->d_name[prefix_len] != '\0' && dent->d_name[prefix_len] != '<')
+        /* 避免 site1 匹配到 site12：前缀后必须是 '/' 或结束 */
+        if (dent->d_name[prefix_len] != '\0' && dent->d_name[prefix_len] != '/')
             continue;
 
-        /* 扁平名：/ramfs + <log><path>...（中间无额外 '/'） */
-        if (rt_snprintf(src, sizeof(src), "%s%s", RAMFS_MOUNT, dent->d_name) >= (int)sizeof(src))
+        if (rt_snprintf(src, sizeof(src), "%s/%s", RAMFS_MOUNT, dent->d_name) >= (int)sizeof(src))
         {
             LOG_E("src path too long: %s", dent->d_name);
             continue;
         }
 
-        if (angle_path_to_diskfs(src, dst, sizeof(dst)) != 0)
+        if (ramfs_path_to_diskfs(src, dst, sizeof(dst)) != 0)
         {
-            LOG_E("bad angle path: %s", src);
+            LOG_E("bad ramfs path: %s", src);
             continue;
         }
 
@@ -247,14 +234,23 @@ unlock:
     rt_mutex_release(obj->ramfs_fd_mutex);
 }
 
-static rt_err_t store_upload_store_iter(struct rt_object *object, void *data)
+#define STORE_OBJ_MAX           16
+
+struct store_collect_ctx
 {
-    upload_obj_t parent = (upload_obj_t)data;
+    upload_obj_t parent;
+    upload_store_obj_t objs[STORE_OBJ_MAX];
+    int count;
+};
+
+static rt_err_t store_upload_store_collect(struct rt_object *object, void *data)
+{
+    struct store_collect_ctx *ctx = (struct store_collect_ctx *)data;
     upload_obj_t upload_obj;
     custom_obj_t custom_obj;
     rt_size_t name_len;
 
-    if (object == RT_NULL || parent == RT_NULL)
+    if (object == RT_NULL || ctx == RT_NULL || ctx->parent == RT_NULL)
         return RT_EOK;
 
     custom_obj = (custom_obj_t)object;
@@ -262,25 +258,32 @@ static rt_err_t store_upload_store_iter(struct rt_object *object, void *data)
 
     if (custom_obj->type != Custom_Object_Class_Upload)
         return RT_EOK;
-    if (upload_obj->ops != parent->ops)
+    if (upload_obj->ops != ctx->parent->ops)
         return RT_EOK;
-    if (object == (rt_object_t)parent)
+    if (object == (rt_object_t)ctx->parent)
         return RT_EOK;
 
     name_len = rt_strnlen(object->name, RT_NAME_MAX);
     if (name_len >= 7 && rt_strncmp(object->name + name_len - 7, "_parent", 7) == 0)
         return RT_EOK;
 
-    store_migrate_one((upload_store_obj_t)object);
+    /* for_each 持有 spinlock/critical，这里只能收集指针，禁止 take mutex / 调 DFS */
+    if (ctx->count < STORE_OBJ_MAX)
+        ctx->objs[ctx->count++] = (upload_store_obj_t)object;
+    else
+        LOG_W("upload_store count > %d, skip %s", STORE_OBJ_MAX, object->name);
+
     return RT_EOK;
 }
 
 static void store_ramfs_to_diskfs(void)
 {
-    upload_obj_t parent;
+    struct store_collect_ctx ctx;
+    int i;
 
-    parent = (upload_obj_t)rt_object_find(UPLOAD_STORE_PARENT_NAME, RT_Object_Class_Custom);
-    if (parent == RT_NULL || parent->ops == RT_NULL)
+    ctx.parent = (upload_obj_t)rt_object_find(UPLOAD_STORE_PARENT_NAME, RT_Object_Class_Custom);
+    ctx.count = 0;
+    if (ctx.parent == RT_NULL || ctx.parent->ops == RT_NULL)
     {
         LOG_W("upload_store parent not ready");
         return;
@@ -289,7 +292,10 @@ static void store_ramfs_to_diskfs(void)
     if (rt_object_get_information(RT_Object_Class_Custom) == RT_NULL)
         return;
 
-    rt_object_for_each(RT_Object_Class_Custom, store_upload_store_iter, parent);
+    rt_object_for_each(RT_Object_Class_Custom, store_upload_store_collect, &ctx);
+
+    for (i = 0; i < ctx.count; i++)
+        store_migrate_one(ctx.objs[i]);
 }
 
 static void store_run_entry(void *parameter)

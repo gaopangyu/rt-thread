@@ -11,7 +11,7 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define RAM_STORE_BASE          "/ramfs<log>"       /* ramfs 为扁平 FS，不支持 mkdir 子目录 */
+#define RAM_STORE_BASE          "/ramfs/log"   /* ramfs 仍扁平：相对路径里的 '/' 是文件名的一部分，勿 mkdir */
 
 static void upload_store_recv_sub_event(void *parameter)
 {
@@ -61,7 +61,7 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config)
     upload_store_config_t obj_cfg = &(obj->config);
 
     char path[RT_NAME_MAX] = {0};
-    rt_snprintf(path, sizeof(path), "%s<%s>", RAM_STORE_BASE, cfg->path);
+    rt_snprintf(path, sizeof(path), "%s/%s", RAM_STORE_BASE, cfg->path);
 
     if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
     {
@@ -69,8 +69,12 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config)
         return result;
     }
 
+    rt_strncpy(obj->config.path, cfg->path, RT_NAME_MAX - 1);
+    obj->config.path[RT_NAME_MAX - 1] = 0;
     rt_strncpy(obj->ramfs_path, path, RT_NAME_MAX - 1);
     obj->ramfs_path[RT_NAME_MAX - 1] = 0;
+    rt_snprintf(obj->diskfs_path, sizeof(obj->diskfs_path), "/diskfs/log/%s", cfg->path);
+    obj->diskfs_path[RT_NAME_MAX - 1] = 0;
 
     rt_mutex_release(obj->ramfs_fd_mutex);
 
@@ -85,7 +89,7 @@ static void upload_store_handle_bind_pre(upload_store_obj_t obj, rt_object_t rt_
         return;
 
     char path[RT_NAME_MAX] = {0};
-    rt_snprintf(path, sizeof(path), "%s<20260714><fire.log>", obj->ramfs_path);
+    rt_snprintf(path, sizeof(path), "%s/20260714/fire.log", obj->ramfs_path);
 
     if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return;

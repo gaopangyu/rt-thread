@@ -357,7 +357,8 @@ int dfs_ramfs_getdents(struct dfs_file *file,
             d->d_type = DT_REG;
             d->d_namlen = RT_NAME_MAX;
             d->d_reclen = (rt_uint16_t)sizeof(struct dirent);
-            rt_strncpy(d->d_name, dirent->name, RAMFS_NAME_MAX);
+            rt_strncpy(d->d_name, dirent->name, RAMFS_NAME_MAX - 1);
+            d->d_name[RAMFS_NAME_MAX - 1] = '\0';
 
             count += 1;
             file->pos += 1;
