@@ -89,6 +89,12 @@ static void upload_store_handle_bind_pre(upload_store_obj_t obj, rt_object_t rt_
     char path[RT_NAME_MAX] = {0};
     rt_snprintf(path, sizeof(path), "%s/20260714/fire.log", obj->ramfs_path);
 
+    char path1[RT_NAME_MAX] = {0};
+    rt_snprintf(path1, sizeof(path), "%s/20260715/fire.log", obj->ramfs_path);
+
+    char path2[RT_NAME_MAX] = {0};
+    rt_snprintf(path2, sizeof(path), "%s/20260715/fault.log", obj->ramfs_path);
+
     if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return;
 
@@ -104,6 +110,33 @@ static void upload_store_handle_bind_pre(upload_store_obj_t obj, rt_object_t rt_
         LOG_E("%s write %s failed, len=%d", rt_obj->name, path, (int)len);
 
     close(fd);
+
+    fd = open(path1, O_WRONLY | O_CREAT | O_APPEND | O_BINARY, 0);
+    if (fd < 0)
+    {
+        LOG_E("%s open %s failed", rt_obj->name, path1);
+        rt_mutex_release(obj->ramfs_fd_mutex);
+        return;
+    }
+
+    if (write(fd, buffer, len) != (int)len)
+        LOG_E("%s write %s failed, len=%d", rt_obj->name, path1, (int)len);
+
+    close(fd);
+
+    fd = open(path2, O_WRONLY | O_CREAT | O_APPEND | O_BINARY, 0);
+    if (fd < 0)
+    {
+        LOG_E("%s open %s failed", rt_obj->name, path2);
+        rt_mutex_release(obj->ramfs_fd_mutex);
+        return;
+    }
+
+    if (write(fd, buffer, len) != (int)len)
+        LOG_E("%s write %s failed, len=%d", rt_obj->name, path2, (int)len);
+
+    close(fd);
+
     rt_mutex_release(obj->ramfs_fd_mutex);
 
     return;

@@ -147,8 +147,6 @@ out:
 
 static void store_migrate_one(upload_store_obj_t obj)
 {
-    DIR *dir;
-    struct dirent *dent;
     char prefix[RT_NAME_MAX];
     rt_size_t prefix_len;
     const char *ramfs_path;
@@ -182,54 +180,73 @@ static void store_migrate_one(upload_store_obj_t obj)
         return;
     }
 
-    dir = opendir(RAMFS_MOUNT);
-    if (dir == RT_NULL)
+    /* 每次只处理一个匹配项并重新 opendir，避免：
+     * 1) 边 readdir 边 unlink 跳过文件
+     * 2) 栈上缓存大量文件名导致溢出 HardFault
+     */
+    for (;;)
     {
-        LOG_E("opendir %s failed", RAMFS_MOUNT);
-        goto unlock;
-    }
-
-    while ((dent = readdir(dir)) != RT_NULL)
-    {
+        DIR *dir;
+        struct dirent *dent;
+        char name[RT_NAME_MAX];
         char src[STORE_PATH_MAX];
         char dst[STORE_PATH_MAX];
-        rt_size_t name_len;
+        int found = 0;
 
-        if (dent->d_name[0] == '\0')
-            continue;
-
-        name_len = rt_strlen(dent->d_name);
-        if (name_len < prefix_len)
-            continue;
-        if (rt_strncmp(dent->d_name, prefix, prefix_len) != 0)
-            continue;
-        /* 避免 site1 匹配到 site12：前缀后必须是 '/' 或结束 */
-        if (dent->d_name[prefix_len] != '\0' && dent->d_name[prefix_len] != '/')
-            continue;
-
-        if (rt_snprintf(src, sizeof(src), "%s/%s", RAMFS_MOUNT, dent->d_name) >= (int)sizeof(src))
+        dir = opendir(RAMFS_MOUNT);
+        if (dir == RT_NULL)
         {
-            LOG_E("src path too long: %s", dent->d_name);
-            continue;
+            LOG_E("opendir %s failed", RAMFS_MOUNT);
+            break;
+        }
+
+        while ((dent = readdir(dir)) != RT_NULL)
+        {
+            rt_size_t name_len;
+
+            if (dent->d_name[0] == '\0')
+                continue;
+
+            name_len = rt_strlen(dent->d_name);
+            if (name_len < prefix_len || name_len >= RT_NAME_MAX)
+                continue;
+            if (rt_strncmp(dent->d_name, prefix, prefix_len) != 0)
+                continue;
+            if (dent->d_name[prefix_len] != '\0' && dent->d_name[prefix_len] != '/')
+                continue;
+
+            rt_strncpy(name, dent->d_name, RT_NAME_MAX - 1);
+            name[RT_NAME_MAX - 1] = '\0';
+            found = 1;
+            break;
+        }
+        closedir(dir);
+
+        if (!found)
+            break;
+
+        if (rt_snprintf(src, sizeof(src), "%s/%s", RAMFS_MOUNT, name) >= (int)sizeof(src))
+        {
+            LOG_E("src path too long: %s", name);
+            break;
         }
 
         if (ramfs_path_to_diskfs(src, dst, sizeof(dst)) != 0)
         {
             LOG_E("bad ramfs path: %s", src);
-            continue;
+            break;
         }
 
         LOG_I("migrate %s -> %s", src, dst);
-        if (store_copy_file(src, dst) == 0)
+        if (store_copy_file(src, dst) != 0)
+            break;
+        if (unlink(src) != 0)
         {
-            if (unlink(src) != 0)
-                LOG_E("unlink %s failed", src);
+            LOG_E("unlink %s failed", src);
+            break;
         }
     }
 
-    closedir(dir);
-
-unlock:
     rt_mutex_release(obj->diskfs_fd_mutex);
     rt_mutex_release(obj->ramfs_fd_mutex);
 }
@@ -344,7 +361,7 @@ static int store_init(void)
     rt_thread_t run_tid = rt_thread_create("store_run_thread",
                                       store_run_entry,
                                       RT_NULL,
-                                      4096,
+                                      6144,
                                       RT_THREAD_PRIORITY_MAX - 5,
                                       20);
     if (run_tid == RT_NULL)
@@ -357,7 +374,7 @@ static int store_init(void)
     rt_thread_t run_now_tid = rt_thread_create("store_run_now_thread",
                                       store_run_now_entry,
                                       RT_NULL,
-                                      4096,
+                                      6144,
                                       5,
                                       20);
     if (run_now_tid == RT_NULL)
