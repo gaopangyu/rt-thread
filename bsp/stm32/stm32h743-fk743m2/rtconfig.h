@@ -191,6 +191,7 @@
 #define RT_SFUD_USING_QSPI
 #define RT_SFUD_SPI_MAX_HZ 120000000
 #define RT_USING_PIN
+#define RT_USING_RTC
 #define RT_USING_CHERRYUSB
 #define RT_CHERRYUSB_DEVICE
 #define RT_CHERRYUSB_DEVICE_SPEED_FS
@@ -559,6 +560,8 @@
 #define BSP_UART8_RX_BUFSIZE 4096
 #define BSP_UART8_TX_BUFSIZE 0
 #define BSP_UART8_DMA_PING_BUFSIZE 2048
+#define BSP_USING_ONCHIP_RTC
+#define BSP_RTC_USING_LSE
 /* end of On-chip Peripheral Drivers */
 
 /* Board extended module Drivers */

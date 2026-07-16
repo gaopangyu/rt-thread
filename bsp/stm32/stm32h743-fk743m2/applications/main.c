@@ -30,7 +30,7 @@
 int main(void)
 {
     #ifdef ULOG_USING_FILTER
-        ulog_global_filter_lvl_set(LOG_LVL_ERROR);
+        ulog_global_filter_lvl_set(LOG_LVL_DBG);
     #endif
 
 
