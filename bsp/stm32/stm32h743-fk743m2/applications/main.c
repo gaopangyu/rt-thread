@@ -72,6 +72,10 @@ int main(void)
     rt_kprintf("GET_PIN(B, 7): %d\r\n", GET_PIN(B, 7));
     rt_kprintf("GET_PIN(A, 10): %d\r\n", GET_PIN(A, 10));
 
+    struct timeval now;
+    gettimeofday(&now, RT_NULL);
+    LOG_I("time: %lld.%03ld", (long long)now.tv_sec, (long)now.tv_usec / 1000);
+
     while (1) {
 
         // if(rt_pin_read(MP_STAT_PIN) == PIN_LOW)
