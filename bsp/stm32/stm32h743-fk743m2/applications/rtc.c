@@ -1,5 +1,6 @@
 #include "rtc.h"
 
+#include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
 #include <rtdevice.h>
@@ -8,32 +9,63 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define RTC_TIME_VALID_EPOCH 946684800 /* 2000-01-01 00:00:00 UTC */
-
-static rt_device_t rtc_dev = RT_NULL;
-
-static rt_err_t rtc_set_default_time(void)
+rt_err_t rtc_set_utc(time_t utc)
 {
-    struct timeval tv = {0};
+    rt_err_t ret;
 
-    tv.tv_sec = RTC_TIME_VALID_EPOCH;
-    tv.tv_usec = 0;
-    if (settimeofday(&tv, RT_NULL) != 0)
+    if (utc < 0)
     {
-        LOG_W("set default rtc time failed");
+        LOG_E("invalid utc timestamp: %ld", (long)utc);
+        return -RT_EINVAL;
+    }
+
+    ret = set_timestamp(utc);
+    if (ret != RT_EOK)
+    {
+        LOG_E("set utc timestamp failed: %d", ret);
+        return ret;
+    }
+
+    LOG_I("rtc_set_utc: %ld (%s)", (long)utc, ctime(&utc));
+    return RT_EOK;
+}
+
+rt_err_t rtc_set_time(rt_uint32_t year, rt_uint32_t month, rt_uint32_t day,
+                      rt_uint32_t hour, rt_uint32_t minute, rt_uint32_t second)
+{
+    struct tm tm_new = {0};
+    time_t utc;
+
+    if (year < 2000 || month < 1 || month > 12 || day < 1 || day > 31 ||
+        hour > 23 || minute > 59 || second > 59)
+    {
+        LOG_E("invalid datetime: %u-%02u-%02u %02u:%02u:%02u",
+              year, month, day, hour, minute, second);
+        return -RT_EINVAL;
+    }
+
+    tm_new.tm_year = (int)year - 1900;
+    tm_new.tm_mon  = (int)month - 1;
+    tm_new.tm_mday = (int)day;
+    tm_new.tm_hour = (int)hour;
+    tm_new.tm_min  = (int)minute;
+    tm_new.tm_sec  = (int)second;
+    tm_new.tm_isdst = -1;
+
+    /* 按本地时区解释日历时间，再写成 UTC 时间戳 */
+    utc = mktime(&tm_new);
+    if (utc == (time_t)-1)
+    {
+        LOG_E("mktime failed");
         return -RT_ERROR;
     }
 
-    LOG_I("rtc default time set to 2000-01-01 08:00:00 (UTC+8)");
-    return RT_EOK;
+    return rtc_set_utc(utc);
 }
 
 static int rtc_app_init(void)
 {
-    struct timeval tv;
-    struct tm tm_now;
-    time_t now;
-
+    static rt_device_t rtc_dev = RT_NULL;
     rtc_dev = rt_device_find("rtc");
     if (rtc_dev == RT_NULL)
     {
@@ -47,28 +79,47 @@ static int rtc_app_init(void)
         return -RT_ERROR;
     }
 
-    if (gettimeofday(&tv, RT_NULL) != 0)
+    time_t now = time(RT_NULL);
+    if (now < 1767196800)
     {
-        LOG_W("rtc get time failed");
-        return -RT_ERROR;
+        LOG_W("RTC time not set, applying default time");
+        if (rtc_set_time(2026, 1, 1, 0, 0, 0) != RT_EOK)
+        {
+            return -RT_ERROR;
+        }
+        now = time(RT_NULL);
     }
 
-    now = (time_t)tv.tv_sec;
-    if (now < RTC_TIME_VALID_EPOCH)
-    {
-        LOG_W("rtc time not set, applying default time");
-        return rtc_set_default_time();
-    }
-
-    localtime_r(&now, &tm_now);
-    LOG_I("rtc ready: %04d-%02d-%02d %02d:%02d:%02d",
-          tm_now.tm_year + 1900,
-          tm_now.tm_mon + 1,
-          tm_now.tm_mday,
-          tm_now.tm_hour,
-          tm_now.tm_min,
-          tm_now.tm_sec);
+    LOG_I("RTC time: %s", ctime(&now));
+    LOG_I("RTC utc timestamp: %ld", (long)now);
 
     return RT_EOK;
 }
 INIT_APP_EXPORT(rtc_app_init);
+
+static int cmd_rtc_set_time(int argc, char **argv)
+{
+    rt_uint32_t year, month, day, hour, minute, second;
+
+    if (argc != 7)
+    {
+        rt_kprintf("usage: rtc_set_time <year> <month> <day> <hour> <min> <sec>\n");
+        rt_kprintf("e.g. : rtc_set_time 2026 7 17 14 30 0\n");
+        return -RT_ERROR;
+    }
+
+    year   = (rt_uint32_t)atoi(argv[1]);
+    month  = (rt_uint32_t)atoi(argv[2]);
+    day    = (rt_uint32_t)atoi(argv[3]);
+    hour   = (rt_uint32_t)atoi(argv[4]);
+    minute = (rt_uint32_t)atoi(argv[5]);
+    second = (rt_uint32_t)atoi(argv[6]);
+
+    if (rtc_set_time(year, month, day, hour, minute, second) != RT_EOK)
+    {
+        return -RT_ERROR;
+    }
+
+    return 0;
+}
+MSH_CMD_EXPORT_ALIAS(cmd_rtc_set_time, rtc_set_time, set RTC time: rtc_set_time y m d H M S);
