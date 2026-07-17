@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <time.h>
 #include "upload_store.h"
 #include "bind.h"
 #include "store.h"
@@ -86,16 +87,33 @@ static void upload_store_handle_bind_pre(upload_store_obj_t obj, rt_object_t rt_
     if (buffer == RT_NULL || len == 0)
         return;
 
-    char path[RT_NAME_MAX] = {0};
-    rt_snprintf(path, sizeof(path), "%s/20260714/fire.log", obj->ramfs_path);
+    time_t now = time(RT_NULL);
+    
+    struct tm tm_now;
+    localtime_r(&now, &tm_now);
 
-    char path1[RT_NAME_MAX] = {0};
-    rt_snprintf(path1, sizeof(path), "%s/20260715/fire.log", obj->ramfs_path);
+    char date_str[9];
+    rt_snprintf(date_str, sizeof(date_str), "%04d%02d%02d",
+                tm_now.tm_year + 1900, tm_now.tm_mon + 1, tm_now.tm_mday);
 
-    char path2[RT_NAME_MAX] = {0};
-    rt_snprintf(path2, sizeof(path), "%s/20260715/fault.log", obj->ramfs_path);
+    char *type = RT_NULL;
+    switch (buffer[0])
+    {
+    case '0':
+        type = "fire.log";
+        break;
+    case '1':
+        type = "fault.log";
+        break;
+    default:
+        type = "other.log";
+        break;
+    }
 
-    if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
+    char path[RT_NAME_MAX];
+    rt_snprintf(path, sizeof(path), "%s/%s/%s", obj->ramfs_path, date_str, type);
+
+    if (rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return;
 
     int fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_BINARY, 0);
@@ -111,35 +129,7 @@ static void upload_store_handle_bind_pre(upload_store_obj_t obj, rt_object_t rt_
 
     close(fd);
 
-    fd = open(path1, O_WRONLY | O_CREAT | O_APPEND | O_BINARY, 0);
-    if (fd < 0)
-    {
-        LOG_E("%s open %s failed", rt_obj->name, path1);
-        rt_mutex_release(obj->ramfs_fd_mutex);
-        return;
-    }
-
-    if (write(fd, buffer, len) != (int)len)
-        LOG_E("%s write %s failed, len=%d", rt_obj->name, path1, (int)len);
-
-    close(fd);
-
-    fd = open(path2, O_WRONLY | O_CREAT | O_APPEND | O_BINARY, 0);
-    if (fd < 0)
-    {
-        LOG_E("%s open %s failed", rt_obj->name, path2);
-        rt_mutex_release(obj->ramfs_fd_mutex);
-        return;
-    }
-
-    if (write(fd, buffer, len) != (int)len)
-        LOG_E("%s write %s failed, len=%d", rt_obj->name, path2, (int)len);
-
-    close(fd);
-
     rt_mutex_release(obj->ramfs_fd_mutex);
-
-    return;
 }
 
 static void upload_store_recv(void *parameter)
