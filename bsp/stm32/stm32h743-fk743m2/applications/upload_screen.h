@@ -29,9 +29,9 @@ struct upload_screen_obj
     struct upload_screen_config config;
     rt_sem_t rx_ind_sem;
     rt_thread_t rx_tid;
-    // rt_thread_t rx_sub_event_tid;
-    rt_thread_t tx_tid;
-    rt_thread_t tx_sub_event_tid;
+    rt_thread_t rx_sub_event_tid;
+    // rt_thread_t tx_tid;
+    // rt_thread_t tx_sub_event_tid;
 };
 
 typedef struct upload_screen_obj *upload_screen_obj_t;

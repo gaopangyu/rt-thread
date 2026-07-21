@@ -18,13 +18,7 @@ static rt_err_t upload_screen_rx_ind(rt_device_t dev, rt_size_t size)
     return RT_EOK;
 }
 
-// static void upload_screen_recv_sub_event(void *parameter)
-// {
-//     if (parameter == RT_NULL)
-//         return;
-// }
-
-static void upload_screen_send_sub_event(void *parameter)
+static void upload_screen_recv_sub_event(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
@@ -33,31 +27,65 @@ static void upload_screen_send_sub_event(void *parameter)
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
-    if(custom_obj->txb.sub_mb == RT_NULL)
+    if(custom_obj->rxb.sub_mb == RT_NULL)
         return;
 
     while (1)
     {
-        while(custom_obj->txb.sub_event == RT_NULL || custom_obj->txb.next_event_mask == 0)
+        while(custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0)
             rt_thread_mdelay(100);
 
         rt_uint32_t recv_event_flag = 0;
-        if(rt_event_recv(custom_obj->txb.sub_event, custom_obj->txb.next_event_mask, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
+        if(rt_event_recv(custom_obj->rxb.sub_event, custom_obj->rxb.pre_event_mask, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
         {
-            if (custom_obj->txb.sub_event == RT_NULL || custom_obj->txb.next_event_mask == 0 || recv_event_flag == 0)
+            if (custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0 || recv_event_flag == 0)
                 continue;
-            LOG_E("%s recv tx_sub_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->txb.next_event_mask);
+            LOG_E("%s recv tx_sub_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->rxb.pre_event_mask);
             break;
         }
 
-        if (rt_mb_send(custom_obj->txb.sub_mb, recv_event_flag) != RT_EOK)
+        if (rt_mb_send(custom_obj->rxb.sub_mb, recv_event_flag) != RT_EOK)
         {
             LOG_E("%s send tx_sub_mb error: %d\r\n", rt_obj->name, recv_event_flag);
             break;
         }
     }
-
 }
+
+// static void upload_screen_send_sub_event(void *parameter)
+// {
+//     if (parameter == RT_NULL)
+//         return;
+
+//     upload_screen_obj_t obj = (upload_screen_obj_t)parameter;
+//     rt_object_t rt_obj = (rt_object_t)obj;
+//     custom_obj_t custom_obj = (custom_obj_t)obj;
+
+//     if(custom_obj->txb.sub_mb == RT_NULL)
+//         return;
+
+//     while (1)
+//     {
+//         while(custom_obj->txb.sub_event == RT_NULL || custom_obj->txb.next_event_mask == 0)
+//             rt_thread_mdelay(100);
+
+//         rt_uint32_t recv_event_flag = 0;
+//         if(rt_event_recv(custom_obj->txb.sub_event, custom_obj->txb.next_event_mask, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
+//         {
+//             if (custom_obj->txb.sub_event == RT_NULL || custom_obj->txb.next_event_mask == 0 || recv_event_flag == 0)
+//                 continue;
+//             LOG_E("%s recv tx_sub_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->txb.next_event_mask);
+//             break;
+//         }
+
+//         if (rt_mb_send(custom_obj->txb.sub_mb, recv_event_flag) != RT_EOK)
+//         {
+//             LOG_E("%s send tx_sub_mb error: %d\r\n", rt_obj->name, recv_event_flag);
+//             break;
+//         }
+//     }
+
+// }
 
 static double_ret upload_screen_set_param(upload_obj_t self, void *config)
 {
@@ -164,73 +192,73 @@ static double_ret upload_screen_set_param(upload_obj_t self, void *config)
     return result;
 }
 
-static void upload_screen_send(void *parameter)
-{
-    if (parameter == RT_NULL)
-        return;
+// static void upload_screen_send(void *parameter)
+// {
+//     if (parameter == RT_NULL)
+//         return;
 
-    upload_screen_obj_t obj = (upload_screen_obj_t)parameter;
-    rt_object_t rt_obj = (rt_object_t)obj;
-    custom_obj_t custom_obj = (custom_obj_t)obj;
+//     upload_screen_obj_t obj = (upload_screen_obj_t)parameter;
+//     rt_object_t rt_obj = (rt_object_t)obj;
+//     custom_obj_t custom_obj = (custom_obj_t)obj;
 
-    if (obj->uart == RT_NULL || custom_obj->txb.sub_mb == RT_NULL)
-        return;
+//     if (obj->uart == RT_NULL || custom_obj->txb.sub_mb == RT_NULL)
+//         return;
 
-    while (1)
-    {
-        rt_uint32_t recv_event_flag = 0;
-        if(rt_mb_recv(custom_obj->txb.sub_mb, (rt_ubase_t *)&recv_event_flag, RT_WAITING_FOREVER) != RT_EOK)
-        {
-            LOG_E("%s recv tx_sub_mb error", rt_obj->name);
-            break;
-        }
+//     while (1)
+//     {
+//         rt_uint32_t recv_event_flag = 0;
+//         if(rt_mb_recv(custom_obj->txb.sub_mb, (rt_ubase_t *)&recv_event_flag, RT_WAITING_FOREVER) != RT_EOK)
+//         {
+//             LOG_E("%s recv tx_sub_mb error", rt_obj->name);
+//             break;
+//         }
 
-        rt_thread_yield();
+//         rt_thread_yield();
 
-        if (rt_mutex_take(custom_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        {
-            LOG_E("%s take tx_bind_mutex error", rt_obj->name);
-            break;
-        }
+//         if (rt_mutex_take(custom_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+//         {
+//             LOG_E("%s take tx_bind_mutex error", rt_obj->name);
+//             break;
+//         }
 
-        if (custom_obj->event_flag == 0)
-        {
-            LOG_E("%s event_flag is 0, skip", rt_obj->name);
-            rt_mutex_release(custom_obj->txb.bind_mutex);
-            continue;
-        }
+//         if (custom_obj->event_flag == 0)
+//         {
+//             LOG_E("%s event_flag is 0, skip", rt_obj->name);
+//             rt_mutex_release(custom_obj->txb.bind_mutex);
+//             continue;
+//         }
 
-        while(recv_event_flag != 0)
-        {
-            custom_obj_t tx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->txb.next_obj_list, &recv_event_flag, RT_TRUE);
-            if(tx_custom_obj == RT_NULL)
-                break;
+//         while(recv_event_flag != 0)
+//         {
+//             custom_obj_t tx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->txb.next_obj_list, &recv_event_flag, RT_TRUE);
+//             if(tx_custom_obj == RT_NULL)
+//                 break;
 
-            if(tx_custom_obj->txb.pub_succ_event == RT_NULL)
-                continue;
+//             if(tx_custom_obj->txb.pub_succ_event == RT_NULL)
+//                 continue;
 
-            custom_obj_bind_link_xfer(tx_custom_obj, custom_obj, tx_custom_obj->txb.len, RT_FALSE);
+//             custom_obj_bind_link_xfer(tx_custom_obj, custom_obj, tx_custom_obj->txb.len, RT_FALSE);
 
-            rt_ssize_t len = 0;
-            while(len < tx_custom_obj->txb.len)
-            {
-                rt_ssize_t write_len = rt_device_write(obj->uart, 0, tx_custom_obj->txb.buffer + len, tx_custom_obj->txb.len - len);
-                if(write_len == 0)
-                    break;
-                len += write_len;
-            }
+//             rt_ssize_t len = 0;
+//             while(len < tx_custom_obj->txb.len)
+//             {
+//                 rt_ssize_t write_len = rt_device_write(obj->uart, 0, tx_custom_obj->txb.buffer + len, tx_custom_obj->txb.len - len);
+//                 if(write_len == 0)
+//                     break;
+//                 len += write_len;
+//             }
 
-            LOG_D("%s send to %s: %d\r\n", tx_custom_obj->parent.name, rt_obj->name, len);
-            custom_obj_bind_ext_add_send(custom_obj, (rt_size_t)len, RT_FALSE);
+//             LOG_D("%s send to %s: %d\r\n", tx_custom_obj->parent.name, rt_obj->name, len);
+//             custom_obj_bind_ext_add_send(custom_obj, (rt_size_t)len, RT_FALSE);
 
-            LOG_I("%s ---> %s send txb.pub_succ_event: 0x%X\r\n", rt_obj->name, tx_custom_obj->parent.name, custom_obj->event_flag);
-            if( rt_event_send(tx_custom_obj->txb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
-                LOG_E("%s send tx_pub_succ_event error: %d/%d\r\n", rt_obj->name, custom_obj->event_flag, tx_custom_obj->txb.pre_event_mask);
-        }
+//             LOG_I("%s ---> %s send txb.pub_succ_event: 0x%X\r\n", rt_obj->name, tx_custom_obj->parent.name, custom_obj->event_flag);
+//             if( rt_event_send(tx_custom_obj->txb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
+//                 LOG_E("%s send tx_pub_succ_event error: %d/%d\r\n", rt_obj->name, custom_obj->event_flag, tx_custom_obj->txb.pre_event_mask);
+//         }
 
-        rt_mutex_release(custom_obj->txb.bind_mutex);
-    }
-}
+//         rt_mutex_release(custom_obj->txb.bind_mutex);
+//     }
+// }
 
 static rt_err_t upload_screen_handle_rx_bind_next(upload_screen_obj_t obj,
                                                  rt_object_t rt_obj,
@@ -326,17 +354,17 @@ static rt_err_t upload_screen_delete(upload_obj_t self)
         obj->uart = RT_NULL;
     }
 
-    // if (obj->rx_sub_event_tid != RT_NULL)
-    // {
-    //     rt_thread_delete(obj->rx_sub_event_tid);
-    //     obj->rx_sub_event_tid = RT_NULL;
-    // }
-
-    if (obj->tx_sub_event_tid != RT_NULL)
+    if (obj->rx_sub_event_tid != RT_NULL)
     {
-        rt_thread_delete(obj->tx_sub_event_tid);
-        obj->tx_sub_event_tid = RT_NULL;
+        rt_thread_delete(obj->rx_sub_event_tid);
+        obj->rx_sub_event_tid = RT_NULL;
     }
+
+    // if (obj->tx_sub_event_tid != RT_NULL)
+    // {
+    //     rt_thread_delete(obj->tx_sub_event_tid);
+    //     obj->tx_sub_event_tid = RT_NULL;
+    // }
 
     if (obj->rx_tid != RT_NULL)
     {
@@ -344,11 +372,11 @@ static rt_err_t upload_screen_delete(upload_obj_t self)
         obj->rx_tid = RT_NULL;
     }
 
-    if (obj->tx_tid != RT_NULL)
-    {
-        rt_thread_delete(obj->tx_tid);
-        obj->tx_tid = RT_NULL;
-    }
+    // if (obj->tx_tid != RT_NULL)
+    // {
+    //     rt_thread_delete(obj->tx_tid);
+    //     obj->tx_tid = RT_NULL;
+    // }
 
     if(obj->rx_ind_sem != RT_NULL)
     {
@@ -356,11 +384,11 @@ static rt_err_t upload_screen_delete(upload_obj_t self)
         obj->rx_ind_sem = RT_NULL;
     }
     
-    // if(custom_obj->rxb.sub_mb != RT_NULL)
-    // {
-    //     rt_mb_delete(custom_obj->rxb.sub_mb);
-    //     custom_obj->rxb.sub_mb = RT_NULL;
-    // }
+    if(custom_obj->rxb.sub_mb != RT_NULL)
+    {
+        rt_mb_delete(custom_obj->rxb.sub_mb);
+        custom_obj->rxb.sub_mb = RT_NULL;
+    }
 
     if(custom_obj->txb.sub_mb != RT_NULL)
     {
@@ -466,23 +494,23 @@ static upload_obj_t  upload_screen_create(upload_obj_t self, char *name, void *c
         goto exit;
     }
 
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx");
-    if((obj->tx_tid = rt_thread_create(name_buf, upload_screen_send, obj, 1024, CUSTOM_THREAD_PRIORITY, 20)) == RT_NULL) {
-        LOG_E("create error: tx thread create");
-        goto exit;
-    }
-
-    // rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_event");
-    // if((obj->rx_sub_event_tid = rt_thread_create(name_buf, upload_screen_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
-    //     LOG_E("create error: rx sub event thread create");
+    // rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx");
+    // if((obj->tx_tid = rt_thread_create(name_buf, upload_screen_send, obj, 1024, CUSTOM_THREAD_PRIORITY, 20)) == RT_NULL) {
+    //     LOG_E("create error: tx thread create");
     //     goto exit;
     // }
 
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_sub_event");
-    if((obj->tx_sub_event_tid = rt_thread_create(name_buf, upload_screen_send_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
-        LOG_E("create error: tx sub event thread create");
+    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_event");
+    if((obj->rx_sub_event_tid = rt_thread_create(name_buf, upload_screen_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+        LOG_E("create error: rx sub event thread create");
         goto exit;
     }
+
+    // rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_sub_event");
+    // if((obj->tx_sub_event_tid = rt_thread_create(name_buf, upload_screen_send_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+    //     LOG_E("create error: tx sub event thread create");
+    //     goto exit;
+    // }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_bind_mutex");
     if((custom_obj->rxb.bind_mutex = rt_mutex_create(name_buf, RT_IPC_FLAG_FIFO)) == RT_NULL) {
@@ -496,11 +524,11 @@ static upload_obj_t  upload_screen_create(upload_obj_t self, char *name, void *c
         goto exit;
     }
 
-    // rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_mb");
-    // if ((custom_obj->rxb.sub_mb = rt_mb_create(name_buf, CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
-    //     LOG_E("create error: rx mailbox create");
-    //     goto exit;
-    // }
+    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_mb");
+    if ((custom_obj->rxb.sub_mb = rt_mb_create(name_buf, CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
+        LOG_E("create error: rx mailbox create");
+        goto exit;
+    }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_sub_mb");
     if ((custom_obj->txb.sub_mb = rt_mb_create(name_buf, CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
@@ -521,9 +549,9 @@ static upload_obj_t  upload_screen_create(upload_obj_t self, char *name, void *c
     }
 
     rt_thread_startup(obj->rx_tid);
-    rt_thread_startup(obj->tx_tid);
-    // rt_thread_startup(obj->rx_sub_event_tid);
-    rt_thread_startup(obj->tx_sub_event_tid);
+    // rt_thread_startup(obj->tx_tid);
+    rt_thread_startup(obj->rx_sub_event_tid);
+    // rt_thread_startup(obj->tx_sub_event_tid);
 
     obj->uart->user_data = obj;
     rt_device_set_rx_indicate(obj->uart, upload_screen_rx_ind);
