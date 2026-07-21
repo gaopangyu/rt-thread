@@ -43,7 +43,7 @@ static int msh_help(int argc, char **argv)
                 FINSH_NEXT_SYSCALL(index))
         {
 #if defined(FINSH_USING_DESCRIPTION)
-            rt_kprintf("%-16s - %s\n", index->name, index->desc);
+            rt_kprintf("%-32s - %s\n", index->name, index->desc);
 #else
             rt_kprintf("%s ", index->name);
 #endif  /* FINSH_USING_DESCRIPTION */

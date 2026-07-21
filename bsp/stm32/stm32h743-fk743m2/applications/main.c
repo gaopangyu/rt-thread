@@ -142,7 +142,7 @@ int main(void)
 // create_bind interface_rs232_3 protocol_logv1_1
 
 //步骤五: 测试日志系统
-// create_upload_store upload_store_1 -p tx3016a
+// create_upload_store upload_store_1 -d logv1 -p tx3016a
 // create_bind protocol_logv1_1 upload_store_1
 // delete_upload_store -n upload_store_1
 

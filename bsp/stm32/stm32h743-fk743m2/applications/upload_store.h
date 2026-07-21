@@ -5,6 +5,7 @@
 
 struct upload_store_config
 {
+    char dir[RT_NAME_MAX];
     char path[RT_NAME_MAX];
 };
 

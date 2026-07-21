@@ -90,6 +90,7 @@
 #define RT_USING_TIMER_SOFT
 #define RT_TIMER_THREAD_PRIO 4
 #define RT_TIMER_THREAD_STACK_SIZE 1024
+#define RT_USING_CPU_USAGE_TRACER
 
 /* kservice options */
 

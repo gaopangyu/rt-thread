@@ -12,7 +12,7 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define RAM_STORE_BASE          "/ramfs/log"   /* ramfs 仍扁平：相对路径里的 '/' 是文件名的一部分，勿 mkdir */
+#define RAM_STORE_BASE          "/ramfs"   /* ramfs 仍扁平：相对路径里的 '/' 是文件名的一部分，勿 mkdir */
 
 static void upload_store_recv_sub_event(void *parameter)
 {
@@ -62,14 +62,16 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config)
     upload_store_config_t obj_cfg = &(obj->config);
 
     char path[RT_NAME_MAX] = {0};
-    rt_snprintf(path, sizeof(path), "%s/%s", RAM_STORE_BASE, cfg->path);
+    rt_snprintf(path, sizeof(path), "%s/%s/%s", RAM_STORE_BASE, cfg->dir, cfg->path);
 
     if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
     {
         result.fail++;
         return result;
     }
-
+        
+    rt_strncpy(obj->config.dir, cfg->dir, RT_NAME_MAX - 1);
+    obj->config.dir[RT_NAME_MAX - 1] = 0;
     rt_strncpy(obj->config.path, cfg->path, RT_NAME_MAX - 1);
     obj->config.path[RT_NAME_MAX - 1] = 0;
     rt_strncpy(obj->ramfs_path, path, RT_NAME_MAX - 1);
@@ -440,8 +442,8 @@ static int cmd_create_upload_store(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_upload_store <name> -p <path>\n");
-        rt_kprintf("Example: create_upload_store upload_store_1 -p site1\n");
+        rt_kprintf("Usage: create_upload_store <name> -d <dir> -p <path>\n");
+        rt_kprintf("Example: create_upload_store upload_store_1 -d log -p site1\n");
         return -RT_ERROR;
     }
 
@@ -466,15 +468,18 @@ static int cmd_create_upload_store(int argc, char *argv[])
         return -RT_ERROR;
     }
 
+    const char *dir = custom_obj_msh_get_opt(argc, argv, "d");
     const char *path = custom_obj_msh_get_opt(argc, argv, "p");
-    if (path == RT_NULL || path[0] == '\0')
+    if (dir == RT_NULL || dir[0] == '\0' || path == RT_NULL || path[0] == '\0')
     {
-        rt_kprintf("Usage: create_upload_store <name> -p <path>\n");
-        rt_kprintf("Example: create_upload_store upload_store_1 -p site1\n");
+        rt_kprintf("Usage: create_upload_store <name> -d <dir> -p <path>\n");
+        rt_kprintf("Example: create_upload_store upload_store_1 -d log -p site1\n");
         return -RT_ERROR;
     }
 
     struct upload_store_config config = {0};
+    rt_strncpy(config.dir, dir, RT_NAME_MAX - 1);
+    config.dir[RT_NAME_MAX - 1] = '\0';
     rt_strncpy(config.path, path, RT_NAME_MAX - 1);
     config.path[RT_NAME_MAX - 1] = '\0';
 
@@ -484,7 +489,7 @@ static int cmd_create_upload_store(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    rt_kprintf("Created upload_store: %s path=%s\n", name, config.path);
+    rt_kprintf("Created upload_store: %s dir=%s path=%s\n", name, config.dir, config.path);
     return RT_EOK;
 }
 MSH_CMD_EXPORT_ALIAS(cmd_create_upload_store, create_upload_store, Create upload_store object);
