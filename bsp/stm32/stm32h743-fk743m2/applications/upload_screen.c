@@ -260,37 +260,22 @@ static double_ret upload_screen_set_param(upload_obj_t self, void *config)
 //     }
 // }
 
-static rt_err_t upload_screen_handle_rx_bind_next(upload_screen_obj_t obj,
-                                                 rt_object_t rt_obj,
-                                                 custom_obj_t custom_obj,
-                                                 rt_ssize_t len)
+static void upload_screen_handle_rx_bind_next(rt_object_t rt_obj, custom_obj_t custom_obj, upload_screen_obj_t obj, rt_uint8_t *buffer, rt_size_t len)
 {
-    if ( custom_obj->rxb.pub_event == RT_NULL || custom_obj->event_flag == 0 
-      || custom_obj->rxb.pub_succ_event == RT_NULL || custom_obj->rxb.next_event_mask == 0 )
-        return -RT_EINVAL;
+    if (buffer == RT_NULL || len == 0)
+        return;
 
-    custom_obj_bind_ext_add_recv(custom_obj, (rt_size_t)len, RT_TRUE);
-    custom_obj->rxb.buffer = obj->rx_buffer;
-    custom_obj->rxb.len = len;
-
-    rt_thread_yield();
-    LOG_I("%s send rxb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);
-    if(rt_event_send(custom_obj->rxb.pub_event, custom_obj->event_flag) == RT_EOK)
+    rt_ssize_t send_len = 0;
+    while(send_len < len)
     {
-        rt_uint32_t recv_event_flag = 0;
-        LOG_I("%s recv rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, custom_obj->rxb.next_event_mask);
-        if(rt_event_recv(custom_obj->rxb.pub_succ_event, custom_obj->rxb.next_event_mask, RT_EVENT_FLAG_AND | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
-            LOG_E("%s recv pub_succ_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->rxb.next_event_mask);
-    }
-    else
-    {
-        LOG_E("%s send rx_pub_event error: %d/%d\r\n", rt_obj->name, custom_obj->rxb.pub_event, custom_obj->rxb.next_event_mask);
+        rt_ssize_t write_len = rt_device_write(obj->uart, 0, buffer + send_len, len - send_len);
+        if(write_len == 0)
+            break;
+        send_len += write_len;
     }
 
-    custom_obj->rxb.buffer = RT_NULL;
-    custom_obj->rxb.len = 0;
-
-    return RT_EOK;
+    LOG_D("%s send to %s: %d\r\n", rt_obj->name, obj->uart->parent.name, send_len);
+    custom_obj_bind_ext_add_send(custom_obj, (rt_size_t)send_len, RT_TRUE);
 }
 
 static void upload_screen_recv(void *parameter)
@@ -301,34 +286,55 @@ static void upload_screen_recv(void *parameter)
     upload_screen_obj_t obj = (upload_screen_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
-    upload_obj_t upload_obj = (upload_obj_t)obj;
+    protocol_obj_t protocol_obj = (protocol_obj_t)obj;
 
-    if (obj->uart == RT_NULL || obj->rx_buffer == RT_NULL || obj->rx_bufsz == 0)
+    if(custom_obj->rxb.sub_mb == RT_NULL)
         return;
 
     while (1)
     {
-        if(rt_sem_take(obj->rx_ind_sem, RT_WAITING_FOREVER) != RT_EOK)
+        rt_uint32_t recv_event_flag = 0;
+        if(rt_mb_recv(custom_obj->rxb.sub_mb, (rt_ubase_t *)&recv_event_flag, RT_WAITING_FOREVER) != RT_EOK)
         {
-            LOG_E("%s take rx_ind_sem error", rt_obj->name);
+            LOG_E("%s recv rxb.sub_mb error", rt_obj->name);
             break;
         }
 
-        rt_ssize_t len = 0;
-        while ((len = rt_device_read(obj->uart, 0, obj->rx_buffer, obj->rx_bufsz)) > 0)
+        rt_thread_yield();
+
+        if (rt_mutex_take(custom_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
-            LOG_D("%s recv from %s: %d\r\n", rt_obj->name, obj->uart->parent.name, len);
-
-            if (rt_mutex_take(custom_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
-            {
-                LOG_E("%s take rx_bind_mutex error", rt_obj->name);
-                break;
-            }
-
-            upload_screen_handle_rx_bind_next(obj, rt_obj, custom_obj, len);
-
-            rt_mutex_release(custom_obj->rxb.bind_mutex);
+            LOG_E("%s take rx_bind_mutex error", rt_obj->name);
+            break;
         }
+
+        if(custom_obj->event_flag == 0)
+        {
+            LOG_E("%s event_flag is 0, skip", rt_obj->name);
+            rt_mutex_release(custom_obj->rxb.bind_mutex);
+            continue;
+        }
+
+        while(recv_event_flag != 0)
+        {
+            custom_obj_t rx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->rxb.pre_obj_list, &recv_event_flag, RT_TRUE);
+            if(rx_custom_obj == RT_NULL)
+                break;
+
+            LOG_D("%s recv from %s: %d\r\n", rt_obj->name, rx_custom_obj->parent.name, rx_custom_obj->rxb.len);
+            custom_obj_bind_link_xfer(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
+
+            if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
+                continue;
+
+            upload_screen_handle_rx_bind_next(rt_obj, custom_obj, obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+
+            LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
+            if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
+                LOG_E("%s send rx_pub_succ_event error: %d/%d\r\n", rt_obj->name, custom_obj->event_flag, rx_custom_obj->rxb.next_event_mask);
+        }
+
+        rt_mutex_release(custom_obj->rxb.bind_mutex);
     }
 }
  
@@ -604,7 +610,7 @@ static int upload_screen_init(void)
     if (rt_object_find(UPLOAD_SCREEN_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
         return -RT_ERROR;
 
-    custom_obj->type = Custom_Object_Class_Interface;
+    custom_obj->type = Custom_Object_Class_Upload;
 
     upload_obj_init(custom_obj);
 
@@ -732,7 +738,7 @@ static int cmd_delete_upload_screen(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    if (((custom_obj_t)obj)->type != Custom_Object_Class_Interface)
+    if (((custom_obj_t)obj)->type != Custom_Object_Class_Upload)
     {
         rt_kprintf("Not an upload_screen object: %s\n", name);
         return -RT_ERROR;

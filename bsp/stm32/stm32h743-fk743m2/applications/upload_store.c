@@ -84,7 +84,7 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config)
     return result;
 }
 
-static void upload_store_handle_bind_pre(upload_store_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
+static void upload_store_handle_rx_bind_pre(upload_store_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
 {
     if (buffer == RT_NULL || len == 0)
         return;
@@ -183,7 +183,7 @@ static void upload_store_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            upload_store_handle_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            upload_store_handle_rx_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
