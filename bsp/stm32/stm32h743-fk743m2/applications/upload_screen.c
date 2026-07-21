@@ -1,37 +1,35 @@
-#if 0
-
-#include "interface_rs232.h"
+#include "upload_screen.h"
 #include "protocol_obj.h"
 #include "bind.h"
 
-#define DBG_TAG "interface_rs232"
+#define DBG_TAG "upload_screen"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-static rt_err_t interface_rs232_rx_ind(rt_device_t dev, rt_size_t size)
+static rt_err_t upload_screen_rx_ind(rt_device_t dev, rt_size_t size)
 {
     if(dev == RT_NULL || size == 0)
         return -RT_EINVAL;
 
-    interface_rs232_obj_t obj = (interface_rs232_obj_t)dev->user_data;
+    upload_screen_obj_t obj = (upload_screen_obj_t)dev->user_data;
     if (obj != RT_NULL)
         rt_sem_release(obj->rx_ind_sem);
 
     return RT_EOK;
 }
 
-// static void interface_rs232_recv_sub_event(void *parameter)
+// static void upload_screen_recv_sub_event(void *parameter)
 // {
 //     if (parameter == RT_NULL)
 //         return;
 // }
 
-static void interface_rs232_send_sub_event(void *parameter)
+static void upload_screen_send_sub_event(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    interface_rs232_obj_t obj = (interface_rs232_obj_t)parameter;
+    upload_screen_obj_t obj = (upload_screen_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -61,7 +59,7 @@ static void interface_rs232_send_sub_event(void *parameter)
 
 }
 
-static double_ret interface_rs232_set_param(interface_obj_t self, void *config)
+static double_ret upload_screen_set_param(upload_obj_t self, void *config)
 {
     double_ret result = {0, 0};
 
@@ -71,9 +69,9 @@ static double_ret interface_rs232_set_param(interface_obj_t self, void *config)
         return result;
     }
 
-    interface_rs232_config_t cfg = (interface_rs232_config_t)config;
-    interface_rs232_obj_t obj = (interface_rs232_obj_t)self;
-    interface_rs232_config_t obj_cfg = &(obj->config);
+    upload_screen_config_t cfg = (upload_screen_config_t)config;
+    upload_screen_obj_t obj = (upload_screen_obj_t)self;
+    upload_screen_config_t obj_cfg = &(obj->config);
 
     obj->uart = rt_device_find(cfg->uart_name);
     if (obj->uart == RT_NULL) {
@@ -166,12 +164,12 @@ static double_ret interface_rs232_set_param(interface_obj_t self, void *config)
     return result;
 }
 
-static void interface_rs232_send(void *parameter)
+static void upload_screen_send(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    interface_rs232_obj_t obj = (interface_rs232_obj_t)parameter;
+    upload_screen_obj_t obj = (upload_screen_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -234,7 +232,7 @@ static void interface_rs232_send(void *parameter)
     }
 }
 
-static rt_err_t interface_rs232_handle_rx_bind_next(interface_rs232_obj_t obj,
+static rt_err_t upload_screen_handle_rx_bind_next(upload_screen_obj_t obj,
                                                  rt_object_t rt_obj,
                                                  custom_obj_t custom_obj,
                                                  rt_ssize_t len)
@@ -267,15 +265,15 @@ static rt_err_t interface_rs232_handle_rx_bind_next(interface_rs232_obj_t obj,
     return RT_EOK;
 }
 
-static void interface_rs232_recv(void *parameter)
+static void upload_screen_recv(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    interface_rs232_obj_t obj = (interface_rs232_obj_t)parameter;
+    upload_screen_obj_t obj = (upload_screen_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
-    interface_obj_t interface_obj = (interface_obj_t)obj;
+    upload_obj_t upload_obj = (upload_obj_t)obj;
 
     if (obj->uart == RT_NULL || obj->rx_buffer == RT_NULL || obj->rx_bufsz == 0)
         return;
@@ -299,20 +297,20 @@ static void interface_rs232_recv(void *parameter)
                 break;
             }
 
-            interface_rs232_handle_rx_bind_next(obj, rt_obj, custom_obj, len);
+            upload_screen_handle_rx_bind_next(obj, rt_obj, custom_obj, len);
 
             rt_mutex_release(custom_obj->rxb.bind_mutex);
         }
     }
 }
  
-static rt_err_t interface_rs232_delete(interface_obj_t self)
+static rt_err_t upload_screen_delete(upload_obj_t self)
 {
     if (self == RT_NULL) {
         return -RT_EINVAL;
     }
 
-    interface_rs232_obj_t obj = (interface_rs232_obj_t)self;
+    upload_screen_obj_t obj = (upload_screen_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -407,14 +405,14 @@ static rt_err_t interface_rs232_delete(interface_obj_t self)
     return RT_EOK;
 }
 
-static interface_obj_t  interface_rs232_create(interface_obj_t self, char *name, void *config)
+static upload_obj_t  upload_screen_create(upload_obj_t self, char *name, void *config)
 {
     if (self == RT_NULL || name == RT_NULL) {
         LOG_E("create error: param");
         return RT_NULL;
     }
 
-    if (rt_strncmp(self->parent.parent.name, INTRFACE_RS232_PARENT_NAME, RT_NAME_MAX) != 0) {
+    if (rt_strncmp(self->parent.parent.name, UPLOAD_SCREEN_PARENT_NAME, RT_NAME_MAX) != 0) {
         LOG_E("create error: invalid parent");
         return RT_NULL;
     }
@@ -425,7 +423,7 @@ static interface_obj_t  interface_rs232_create(interface_obj_t self, char *name,
         return RT_NULL;
     }
 
-    interface_rs232_obj_t obj = rt_malloc(sizeof(struct interface_rs232_obj));
+    upload_screen_obj_t obj = rt_malloc(sizeof(struct upload_screen_obj));
     if (obj == RT_NULL) {
         LOG_E("create error: rt_malloc");
         return RT_NULL;
@@ -433,21 +431,21 @@ static interface_obj_t  interface_rs232_create(interface_obj_t self, char *name,
 
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
-    interface_obj_t interface_obj = (interface_obj_t)obj;
+    upload_obj_t upload_obj = (upload_obj_t)obj;
 
-    rt_memcpy(obj, self, sizeof(struct interface_rs232_obj));
+    rt_memcpy(obj, self, sizeof(struct upload_screen_obj));
 
     if(config == RT_NULL)
         config = &(obj->config);
 
-    obj->rx_bufsz = ((interface_rs232_config_t)config)->dma_ping_bufsz;
+    obj->rx_bufsz = ((upload_screen_config_t)config)->dma_ping_bufsz;
     obj->rx_buffer = rt_malloc(obj->rx_bufsz);
     if (obj->rx_buffer == RT_NULL) {
         LOG_E("create error: rx buffer allocation");
         goto exit;
     }
 
-    double_ret result = interface_rs232_set_param(interface_obj, config);
+    double_ret result = upload_screen_set_param(upload_obj, config);
     if (result.fail != 0)
     {
         LOG_E("create error: set param");
@@ -463,25 +461,25 @@ static interface_obj_t  interface_rs232_create(interface_obj_t self, char *name,
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx");
-    if((obj->rx_tid = rt_thread_create(name_buf, interface_rs232_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20)) == RT_NULL) {
+    if((obj->rx_tid = rt_thread_create(name_buf, upload_screen_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20)) == RT_NULL) {
         LOG_E("create error: rx thread create");
         goto exit;
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx");
-    if((obj->tx_tid = rt_thread_create(name_buf, interface_rs232_send, obj, 1024, CUSTOM_THREAD_PRIORITY, 20)) == RT_NULL) {
+    if((obj->tx_tid = rt_thread_create(name_buf, upload_screen_send, obj, 1024, CUSTOM_THREAD_PRIORITY, 20)) == RT_NULL) {
         LOG_E("create error: tx thread create");
         goto exit;
     }
 
     // rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_event");
-    // if((obj->rx_sub_event_tid = rt_thread_create(name_buf, interface_rs232_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+    // if((obj->rx_sub_event_tid = rt_thread_create(name_buf, upload_screen_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
     //     LOG_E("create error: rx sub event thread create");
     //     goto exit;
     // }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_sub_event");
-    if((obj->tx_sub_event_tid = rt_thread_create(name_buf, interface_rs232_send_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+    if((obj->tx_sub_event_tid = rt_thread_create(name_buf, upload_screen_send_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
         LOG_E("create error: tx sub event thread create");
         goto exit;
     }
@@ -528,7 +526,7 @@ static interface_obj_t  interface_rs232_create(interface_obj_t self, char *name,
     rt_thread_startup(obj->tx_sub_event_tid);
 
     obj->uart->user_data = obj;
-    rt_device_set_rx_indicate(obj->uart, interface_rs232_rx_ind);
+    rt_device_set_rx_indicate(obj->uart, upload_screen_rx_ind);
 
     if (rt_device_open(obj->uart, RT_DEVICE_OFLAG_RDWR | RT_SERIAL_RX_NON_BLOCKING | RT_SERIAL_TX_BLOCKING) != RT_EOK)
     {
@@ -538,53 +536,53 @@ static interface_obj_t  interface_rs232_create(interface_obj_t self, char *name,
 
     rt_object_init(rt_obj, RT_Object_Class_Custom, name);
     LOG_I("create success: %s", name);
-    return interface_obj;
+    return upload_obj;
 
 exit:
-    interface_rs232_delete(interface_obj);
+    upload_screen_delete(upload_obj);
     return RT_NULL;
 }
 
-static const struct interface_obj_ops interface_rs232_ops =
+static const struct upload_obj_ops upload_screen_ops =
 {
-    .create = interface_rs232_create,
-    .delete = interface_rs232_delete,
-    .set_param = interface_rs232_set_param,
+    .create = upload_screen_create,
+    .delete = upload_screen_delete,
+    .set_param = upload_screen_set_param,
 };
 
 
-static rt_err_t  interface_rs232_gc(custom_obj_t self)
+static rt_err_t  upload_screen_gc(custom_obj_t self)
 {
     if (self == RT_NULL)
         return -RT_EINVAL;
 
-    interface_obj_t interface_obj = (interface_obj_t)self;
-    return interface_rs232_delete(interface_obj);
+    upload_obj_t upload_obj = (upload_obj_t)self;
+    return upload_screen_delete(upload_obj);
 }
 
 static const struct custom_object_ops custom_obj_ops =
 {
-    .gc = interface_rs232_gc,
+    .gc = upload_screen_gc,
 };
 
-static int interface_rs232_init(void)
+static int upload_screen_init(void)
 {
-    static struct interface_rs232_obj object = {0};
-    interface_rs232_obj_t obj = &object;
+    static struct upload_screen_obj object = {0};
+    upload_screen_obj_t obj = &object;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
-    interface_obj_t interface_obj = (interface_obj_t)obj;
+    upload_obj_t upload_obj = (upload_obj_t)obj;
 
-    if (rt_object_find(INTRFACE_RS232_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
+    if (rt_object_find(UPLOAD_SCREEN_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
         return -RT_ERROR;
 
     custom_obj->type = Custom_Object_Class_Interface;
 
-    interface_obj_init(custom_obj);
+    upload_obj_init(custom_obj);
 
     custom_obj->ops = &custom_obj_ops;
 
-    interface_obj->ops = &interface_rs232_ops;
+    upload_obj->ops = &upload_screen_ops;
 
     rt_strncpy(obj->config.uart_name, "vuart1", rt_strnlen("vuart1", RT_NAME_MAX - 1));
     obj->config.baud_rate = BAUD_RATE_115200;
@@ -597,24 +595,24 @@ static int interface_rs232_init(void)
     obj->config.tx_bufsz = 1024;
     obj->config.rx_en_pin = GET_PIN(B, 7);
 
-    rt_object_init(rt_obj, RT_Object_Class_Custom, INTRFACE_RS232_PARENT_NAME);
+    rt_object_init(rt_obj, RT_Object_Class_Custom, UPLOAD_SCREEN_PARENT_NAME);
 
     return RT_EOK;
 }
 
-INIT_APP_EXPORT(interface_rs232_init);
+INIT_APP_EXPORT(upload_screen_init);
 
-static int cmd_create_interface_rs232(int argc, char *argv[])
+static int cmd_create_upload_screen(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_interface_rs232 <name> [-u uart] [-b baud] [-p rx_en_pin] [-r rx_bufsz] [-d dma_ping_bufsz] [-t tx_bufsz]\n");
-        rt_kprintf("Example: create_interface_rs232 interface_rs232_1 -u vuart1 -b 115200\n");
+        rt_kprintf("Usage: create_upload_screen <name> [-u uart] [-b baud] [-p rx_en_pin] [-r rx_bufsz] [-d dma_ping_bufsz] [-t tx_bufsz]\n");
+        rt_kprintf("Example: create_upload_screen upload_screen_1 -u vuart1 -b 115200\n");
         return -RT_ERROR;
     }
 
     const char *name = argv[1];
-    rt_err_t err = custom_obj_msh_check_create_name(name, "interface_rs232");
+    rt_err_t err = custom_obj_msh_check_create_name(name, "upload_screen");
 
     if (err == -RT_EFULL)
     {
@@ -627,15 +625,15 @@ static int cmd_create_interface_rs232(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    interface_obj_t parent = (interface_obj_t)rt_object_find(INTRFACE_RS232_PARENT_NAME, RT_Object_Class_Custom);
+    upload_obj_t parent = (upload_obj_t)rt_object_find(UPLOAD_SCREEN_PARENT_NAME, RT_Object_Class_Custom);
     if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
     {
-        rt_kprintf("Parent not ready: %s\n", INTRFACE_RS232_PARENT_NAME);
+        rt_kprintf("Parent not ready: %s\n", UPLOAD_SCREEN_PARENT_NAME);
         return -RT_ERROR;
     }
 
-    struct interface_rs232_config *config_ptr = RT_NULL;
-    struct interface_rs232_config config = {0};
+    struct upload_screen_config *config_ptr = RT_NULL;
+    struct upload_screen_config config = {0};
     const char *uart_name = custom_obj_msh_get_opt(argc, argv, "u");
     const char *baud_str = custom_obj_msh_get_opt(argc, argv, "b");
     const char *pin_str = custom_obj_msh_get_opt(argc, argv, "p");
@@ -673,23 +671,23 @@ static int cmd_create_interface_rs232(int argc, char *argv[])
 
     if (parent->ops->create(parent, (char *)name, config_ptr) == RT_NULL)
     {
-        rt_kprintf("Failed to create interface_rs232: %s\n", name);
+        rt_kprintf("Failed to create upload_screen: %s\n", name);
         return -RT_ERROR;
     }
 
-    rt_kprintf("Created interface_rs232: %s\n", name);
+    rt_kprintf("Created upload_screen: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_interface_rs232, create_interface_rs232, Create interface_rs232 object);
+MSH_CMD_EXPORT_ALIAS(cmd_create_upload_screen, create_upload_screen, Create upload_screen object);
 
-static int cmd_delete_interface_rs232(int argc, char *argv[])
+static int cmd_delete_upload_screen(int argc, char *argv[])
 {
     const char *name = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_interface_rs232 -n <name>\n");
-        rt_kprintf("Example: delete_interface_rs232 -n interface_rs232_1\n");
+        rt_kprintf("Usage: delete_upload_screen -n <name>\n");
+        rt_kprintf("Example: delete_upload_screen -n upload_screen_1\n");
         return -RT_ERROR;
     }
 
@@ -699,7 +697,7 @@ static int cmd_delete_interface_rs232(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    interface_obj_t obj = (interface_obj_t)rt_object_find(name, RT_Object_Class_Custom);
+    upload_obj_t obj = (upload_obj_t)rt_object_find(name, RT_Object_Class_Custom);
     if (obj == RT_NULL)
     {
         rt_kprintf("Object not found: %s\n", name);
@@ -708,7 +706,7 @@ static int cmd_delete_interface_rs232(int argc, char *argv[])
 
     if (((custom_obj_t)obj)->type != Custom_Object_Class_Interface)
     {
-        rt_kprintf("Not an interface_rs232 object: %s\n", name);
+        rt_kprintf("Not an upload_screen object: %s\n", name);
         return -RT_ERROR;
     }
 
@@ -720,13 +718,11 @@ static int cmd_delete_interface_rs232(int argc, char *argv[])
 
     if (obj->ops->delete(obj) != RT_EOK)
     {
-        rt_kprintf("Failed to delete interface_rs232: %s\n", name);
+        rt_kprintf("Failed to delete upload_screen: %s\n", name);
         return -RT_ERROR;
     }
 
-    rt_kprintf("Deleted interface_rs232: %s\n", name);
+    rt_kprintf("Deleted upload_screen: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_interface_rs232, delete_interface_rs232, Delete interface_rs232 object);
-
-#endif
+MSH_CMD_EXPORT_ALIAS(cmd_delete_upload_screen, delete_upload_screen, Delete upload_screen object);

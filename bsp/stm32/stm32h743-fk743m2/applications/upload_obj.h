@@ -8,8 +8,9 @@
 #include "bind.h"
 #include "protocol_obj.h"
 
-#define UPLOAD_MUART_PARENT_NAME "upload_muart_parent"
-#define UPLOAD_STORE_PARENT_NAME "upload_store_parent"
+#define UPLOAD_MUART_PARENT_NAME    "upload_muart_parent"
+#define UPLOAD_STORE_PARENT_NAME    "upload_store_parent"
+#define UPLOAD_SCREEN_PARENT_NAME   "upload_screen_parent"
 
 struct upload_obj
 {
