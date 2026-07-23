@@ -578,6 +578,13 @@
 
 #define RT_USING_CUSTOM
 #define LIB_PATH "/diskfs/lib/"
+
+/* Class Objects */
+
+/* Object class sources under applications/class/ */
+
+#define APP_USING_CLASS
+/* end of Class Objects */
 /* end of Applications Config */
 
 #endif
