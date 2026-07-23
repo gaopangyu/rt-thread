@@ -13,4 +13,6 @@ menu "Applications Config"
         help
             Path to the directory containing prebuilt static libraries.
 
+    source "$(BSP_DIR)/applications/class/Kconfig"
+
 endmenu

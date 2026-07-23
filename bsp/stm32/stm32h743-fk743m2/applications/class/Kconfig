@@ -1,0 +1,13 @@
+menu "Class Objects"
+
+    comment "Object class sources under applications/class/"
+
+    config APP_USING_CLASS
+        bool "Enable class objects (custom/interface/protocol/upload)"
+        select RT_USING_CUSTOM
+        default y
+        help
+            Build applications/class/*.c:
+            custom_obj, interface_*, protocol_*, upload_*.
+
+endmenu
