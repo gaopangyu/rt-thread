@@ -7,9 +7,14 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#define RAMFS_ROOT              "/ramfs"
+#define DISKFS_ROOT             "/diskfs"
+
+int ensure_dir(const char *path);
+
 void store_run(void);
 void store_run_now(void);
 
-int ensure_dir(const char *path);
+
 
 #endif /* __STORE_H__ */

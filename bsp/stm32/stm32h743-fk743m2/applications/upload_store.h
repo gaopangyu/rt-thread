@@ -17,7 +17,7 @@ struct upload_store_obj
     struct upload_store_config config;
 
     char ramfs_path[RT_NAME_MAX];
-    // char diskfs_path[RT_NAME_MAX];
+    char diskfs_path[RT_NAME_MAX];
 
     rt_mutex_t ramfs_fd_mutex;
     rt_mutex_t diskfs_fd_mutex;

@@ -11,8 +11,6 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define RAMFS_MOUNT             "/ramfs"
-#define DISKFS_ROOT             "/diskfs"
 #define STORE_PATH_MAX          256
 #define STORE_COPY_CHUNK        512
 
@@ -79,10 +77,10 @@ static int ramfs_path_to_diskfs(const char *src, char *dst, rt_size_t dst_sz)
     if (src == RT_NULL || dst == RT_NULL || dst_sz < 2)
         return -1;
 
-    if (rt_strncmp(src, RAMFS_MOUNT, sizeof(RAMFS_MOUNT) - 1) != 0)
+    if (rt_strncmp(src, RAMFS_ROOT, sizeof(RAMFS_ROOT) - 1) != 0)
         return -1;
 
-    rel = src + (sizeof(RAMFS_MOUNT) - 1);
+    rel = src + (sizeof(RAMFS_ROOT) - 1);
     if (*rel == '/')
         rel++;
     if (*rel == '\0')
@@ -158,11 +156,11 @@ static void store_migrate_one(upload_store_obj_t obj)
     if (ramfs_path[0] == '\0')
         return;
 
-    if (rt_strncmp(ramfs_path, RAMFS_MOUNT, sizeof(RAMFS_MOUNT) - 1) != 0)
+    if (rt_strncmp(ramfs_path, RAMFS_ROOT, sizeof(RAMFS_ROOT) - 1) != 0)
         return;
 
     {
-        const char *rest = ramfs_path + (sizeof(RAMFS_MOUNT) - 1);
+        const char *rest = ramfs_path + (sizeof(RAMFS_ROOT) - 1);
         if (*rest == '/')
             rest++;
         rt_strncpy(prefix, rest, sizeof(prefix) - 1);
@@ -193,10 +191,10 @@ static void store_migrate_one(upload_store_obj_t obj)
         char dst[STORE_PATH_MAX];
         int found = 0;
 
-        dir = opendir(RAMFS_MOUNT);
+        dir = opendir(RAMFS_ROOT);
         if (dir == RT_NULL)
         {
-            LOG_E("opendir %s failed", RAMFS_MOUNT);
+            LOG_E("opendir %s failed", RAMFS_ROOT);
             break;
         }
 
@@ -225,7 +223,7 @@ static void store_migrate_one(upload_store_obj_t obj)
         if (!found)
             break;
 
-        if (rt_snprintf(src, sizeof(src), "%s/%s", RAMFS_MOUNT, name) >= (int)sizeof(src))
+        if (rt_snprintf(src, sizeof(src), "%s/%s", RAMFS_ROOT, name) >= (int)sizeof(src))
         {
             LOG_E("src path too long: %s", name);
             break;
@@ -415,3 +413,5 @@ static int cmd_store_run_now(int argc, char **argv)
     return 0;
 }
 MSH_CMD_EXPORT_ALIAS(cmd_store_run_now, store_run_now, migrate ramfs logs to diskfs now);
+
+

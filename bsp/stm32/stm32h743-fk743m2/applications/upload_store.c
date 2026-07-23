@@ -12,8 +12,6 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define RAM_STORE_BASE          "/ramfs"   /* ramfs 仍扁平：相对路径里的 '/' 是文件名的一部分，勿 mkdir */
-
 static void upload_store_recv_sub_event(void *parameter)
 {
     if (parameter == RT_NULL)
@@ -61,24 +59,28 @@ static double_ret upload_store_set_param(upload_obj_t self, void *config)
     upload_store_obj_t obj = (upload_store_obj_t)self;
     upload_store_config_t obj_cfg = &(obj->config);
 
-    char path[RT_NAME_MAX] = {0};
-    rt_snprintf(path, sizeof(path), "%s/%s/%s", RAM_STORE_BASE, cfg->dir, cfg->path);
-
     if(rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
     {
         result.fail++;
         return result;
     }
-        
-    rt_strncpy(obj->config.dir, cfg->dir, RT_NAME_MAX - 1);
-    obj->config.dir[RT_NAME_MAX - 1] = 0;
-    rt_strncpy(obj->config.path, cfg->path, RT_NAME_MAX - 1);
-    obj->config.path[RT_NAME_MAX - 1] = 0;
-    rt_strncpy(obj->ramfs_path, path, RT_NAME_MAX - 1);
-    obj->ramfs_path[RT_NAME_MAX - 1] = 0;
-
+    rt_snprintf(obj->ramfs_path, sizeof(obj->ramfs_path), "%s/%s/%s", RAMFS_ROOT, cfg->dir, cfg->path);
     rt_mutex_release(obj->ramfs_fd_mutex);
 
+    if(rt_mutex_take(obj->diskfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
+    {
+        result.fail++;
+        return result;
+    }
+    rt_snprintf(obj->diskfs_path, sizeof(obj->diskfs_path), "%s/%s/%s", DISKFS_ROOT, cfg->dir, cfg->path);
+    rt_mutex_release(obj->diskfs_fd_mutex);
+
+    rt_strncpy(obj->config.dir, cfg->dir, RT_NAME_MAX - 1);
+    obj->config.dir[RT_NAME_MAX - 1] = 0;
+    result.succ++;
+
+    rt_strncpy(obj->config.path, cfg->path, RT_NAME_MAX - 1);
+    obj->config.path[RT_NAME_MAX - 1] = 0;
     result.succ++;
 
     return result;
