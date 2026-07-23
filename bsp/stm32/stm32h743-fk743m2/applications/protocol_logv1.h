@@ -6,7 +6,6 @@
 struct protocol_logv1_config
 {
     char lib_name[RT_NAME_MAX];
-    uint8_t master_index;
 };
 
 typedef struct protocol_logv1_config *protocol_logv1_config_t;

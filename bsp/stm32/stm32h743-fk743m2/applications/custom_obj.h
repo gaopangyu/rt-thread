@@ -52,9 +52,6 @@ struct custom_obj
     struct bind_node rxb;
     struct bind_node txb;
 
-    rt_atomic_t gc_take;
-    rt_atomic_t gc_flag;
-
     const struct custom_object_ops *ops;
 };
 
