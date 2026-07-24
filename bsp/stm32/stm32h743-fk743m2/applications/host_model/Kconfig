@@ -1,0 +1,13 @@
+menu "Host Model"
+
+    comment "Host model sources under applications/host_model/"
+
+    config APP_USING_HOST_MODEL
+        bool "Enable host model (host / host_std)"
+        select RT_USING_CUSTOM
+        default y
+        help
+            Build applications/host_model/*.c:
+            host, host_std.
+
+endmenu

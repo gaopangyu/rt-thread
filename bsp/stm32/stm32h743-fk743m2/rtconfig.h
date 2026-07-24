@@ -592,6 +592,13 @@
 
 #define APP_USING_ENVIRONMENT
 /* end of Environment */
+
+/* Host Model */
+
+/* Host model sources under applications/host_model/ */
+
+#define APP_USING_HOST_MODEL
+/* end of Host Model */
 /* end of Applications Config */
 
 #endif

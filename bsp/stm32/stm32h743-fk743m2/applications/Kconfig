@@ -15,5 +15,6 @@ menu "Applications Config"
 
     source "$(BSP_DIR)/applications/class/Kconfig"
     source "$(BSP_DIR)/applications/environment/Kconfig"
+    source "$(BSP_DIR)/applications/host_model/Kconfig"
 
 endmenu

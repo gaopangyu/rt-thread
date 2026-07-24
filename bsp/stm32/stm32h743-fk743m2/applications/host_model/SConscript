@@ -1,0 +1,12 @@
+# applications/host_model — host / host_std aggregation
+
+from building import *
+import os
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+CPPPATH = [cwd, os.path.join(cwd, '..'), os.path.join(cwd, '..', 'class')]
+
+group = DefineGroup('ApplicationsHostModel', src, depend = ['RT_USING_CUSTOM'], CPPPATH = CPPPATH)
+
+Return('group')

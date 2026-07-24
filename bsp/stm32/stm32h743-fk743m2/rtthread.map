@@ -736,50 +736,50 @@ Discarded input sections
  .text          0x00000000        0x0 build\applications\environment\usb0_device.o
  .data          0x00000000        0x0 build\applications\environment\usb0_device.o
  .bss           0x00000000        0x0 build\applications\environment\usb0_device.o
- .text          0x00000000        0x0 build\applications\host.o
- .data          0x00000000        0x0 build\applications\host.o
- .bss           0x00000000        0x0 build\applications\host.o
- .bss.g_host    0x00000000       0x18 build\applications\host.o
- .rodata        0x00000000       0x17 build\applications\host.o
- .data.g_com    0x00000000       0x1c build\applications\host.o
+ .text          0x00000000        0x0 build\applications\host_model\host.o
+ .data          0x00000000        0x0 build\applications\host_model\host.o
+ .bss           0x00000000        0x0 build\applications\host_model\host.o
+ .bss.g_host    0x00000000       0x18 build\applications\host_model\host.o
+ .rodata        0x00000000       0x17 build\applications\host_model\host.o
+ .data.g_com    0x00000000       0x1c build\applications\host_model\host.o
  .text.generate_name_from_parent
-                0x00000000       0x92 build\applications\host.o
- .debug_info    0x00000000      0x2bf build\applications\host.o
- .debug_abbrev  0x00000000      0x131 build\applications\host.o
- .debug_loc     0x00000000       0x50 build\applications\host.o
+                0x00000000       0x92 build\applications\host_model\host.o
+ .debug_info    0x00000000      0x2bf build\applications\host_model\host.o
+ .debug_abbrev  0x00000000      0x131 build\applications\host_model\host.o
+ .debug_loc     0x00000000       0x50 build\applications\host_model\host.o
  .debug_aranges
-                0x00000000       0x20 build\applications\host.o
- .debug_ranges  0x00000000       0x10 build\applications\host.o
- .debug_line    0x00000000      0x20f build\applications\host.o
- .debug_str     0x00000000      0x2c0 build\applications\host.o
- .comment       0x00000000       0x4a build\applications\host.o
- .debug_frame   0x00000000       0x34 build\applications\host.o
+                0x00000000       0x20 build\applications\host_model\host.o
+ .debug_ranges  0x00000000       0x10 build\applications\host_model\host.o
+ .debug_line    0x00000000      0x21a build\applications\host_model\host.o
+ .debug_str     0x00000000      0x2cb build\applications\host_model\host.o
+ .comment       0x00000000       0x4a build\applications\host_model\host.o
+ .debug_frame   0x00000000       0x34 build\applications\host_model\host.o
  .ARM.attributes
-                0x00000000       0x32 build\applications\host.o
- .text          0x00000000        0x0 build\applications\host_std.o
- .data          0x00000000        0x0 build\applications\host_std.o
- .bss           0x00000000        0x0 build\applications\host_std.o
+                0x00000000       0x32 build\applications\host_model\host.o
+ .text          0x00000000        0x0 build\applications\host_model\host_std.o
+ .data          0x00000000        0x0 build\applications\host_model\host_std.o
+ .bss           0x00000000        0x0 build\applications\host_model\host_std.o
  .text.host_std_delete_muart_rx_bind
-                0x00000000       0x60 build\applications\host_std.o
+                0x00000000       0x60 build\applications\host_model\host_std.o
  .text.host_std_create_muart_rx_bind
-                0x00000000       0x60 build\applications\host_std.o
+                0x00000000       0x60 build\applications\host_model\host_std.o
  .text.host_std_delete
-                0x00000000      0x1ec build\applications\host_std.o
- .rodata        0x00000000       0x5d build\applications\host_std.o
+                0x00000000      0x1ec build\applications\host_model\host_std.o
+ .rodata        0x00000000       0x5d build\applications\host_model\host_std.o
  .text.host_std_create
-                0x00000000      0x478 build\applications\host_std.o
- .debug_info    0x00000000     0x1164 build\applications\host_std.o
- .debug_abbrev  0x00000000      0x22a build\applications\host_std.o
- .debug_loc     0x00000000      0x142 build\applications\host_std.o
+                0x00000000      0x478 build\applications\host_model\host_std.o
+ .debug_info    0x00000000     0x1164 build\applications\host_model\host_std.o
+ .debug_abbrev  0x00000000      0x22a build\applications\host_model\host_std.o
+ .debug_loc     0x00000000      0x142 build\applications\host_model\host_std.o
  .debug_aranges
-                0x00000000       0x38 build\applications\host_std.o
- .debug_ranges  0x00000000       0x28 build\applications\host_std.o
- .debug_line    0x00000000      0x77c build\applications\host_std.o
- .debug_str     0x00000000      0xc2a build\applications\host_std.o
- .comment       0x00000000       0x4a build\applications\host_std.o
- .debug_frame   0x00000000       0xa8 build\applications\host_std.o
+                0x00000000       0x38 build\applications\host_model\host_std.o
+ .debug_ranges  0x00000000       0x28 build\applications\host_model\host_std.o
+ .debug_line    0x00000000      0x787 build\applications\host_model\host_std.o
+ .debug_str     0x00000000      0xc35 build\applications\host_model\host_std.o
+ .comment       0x00000000       0x4a build\applications\host_model\host_std.o
+ .debug_frame   0x00000000       0xa8 build\applications\host_model\host_std.o
  .ARM.attributes
-                0x00000000       0x32 build\applications\host_std.o
+                0x00000000       0x32 build\applications\host_model\host_std.o
  .text          0x00000000        0x0 build\applications\main.o
  .data          0x00000000        0x0 build\applications\main.o
  .bss           0x00000000        0x0 build\applications\main.o
@@ -3115,8 +3115,8 @@ LOAD build\applications\class\upload_store.o
 LOAD build\applications\environment\auto_mount.o
 LOAD build\applications\environment\rtc.o
 LOAD build\applications\environment\usb0_device.o
-LOAD build\applications\host.o
-LOAD build\applications\host_std.o
+LOAD build\applications\host_model\host.o
+LOAD build\applications\host_model\host_std.o
 LOAD build\applications\main.o
 LOAD build\board\CubeMX_Config\Src\stm32h7xx_hal_msp.o
 LOAD build\board\board.o
@@ -14838,9 +14838,9 @@ atoi                                              f:/rtthread/env/env-windows/to
 bcmp                                              build\kernel\components\libc\compilers\common\cstring.o
 bcopy                                             build\kernel\components\libc\compilers\common\cstring.o
 bind_create                                       build\applications\class\bind.o
-                                                  build\applications\host_std.o
+                                                  build\applications\host_model\host_std.o
 bind_delete                                       build\applications\class\bind.o
-                                                  build\applications\host_std.o
+                                                  build\applications\host_model\host_std.o
 bind_delete_all_for_obj                           build\applications\class\bind.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
@@ -15267,19 +15267,19 @@ fsync                                             build\kernel\components\dfs\df
 ftruncate                                         build\kernel\components\dfs\dfs_v1\src\dfs_posix.o
 fwrite                                            f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard\libc.a(lib_a-fwrite.o)
                                                   build\kernel\components\libc\posix\libdl\dlsyms.o
-g_com                                             build\applications\host.o
-                                                  build\applications\host_std.o
+g_com                                             build\applications\host_model\host.o
+                                                  build\applications\host_model\host_std.o
 g_dwc2_udc                                        build\kernel\components\drivers\usb\cherryusb\port\dwc2\usb_dc_dwc2.o
-g_host                                            build\applications\host.o
-                                                  build\applications\host_std.o
+g_host                                            build\applications\host_model\host.o
+                                                  build\applications\host_model\host_std.o
 g_pfnVectors                                      packages\stm32h7_cmsis_driver-latest\Source\Templates\gcc\startup_stm32h743xx.o
 g_usbd_core                                       build\kernel\components\drivers\usb\cherryusb\core\usbd_core.o
 g_usbd_msc                                        build\kernel\components\drivers\usb\cherryusb\class\msc\usbd_msc.o
 g_usbdev_bus                                      build\kernel\components\drivers\usb\cherryusb\core\usbd_core.o
                                                   build\kernel\components\drivers\usb\cherryusb\port\dwc2\usb_glue_st.o
                                                   build\kernel\components\drivers\usb\cherryusb\port\dwc2\usb_dc_dwc2.o
-generate_name_from_parent                         build\applications\host.o
-                                                  build\applications\host_std.o
+generate_name_from_parent                         build\applications\host_model\host.o
+                                                  build\applications\host_model\host_std.o
 get_obj_from_event_flag                           build\applications\class\custom_obj.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
@@ -15299,7 +15299,7 @@ gmtime                                            build\kernel\components\libc\c
 gmtime_r                                          build\kernel\components\libc\compilers\common\ctime.o
                                                   F:\job_hyjx\udtd_v2\rt-thread\bsp\stm32\libraries\HAL_Drivers\drivers\drv_rtc.o
 hardware_init_hook                                f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/crt0.o
-host_std_create                                   build\applications\host_std.o
+host_std_create                                   build\applications\host_model\host_std.o
 index                                             build\kernel\components\libc\compilers\common\cstring.o
 interface_obj_init                                build\applications\class\interface_obj.o
                                                   build\applications\class\interface_rs232.o
@@ -15638,7 +15638,7 @@ rt_calloc                                         build\kernel\src\kservice.o
                                                   build\kernel\components\finsh\shell.o
                                                   build\kernel\components\dfs\dfs_v1\src\dfs_file.o
                                                   build\kernel\components\dfs\dfs_v1\src\dfs.o
-                                                  build\applications\host_std.o
+                                                  build\applications\host_model\host_std.o
                                                   build\kernel\components\libc\compilers\newlib\syscalls.o
 rt_completion_done                                build\kernel\components\drivers\ipc\completion_comm.o
                                                   build\kernel\components\drivers\serial\dev_serial_v2.o
@@ -15880,7 +15880,7 @@ rt_free                                           build\kernel\src\kservice.o
                                                   build\packages\cJSON-latest\cJSON.o
                                                   build\board\port\drv_qspi_flash.o
                                                   build\board\port\board_mem.o
-                                                  build\applications\host_std.o
+                                                  build\applications\host_model\host_std.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
                                                   build\applications\class\upload_muart.o
@@ -16176,7 +16176,7 @@ rt_memcpy                                         build\kernel\src\klibc\kstring
                                                   build\packages\littlefs-latest\dfs_lfs.o
                                                   build\packages\cJSON-latest\cJSON_Utils.o
                                                   build\packages\cJSON-latest\cJSON.o
-                                                  build\applications\host.o
+                                                  build\applications\host_model\host.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
                                                   build\applications\class\upload_muart.o
@@ -16389,7 +16389,7 @@ rt_object_detach_sethook                          build\kernel\src\object.o
 rt_object_find                                    build\kernel\src\object.o
                                                   build\kernel\src\thread.o
                                                   build\kernel\components\drivers\core\device.o
-                                                  build\applications\host_std.o
+                                                  build\applications\host_model\host_std.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
                                                   build\applications\class\upload_muart.o
@@ -17291,7 +17291,7 @@ strnlen                                           build\kernel\components\libc\c
 strrchr                                           f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard\libc.a(lib_a-strrchr.o)
                                                   build\kernel\components\dfs\dfs_v1\src\dfs_file.o
                                                   build\packages\cJSON-latest\cJSON_Utils.o
-                                                  build\applications\host.o
+                                                  build\applications\host_model\host.o
                                                   build\applications\class\store.o
                                                   build\kernel\components\libc\compilers\common\cstring.o
 strspn                                            f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard\libc.a(lib_a-strspn.o)
@@ -17389,7 +17389,7 @@ ulog_output                                       build\kernel\components\utilit
                                                   build\board\port\board_mem.o
                                                   build\board\board.o
                                                   build\applications\main.o
-                                                  build\applications\host_std.o
+                                                  build\applications\host_model\host_std.o
                                                   build\applications\environment\rtc.o
                                                   build\applications\environment\auto_mount.o
                                                   build\applications\class\upload_store.o
