@@ -28,9 +28,9 @@ typedef struct host *host_t;
 
 struct host_ops
 {
-    rt_err_t    (*create_muart_rx_bind)   (rt_uint8_t platform_id);
-    rt_err_t    (*delete_muart_rx_bind)   (rt_uint8_t platform_id);
-    rt_err_t    (*delete_host)            (host_t host);
+    rt_err_t    (*create_muart_rx_bind)   (host_t self, rt_uint8_t platform_id);
+    rt_err_t    (*delete_muart_rx_bind)   (host_t self, rt_uint8_t platform_id);
+    rt_err_t    (*delete_host)            (host_t self);
 };
 
 extern host_t g_host[HOST_MAX];

@@ -744,7 +744,7 @@ Discarded input sections
  .data.g_com    0x00000000       0x1c build\applications\host.o
  .text.generate_name_from_parent
                 0x00000000       0x92 build\applications\host.o
- .debug_info    0x00000000      0x2ba build\applications\host.o
+ .debug_info    0x00000000      0x2bf build\applications\host.o
  .debug_abbrev  0x00000000      0x131 build\applications\host.o
  .debug_loc     0x00000000       0x50 build\applications\host.o
  .debug_aranges
@@ -759,21 +759,25 @@ Discarded input sections
  .text          0x00000000        0x0 build\applications\host_std.o
  .data          0x00000000        0x0 build\applications\host_std.o
  .bss           0x00000000        0x0 build\applications\host_std.o
- .text.delete_host_std
-                0x00000000      0x1e8 build\applications\host_std.o
+ .text.host_std_delete_muart_rx_bind
+                0x00000000       0x60 build\applications\host_std.o
+ .text.host_std_create_muart_rx_bind
+                0x00000000       0x60 build\applications\host_std.o
+ .text.host_std_delete
+                0x00000000      0x1ec build\applications\host_std.o
  .rodata        0x00000000       0x5d build\applications\host_std.o
- .text.create_host_std
-                0x00000000      0x460 build\applications\host_std.o
- .debug_info    0x00000000     0x109a build\applications\host_std.o
- .debug_abbrev  0x00000000      0x20e build\applications\host_std.o
- .debug_loc     0x00000000       0xa2 build\applications\host_std.o
+ .text.host_std_create
+                0x00000000      0x478 build\applications\host_std.o
+ .debug_info    0x00000000     0x1164 build\applications\host_std.o
+ .debug_abbrev  0x00000000      0x22a build\applications\host_std.o
+ .debug_loc     0x00000000      0x142 build\applications\host_std.o
  .debug_aranges
-                0x00000000       0x28 build\applications\host_std.o
- .debug_ranges  0x00000000       0x18 build\applications\host_std.o
- .debug_line    0x00000000      0x6e7 build\applications\host_std.o
- .debug_str     0x00000000      0xbdd build\applications\host_std.o
+                0x00000000       0x38 build\applications\host_std.o
+ .debug_ranges  0x00000000       0x28 build\applications\host_std.o
+ .debug_line    0x00000000      0x77c build\applications\host_std.o
+ .debug_str     0x00000000      0xc2a build\applications\host_std.o
  .comment       0x00000000       0x4a build\applications\host_std.o
- .debug_frame   0x00000000       0x60 build\applications\host_std.o
+ .debug_frame   0x00000000       0xa8 build\applications\host_std.o
  .ARM.attributes
                 0x00000000       0x32 build\applications\host_std.o
  .text          0x00000000        0x0 build\applications\main.o
@@ -14836,6 +14840,7 @@ bcopy                                             build\kernel\components\libc\c
 bind_create                                       build\applications\class\bind.o
                                                   build\applications\host_std.o
 bind_delete                                       build\applications\class\bind.o
+                                                  build\applications\host_std.o
 bind_delete_all_for_obj                           build\applications\class\bind.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
@@ -14978,7 +14983,6 @@ closedir                                          build\kernel\components\dfs\df
 copy                                              build\kernel\components\dfs\dfs_v1\src\dfs_file.o
                                                   build\kernel\components\finsh\msh_file.o
 creat                                             build\kernel\components\dfs\dfs_v1\src\dfs_posix.o
-create_host_std                                   build\applications\host_std.o
 ctime                                             build\kernel\components\libc\compilers\common\ctime.o
                                                   build\kernel\components\drivers\rtc\dev_rtc.o
                                                   build\applications\environment\rtc.o
@@ -15295,6 +15299,7 @@ gmtime                                            build\kernel\components\libc\c
 gmtime_r                                          build\kernel\components\libc\compilers\common\ctime.o
                                                   F:\job_hyjx\udtd_v2\rt-thread\bsp\stm32\libraries\HAL_Drivers\drivers\drv_rtc.o
 hardware_init_hook                                f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/crt0.o
+host_std_create                                   build\applications\host_std.o
 index                                             build\kernel\components\libc\compilers\common\cstring.o
 interface_obj_init                                build\applications\class\interface_obj.o
                                                   build\applications\class\interface_rs232.o

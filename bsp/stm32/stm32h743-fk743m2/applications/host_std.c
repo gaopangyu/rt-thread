@@ -5,11 +5,40 @@
 #include <rtdbg.h>
 #include <string.h>
 
-static rt_err_t delete_host_std(host_t host)
+static rt_err_t host_std_delete_muart_rx_bind(host_t self, rt_uint8_t platform_id)
 {
-    if (host == RT_NULL || host->type != HOST_TYPE_STD || host->id >= HOST_MAX)
+    if(self == RT_NULL || platform_id >= PLATFORM_MAX)
         return -RT_EINVAL;
 
+    host_t host = self;
+    host_std_t host_std = (host_std_t)self;
+
+    bind_delete((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
+    bind_delete((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
+
+    return RT_EOK;
+}
+
+static rt_err_t host_std_create_muart_rx_bind(host_t self, rt_uint8_t platform_id)
+{
+    if(self == RT_NULL || platform_id >= PLATFORM_MAX)
+        return -RT_EINVAL;
+
+    host_t host = self;
+    host_std_t host_std = (host_std_t)self;
+
+    bind_create((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
+    bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
+
+    return RT_EOK;
+}
+
+static rt_err_t host_std_delete(host_t self)
+{
+    if (self == RT_NULL || self->type != HOST_TYPE_STD || self->id >= HOST_MAX)
+        return -RT_EINVAL;
+
+    host_t host = self;
     host_std_t host_std = (host_std_t)host;
 
     g_host[host->id] = RT_NULL;
@@ -63,7 +92,7 @@ static rt_err_t delete_host_std(host_t host)
     return RT_EOK;
 }
 
-rt_err_t create_host_std(host_std_config_t config)
+rt_err_t host_std_create(host_std_config_t config)
 {
     if (config == RT_NULL)
         return -RT_EINVAL;
@@ -169,7 +198,9 @@ rt_err_t create_host_std(host_std_config_t config)
         bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[i] , RT_FALSE);
     }
     
-    host->ops->delete_host = delete_host_std;
+    host->ops->delete_host = host_std_delete;
+    host->ops->create_muart_rx_bind = host_std_create_muart_rx_bind;
+    host->ops->delete_muart_rx_bind = host_std_delete_muart_rx_bind;
 
     g_host[host->id] = host;
     LOG_I("host_std %u created", host->id);
@@ -177,6 +208,6 @@ rt_err_t create_host_std(host_std_config_t config)
 
 exit:
     LOG_E("host_std %u create failed", config->host_id);
-    delete_host_std(host);
+    host_std_delete(host);
     return -RT_ERROR;
 }
