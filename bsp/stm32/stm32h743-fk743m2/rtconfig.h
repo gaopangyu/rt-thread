@@ -585,6 +585,13 @@
 
 #define APP_USING_CLASS
 /* end of Class Objects */
+
+/* Environment */
+
+/* Board environment sources under applications/environment/ */
+
+#define APP_USING_ENVIRONMENT
+/* end of Environment */
 /* end of Applications Config */
 
 #endif

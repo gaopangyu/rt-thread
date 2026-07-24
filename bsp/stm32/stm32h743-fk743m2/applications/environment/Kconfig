@@ -1,0 +1,13 @@
+menu "Environment"
+
+    comment "Board environment sources under applications/environment/"
+
+    config APP_USING_ENVIRONMENT
+        bool "Enable environment (rtc / auto_mount / usb0_device)"
+        select RT_USING_CUSTOM
+        default y
+        help
+            Build applications/environment/*.c:
+            rtc, auto_mount, usb0_device.
+
+endmenu

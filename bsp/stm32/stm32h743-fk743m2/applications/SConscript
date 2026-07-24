@@ -4,8 +4,9 @@ import os
 cwd = GetCurrentDir()
 src = Glob('*.c')
 CPPPATH = [cwd]
-# class headers (custom_obj.h / upload_*.h / ...) used by bind/store/main
+# class / environment headers used by main and cross modules
 CPPPATH.append(os.path.join(cwd, 'class'))
+CPPPATH.append(os.path.join(cwd, 'environment'))
 if GetDepend(['PKG_USING_ONEMESSAGE']):
     CPPPATH.append(os.path.join(cwd, '..', 'packages', 'OneMessage', 'src'))
 
