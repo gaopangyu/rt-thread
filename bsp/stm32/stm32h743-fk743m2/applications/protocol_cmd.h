@@ -1,19 +1,19 @@
-#ifndef __PROTOCOL_LOGV1_H__
-#define __PROTOCOL_LOGV1_H__
+#ifndef __PROTOCOL_CMD_H__
+#define __PROTOCOL_CMD_H__
 
 #include "protocol_obj.h"
 
-struct protocol_logv1_config
+struct protocol_cmd_config
 {
     char lib_name[RT_NAME_MAX];
 };
 
-typedef struct protocol_logv1_config *protocol_logv1_config_t;
+typedef struct protocol_cmd_config *protocol_cmd_config_t;
 
-struct protocol_logv1_obj
+struct protocol_cmd_obj
 {
     struct protocol_obj    parent;
-    struct protocol_logv1_config config;
+    struct protocol_cmd_config config;
     void *lib_handle;
     init_func_t lib_init;
     destroy_initentry_func_t lib_destroy_initentry;
@@ -27,6 +27,6 @@ struct protocol_logv1_obj
     rt_thread_t tx_sub_event_tid;
 };
 
-typedef struct protocol_logv1_obj *protocol_logv1_obj_t;
+typedef struct protocol_cmd_obj *protocol_cmd_obj_t;
 
-#endif /* __PROTOCOL_LOGV1_H__ */
+#endif /* __PROTOCOL_CMD_H__ */

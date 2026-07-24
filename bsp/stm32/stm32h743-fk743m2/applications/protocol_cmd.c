@@ -1,16 +1,16 @@
-#include "protocol_logv1.h"
+#include "protocol_cmd.h"
 #include "bind.h"
 
-#define DBG_TAG "protocol_logv1"
+#define DBG_TAG "protocol_cmd"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-static void protocol_logv1_recv_sub_event(void *parameter)
+static void protocol_cmd_recv_sub_event(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    protocol_logv1_obj_t obj = (protocol_logv1_obj_t)parameter;
+    protocol_cmd_obj_t obj = (protocol_cmd_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -39,12 +39,12 @@ static void protocol_logv1_recv_sub_event(void *parameter)
     }
 }
 
-static void protocol_logv1_send_sub_event(void *parameter)
+static void protocol_cmd_send_sub_event(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    protocol_logv1_obj_t obj = (protocol_logv1_obj_t)parameter;
+    protocol_cmd_obj_t obj = (protocol_cmd_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -73,7 +73,7 @@ static void protocol_logv1_send_sub_event(void *parameter)
     }
 }
 
-static double_ret protocol_logv1_set_param(protocol_obj_t self, void *config){
+static double_ret protocol_cmd_set_param(protocol_obj_t self, void *config){
     double_ret result = {0, 0};
 
     if (self == RT_NULL || config == RT_NULL) 
@@ -82,9 +82,9 @@ static double_ret protocol_logv1_set_param(protocol_obj_t self, void *config){
         return result;
     }
 
-    protocol_logv1_config_t cfg = (protocol_logv1_config_t)config;
-    protocol_logv1_obj_t obj = (protocol_logv1_obj_t)self;
-    protocol_logv1_config_t obj_cfg = &(obj->config);
+    protocol_cmd_config_t cfg = (protocol_cmd_config_t)config;
+    protocol_cmd_obj_t obj = (protocol_cmd_obj_t)self;
+    protocol_cmd_config_t obj_cfg = &(obj->config);
 
     if (cfg->lib_name != RT_NULL)
     {
@@ -133,7 +133,7 @@ static double_ret protocol_logv1_set_param(protocol_obj_t self, void *config){
     return result;
 }
 
-static rt_err_t protocol_logv1_handle_bind_next( rt_object_t rt_obj,
+static rt_err_t protocol_cmd_handle_bind_next( rt_object_t rt_obj,
                                                  custom_obj_t custom_obj,
                                                 //  EventEntry* eventi,
                                                  rt_uint8_t *buffer,
@@ -179,7 +179,7 @@ static rt_err_t protocol_logv1_handle_bind_next( rt_object_t rt_obj,
     return RT_EOK;
 }
 
-static Event * protocol_logv1_handle_bind_pre(protocol_logv1_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
+static Event * protocol_cmd_handle_bind_pre(protocol_cmd_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
 {
     if (obj->lib_process_data == RT_NULL || obj->lib_destroy_event == RT_NULL || buffer == RT_NULL || len == 0)
         return RT_NULL;
@@ -213,12 +213,12 @@ static Event * protocol_logv1_handle_bind_pre(protocol_logv1_obj_t obj, rt_objec
     return event;
 }
 
-static void protocol_logv1_recv(void *parameter)
+static void protocol_cmd_recv(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    protocol_logv1_obj_t obj = (protocol_logv1_obj_t)parameter;
+    protocol_cmd_obj_t obj = (protocol_cmd_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
     protocol_obj_t protocol_obj = (protocol_obj_t)obj;
@@ -262,16 +262,16 @@ static void protocol_logv1_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            // Event *event = protocol_logv1_handle_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            // Event *event = protocol_cmd_handle_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             // if (event != RT_NULL && obj->lib_destroy_event != RT_NULL)
             // {
             //     for (int i=0; i< event->event_size; i++) 
-            //         protocol_logv1_handle_bind_next(rt_obj, custom_obj, &(event->events[i]));
+            //         protocol_cmd_handle_bind_next(rt_obj, custom_obj, &(event->events[i]));
             //     obj->lib_destroy_event(event);
             // }
 
-            protocol_logv1_handle_bind_next(rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            protocol_cmd_handle_bind_next(rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
@@ -282,12 +282,12 @@ static void protocol_logv1_recv(void *parameter)
     }
 }
 
-static void protocol_logv1_send(void *parameter)
+static void protocol_cmd_send(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    protocol_logv1_obj_t obj = (protocol_logv1_obj_t)parameter;
+    protocol_cmd_obj_t obj = (protocol_cmd_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -362,13 +362,13 @@ static void protocol_logv1_send(void *parameter)
     }
 }
  
-static rt_err_t protocol_logv1_delete(protocol_obj_t self)
+static rt_err_t protocol_cmd_delete(protocol_obj_t self)
 {
     if (self == RT_NULL) {
         return -RT_EINVAL;
     }
 
-    protocol_logv1_obj_t obj = (protocol_logv1_obj_t)self;
+    protocol_cmd_obj_t obj = (protocol_cmd_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -449,14 +449,14 @@ static rt_err_t protocol_logv1_delete(protocol_obj_t self)
     return RT_EOK;
 }
 
-static protocol_obj_t  protocol_logv1_create(protocol_obj_t self, char *name, void *config)
+static protocol_obj_t  protocol_cmd_create(protocol_obj_t self, char *name, void *config)
 {
     if (self == RT_NULL || name == RT_NULL) {
         LOG_E("create error: param");
         return RT_NULL;
     }
 
-    if (rt_strncmp(self->parent.parent.name, PROTOCOL_LOGV1_PARENT_NAME, RT_NAME_MAX) != 0) {
+    if (rt_strncmp(self->parent.parent.name, PROTOCOL_CMD_PARENT_NAME, RT_NAME_MAX) != 0) {
         LOG_E("create error: invalid parent");
         return RT_NULL;
     }
@@ -467,7 +467,7 @@ static protocol_obj_t  protocol_logv1_create(protocol_obj_t self, char *name, vo
         return RT_NULL;
     }
 
-    protocol_logv1_obj_t obj = rt_malloc(sizeof(struct protocol_logv1_obj));
+    protocol_cmd_obj_t obj = rt_malloc(sizeof(struct protocol_cmd_obj));
     if (obj == RT_NULL) {
         LOG_E("create error: memory allocation");
         return RT_NULL;
@@ -477,12 +477,12 @@ static protocol_obj_t  protocol_logv1_create(protocol_obj_t self, char *name, vo
     custom_obj_t custom_obj = (custom_obj_t)obj;
     protocol_obj_t protocol_obj = (protocol_obj_t)obj;
 
-    rt_memcpy(obj, self, sizeof(struct protocol_logv1_obj));
+    rt_memcpy(obj, self, sizeof(struct protocol_cmd_obj));
 
     if(config == RT_NULL)
         config = &(obj->config);
 
-    double_ret result = protocol_logv1_set_param(protocol_obj, config);
+    double_ret result = protocol_cmd_set_param(protocol_obj, config);
     if (result.fail != 0 || result.succ == 0 || obj->lib_handle == RT_NULL)
     {
         LOG_E("create error: set param");
@@ -492,27 +492,27 @@ static protocol_obj_t  protocol_logv1_create(protocol_obj_t self, char *name, vo
     char name_buf[RT_NAME_MAX] = {0};
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx");
-    obj->rx_tid = rt_thread_create(name_buf, protocol_logv1_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
+    obj->rx_tid = rt_thread_create(name_buf, protocol_cmd_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
     if (obj->rx_tid == RT_NULL) {
         LOG_E("create error: rx thread create");
         goto exit;
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx");
-    obj->tx_tid = rt_thread_create(name_buf, protocol_logv1_send, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
+    obj->tx_tid = rt_thread_create(name_buf, protocol_cmd_send, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
     if (obj->tx_tid == RT_NULL) {
         LOG_E("create error: tx thread create");
         goto exit;
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_event");
-    if((obj->rx_sub_event_tid = rt_thread_create(name_buf, protocol_logv1_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+    if((obj->rx_sub_event_tid = rt_thread_create(name_buf, protocol_cmd_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
         LOG_E("create error: rx sub event thread create");
         goto exit;
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_sub_event");
-    if((obj->tx_sub_event_tid = rt_thread_create(name_buf, protocol_logv1_send_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+    if((obj->tx_sub_event_tid = rt_thread_create(name_buf, protocol_cmd_send_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
         LOG_E("create error: tx sub event thread create");
         goto exit;
     }
@@ -564,40 +564,40 @@ static protocol_obj_t  protocol_logv1_create(protocol_obj_t self, char *name, vo
     return protocol_obj;
 
 exit:
-    protocol_logv1_delete(protocol_obj);
+    protocol_cmd_delete(protocol_obj);
     return RT_NULL;
 }
 
-static const struct protocol_obj_ops protocol_logv1_ops =
+static const struct protocol_obj_ops protocol_cmd_ops =
 {
-    .create = protocol_logv1_create,
-    .delete = protocol_logv1_delete,
-    .set_param = protocol_logv1_set_param,
+    .create = protocol_cmd_create,
+    .delete = protocol_cmd_delete,
+    .set_param = protocol_cmd_set_param,
 };
 
-static rt_err_t  protocol_logv1_gc(custom_obj_t self)
+static rt_err_t  protocol_cmd_gc(custom_obj_t self)
 {
     if (self == RT_NULL)
         return -RT_EINVAL;
 
     protocol_obj_t protocol_obj = (protocol_obj_t)self;
-    return protocol_logv1_delete(protocol_obj);
+    return protocol_cmd_delete(protocol_obj);
 }
 
 static const struct custom_object_ops custom_obj_ops =
 {
-    .gc = protocol_logv1_gc,
+    .gc = protocol_cmd_gc,
 };
 
-static int protocol_logv1_init(void)
+static int protocol_cmd_init(void)
 {
-    static struct protocol_logv1_obj object = {0};
-    protocol_logv1_obj_t obj = &object;
+    static struct protocol_cmd_obj object = {0};
+    protocol_cmd_obj_t obj = &object;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
     protocol_obj_t protocol_obj = (protocol_obj_t)obj;
 
-    if (rt_object_find(PROTOCOL_LOGV1_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
+    if (rt_object_find(PROTOCOL_CMD_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
         return -RT_ERROR;
 
     custom_obj->type = Custom_Object_Class_Protocol;
@@ -605,28 +605,28 @@ static int protocol_logv1_init(void)
     protocol_obj_init(custom_obj);
 
     custom_obj->ops = &custom_obj_ops;
-    protocol_obj->ops = &protocol_logv1_ops;
+    protocol_obj->ops = &protocol_cmd_ops;
 
     rt_strncpy(obj->config.lib_name, "208", rt_strnlen("208", RT_NAME_MAX - 1));
 
-    rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_LOGV1_PARENT_NAME);
+    rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_CMD_PARENT_NAME);
 
     return RT_EOK;
 }
 
-INIT_APP_EXPORT(protocol_logv1_init);
+INIT_APP_EXPORT(protocol_cmd_init);
 
-static int cmd_create_protocol_logv1(int argc, char *argv[])
+static int cmd_create_protocol_cmd(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_protocol_logv1 <name> [-l lib_name]\n");
-        rt_kprintf("Example: create_protocol_logv1 protocol_logv1_1 -l 208\n");
+        rt_kprintf("Usage: create_protocol_cmd <name> [-l lib_name]\n");
+        rt_kprintf("Example: create_protocol_cmd protocol_cmd_1 -l 208\n");
         return -RT_ERROR;
     }
 
     const char *name = argv[1];
-    rt_err_t err = custom_obj_msh_check_create_name(name, "protocol_logv1");
+    rt_err_t err = custom_obj_msh_check_create_name(name, "protocol_cmd");
 
     if (err == -RT_EFULL)
     {
@@ -639,15 +639,15 @@ static int cmd_create_protocol_logv1(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    protocol_obj_t parent = (protocol_obj_t)rt_object_find(PROTOCOL_LOGV1_PARENT_NAME, RT_Object_Class_Custom);
+    protocol_obj_t parent = (protocol_obj_t)rt_object_find(PROTOCOL_CMD_PARENT_NAME, RT_Object_Class_Custom);
     if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
     {
-        rt_kprintf("Parent not ready: %s\n", PROTOCOL_LOGV1_PARENT_NAME);
+        rt_kprintf("Parent not ready: %s\n", PROTOCOL_CMD_PARENT_NAME);
         return -RT_ERROR;
     }
 
-    struct protocol_logv1_config *config_ptr = RT_NULL;
-    struct protocol_logv1_config config = {0};
+    struct protocol_cmd_config *config_ptr = RT_NULL;
+    struct protocol_cmd_config config = {0};
     const char *lib_name = custom_obj_msh_get_opt(argc, argv, "l");
 
     if (lib_name != RT_NULL)
@@ -658,23 +658,23 @@ static int cmd_create_protocol_logv1(int argc, char *argv[])
 
     if (parent->ops->create(parent, (char *)name, config_ptr) == RT_NULL)
     {
-        rt_kprintf("Failed to create protocol_logv1: %s\n", name);
+        rt_kprintf("Failed to create protocol_cmd: %s\n", name);
         return -RT_ERROR;
     }
 
-    rt_kprintf("Created protocol_logv1: %s\n", name);
+    rt_kprintf("Created protocol_cmd: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_protocol_logv1, create_protocol_logv1, Create protocol_logv1 object);
+MSH_CMD_EXPORT_ALIAS(cmd_create_protocol_cmd, create_protocol_cmd, Create protocol_cmd object);
 
-static int cmd_delete_protocol_logv1(int argc, char *argv[])
+static int cmd_delete_protocol_cmd(int argc, char *argv[])
 {
     const char *name = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_protocol_logv1 -n <name>\n");
-        rt_kprintf("Example: delete_protocol_logv1 -n protocol_logv1_1\n");
+        rt_kprintf("Usage: delete_protocol_cmd -n <name>\n");
+        rt_kprintf("Example: delete_protocol_cmd -n protocol_cmd_1\n");
         return -RT_ERROR;
     }
 
@@ -693,7 +693,7 @@ static int cmd_delete_protocol_logv1(int argc, char *argv[])
 
     if (((custom_obj_t)obj)->type != Custom_Object_Class_Protocol)
     {
-        rt_kprintf("Not a protocol_logv1 object: %s\n", name);
+        rt_kprintf("Not a protocol_cmd object: %s\n", name);
         return -RT_ERROR;
     }
 
@@ -705,11 +705,11 @@ static int cmd_delete_protocol_logv1(int argc, char *argv[])
 
     if (obj->ops->delete(obj) != RT_EOK)
     {
-        rt_kprintf("Failed to delete protocol_logv1: %s\n", name);
+        rt_kprintf("Failed to delete protocol_cmd: %s\n", name);
         return -RT_ERROR;
     }
 
-    rt_kprintf("Deleted protocol_logv1: %s\n", name);
+    rt_kprintf("Deleted protocol_cmd: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_protocol_logv1, delete_protocol_logv1, Delete protocol_logv1 object);
+MSH_CMD_EXPORT_ALIAS(cmd_delete_protocol_cmd, delete_protocol_cmd, Delete protocol_cmd object);
