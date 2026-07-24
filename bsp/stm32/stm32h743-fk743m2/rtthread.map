@@ -730,16 +730,34 @@ Discarded input sections
  .text          0x00000000        0x0 build\applications\class\upload_store.o
  .data          0x00000000        0x0 build\applications\class\upload_store.o
  .bss           0x00000000        0x0 build\applications\class\upload_store.o
+ .text          0x00000000        0x0 build\applications\host.o
+ .data          0x00000000        0x0 build\applications\host.o
+ .bss           0x00000000        0x0 build\applications\host.o
+ .bss.g_host    0x00000000       0x18 build\applications\host.o
+ .debug_info    0x00000000      0x1c3 build\applications\host.o
+ .debug_abbrev  0x00000000       0xdc build\applications\host.o
+ .debug_aranges
+                0x00000000       0x18 build\applications\host.o
+ .debug_line    0x00000000      0x13a build\applications\host.o
+ .debug_str     0x00000000      0x25f build\applications\host.o
+ .comment       0x00000000       0x4a build\applications\host.o
+ .ARM.attributes
+                0x00000000       0x32 build\applications\host.o
  .text          0x00000000        0x0 build\applications\host_std.o
  .data          0x00000000        0x0 build\applications\host_std.o
  .bss           0x00000000        0x0 build\applications\host_std.o
- .debug_info    0x00000000       0x79 build\applications\host_std.o
- .debug_abbrev  0x00000000       0x26 build\applications\host_std.o
+ .text.create_host_std
+                0x00000000       0x7c build\applications\host_std.o
+ .debug_info    0x00000000      0xea0 build\applications\host_std.o
+ .debug_abbrev  0x00000000      0x1b8 build\applications\host_std.o
+ .debug_loc     0x00000000       0x50 build\applications\host_std.o
  .debug_aranges
-                0x00000000       0x18 build\applications\host_std.o
- .debug_line    0x00000000       0x1d build\applications\host_std.o
- .debug_str     0x00000000      0x196 build\applications\host_std.o
+                0x00000000       0x20 build\applications\host_std.o
+ .debug_ranges  0x00000000       0x10 build\applications\host_std.o
+ .debug_line    0x00000000      0x27c build\applications\host_std.o
+ .debug_str     0x00000000      0x977 build\applications\host_std.o
  .comment       0x00000000       0x4a build\applications\host_std.o
+ .debug_frame   0x00000000       0x34 build\applications\host_std.o
  .ARM.attributes
                 0x00000000       0x32 build\applications\host_std.o
  .text          0x00000000        0x0 build\applications\main.o
@@ -3081,6 +3099,7 @@ LOAD build\applications\class\upload_muart.o
 LOAD build\applications\class\upload_obj.o
 LOAD build\applications\class\upload_screen.o
 LOAD build\applications\class\upload_store.o
+LOAD build\applications\host.o
 LOAD build\applications\host_std.o
 LOAD build\applications\main.o
 LOAD build\applications\rtc.o
@@ -14948,6 +14967,7 @@ closedir                                          build\kernel\components\dfs\df
 copy                                              build\kernel\components\dfs\dfs_v1\src\dfs_file.o
                                                   build\kernel\components\finsh\msh_file.o
 creat                                             build\kernel\components\dfs\dfs_v1\src\dfs_posix.o
+create_host_std                                   build\applications\host_std.o
 ctime                                             build\kernel\components\libc\compilers\common\ctime.o
                                                   build\kernel\components\drivers\rtc\dev_rtc.o
                                                   build\applications\rtc.o
@@ -15233,6 +15253,8 @@ ftruncate                                         build\kernel\components\dfs\df
 fwrite                                            f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard\libc.a(lib_a-fwrite.o)
                                                   build\kernel\components\libc\posix\libdl\dlsyms.o
 g_dwc2_udc                                        build\kernel\components\drivers\usb\cherryusb\port\dwc2\usb_dc_dwc2.o
+g_host                                            build\applications\host.o
+                                                  build\applications\host_std.o
 g_pfnVectors                                      packages\stm32h7_cmsis_driver-latest\Source\Templates\gcc\startup_stm32h743xx.o
 g_usbd_core                                       build\kernel\components\drivers\usb\cherryusb\core\usbd_core.o
 g_usbd_msc                                        build\kernel\components\drivers\usb\cherryusb\class\msc\usbd_msc.o
@@ -15596,6 +15618,7 @@ rt_calloc                                         build\kernel\src\kservice.o
                                                   build\kernel\components\finsh\shell.o
                                                   build\kernel\components\dfs\dfs_v1\src\dfs_file.o
                                                   build\kernel\components\dfs\dfs_v1\src\dfs.o
+                                                  build\applications\host_std.o
                                                   build\kernel\components\libc\compilers\newlib\syscalls.o
 rt_completion_done                                build\kernel\components\drivers\ipc\completion_comm.o
                                                   build\kernel\components\drivers\serial\dev_serial_v2.o
