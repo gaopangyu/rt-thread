@@ -740,30 +740,40 @@ Discarded input sections
  .data          0x00000000        0x0 build\applications\host.o
  .bss           0x00000000        0x0 build\applications\host.o
  .bss.g_host    0x00000000       0x18 build\applications\host.o
- .debug_info    0x00000000      0x1c3 build\applications\host.o
- .debug_abbrev  0x00000000       0xdc build\applications\host.o
+ .rodata        0x00000000       0x17 build\applications\host.o
+ .data.g_com    0x00000000       0x1c build\applications\host.o
+ .text.generate_name_from_parent
+                0x00000000       0x92 build\applications\host.o
+ .debug_info    0x00000000      0x2ba build\applications\host.o
+ .debug_abbrev  0x00000000      0x131 build\applications\host.o
+ .debug_loc     0x00000000       0x50 build\applications\host.o
  .debug_aranges
-                0x00000000       0x18 build\applications\host.o
- .debug_line    0x00000000      0x13a build\applications\host.o
- .debug_str     0x00000000      0x25f build\applications\host.o
+                0x00000000       0x20 build\applications\host.o
+ .debug_ranges  0x00000000       0x10 build\applications\host.o
+ .debug_line    0x00000000      0x20f build\applications\host.o
+ .debug_str     0x00000000      0x2c0 build\applications\host.o
  .comment       0x00000000       0x4a build\applications\host.o
+ .debug_frame   0x00000000       0x34 build\applications\host.o
  .ARM.attributes
                 0x00000000       0x32 build\applications\host.o
  .text          0x00000000        0x0 build\applications\host_std.o
  .data          0x00000000        0x0 build\applications\host_std.o
  .bss           0x00000000        0x0 build\applications\host_std.o
+ .text.delete_host_std
+                0x00000000      0x1e8 build\applications\host_std.o
+ .rodata        0x00000000       0x5d build\applications\host_std.o
  .text.create_host_std
-                0x00000000       0x7c build\applications\host_std.o
- .debug_info    0x00000000      0xea0 build\applications\host_std.o
- .debug_abbrev  0x00000000      0x1b8 build\applications\host_std.o
- .debug_loc     0x00000000       0x50 build\applications\host_std.o
+                0x00000000      0x460 build\applications\host_std.o
+ .debug_info    0x00000000     0x109a build\applications\host_std.o
+ .debug_abbrev  0x00000000      0x20e build\applications\host_std.o
+ .debug_loc     0x00000000       0xa2 build\applications\host_std.o
  .debug_aranges
-                0x00000000       0x20 build\applications\host_std.o
- .debug_ranges  0x00000000       0x10 build\applications\host_std.o
- .debug_line    0x00000000      0x27c build\applications\host_std.o
- .debug_str     0x00000000      0x977 build\applications\host_std.o
+                0x00000000       0x28 build\applications\host_std.o
+ .debug_ranges  0x00000000       0x18 build\applications\host_std.o
+ .debug_line    0x00000000      0x6e7 build\applications\host_std.o
+ .debug_str     0x00000000      0xbdd build\applications\host_std.o
  .comment       0x00000000       0x4a build\applications\host_std.o
- .debug_frame   0x00000000       0x34 build\applications\host_std.o
+ .debug_frame   0x00000000       0x60 build\applications\host_std.o
  .ARM.attributes
                 0x00000000       0x32 build\applications\host_std.o
  .text          0x00000000        0x0 build\applications\main.o
@@ -14824,6 +14834,7 @@ atoi                                              f:/rtthread/env/env-windows/to
 bcmp                                              build\kernel\components\libc\compilers\common\cstring.o
 bcopy                                             build\kernel\components\libc\compilers\common\cstring.o
 bind_create                                       build\applications\class\bind.o
+                                                  build\applications\host_std.o
 bind_delete                                       build\applications\class\bind.o
 bind_delete_all_for_obj                           build\applications\class\bind.o
                                                   build\applications\class\upload_store.o
@@ -15252,6 +15263,8 @@ fsync                                             build\kernel\components\dfs\df
 ftruncate                                         build\kernel\components\dfs\dfs_v1\src\dfs_posix.o
 fwrite                                            f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard\libc.a(lib_a-fwrite.o)
                                                   build\kernel\components\libc\posix\libdl\dlsyms.o
+g_com                                             build\applications\host.o
+                                                  build\applications\host_std.o
 g_dwc2_udc                                        build\kernel\components\drivers\usb\cherryusb\port\dwc2\usb_dc_dwc2.o
 g_host                                            build\applications\host.o
                                                   build\applications\host_std.o
@@ -15261,6 +15274,8 @@ g_usbd_msc                                        build\kernel\components\driver
 g_usbdev_bus                                      build\kernel\components\drivers\usb\cherryusb\core\usbd_core.o
                                                   build\kernel\components\drivers\usb\cherryusb\port\dwc2\usb_glue_st.o
                                                   build\kernel\components\drivers\usb\cherryusb\port\dwc2\usb_dc_dwc2.o
+generate_name_from_parent                         build\applications\host.o
+                                                  build\applications\host_std.o
 get_obj_from_event_flag                           build\applications\class\custom_obj.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
@@ -15860,6 +15875,7 @@ rt_free                                           build\kernel\src\kservice.o
                                                   build\packages\cJSON-latest\cJSON.o
                                                   build\board\port\drv_qspi_flash.o
                                                   build\board\port\board_mem.o
+                                                  build\applications\host_std.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
                                                   build\applications\class\upload_muart.o
@@ -16155,6 +16171,7 @@ rt_memcpy                                         build\kernel\src\klibc\kstring
                                                   build\packages\littlefs-latest\dfs_lfs.o
                                                   build\packages\cJSON-latest\cJSON_Utils.o
                                                   build\packages\cJSON-latest\cJSON.o
+                                                  build\applications\host.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
                                                   build\applications\class\upload_muart.o
@@ -16367,6 +16384,7 @@ rt_object_detach_sethook                          build\kernel\src\object.o
 rt_object_find                                    build\kernel\src\object.o
                                                   build\kernel\src\thread.o
                                                   build\kernel\components\drivers\core\device.o
+                                                  build\applications\host_std.o
                                                   build\applications\class\upload_store.o
                                                   build\applications\class\upload_screen.o
                                                   build\applications\class\upload_muart.o
@@ -17268,6 +17286,7 @@ strnlen                                           build\kernel\components\libc\c
 strrchr                                           f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard\libc.a(lib_a-strrchr.o)
                                                   build\kernel\components\dfs\dfs_v1\src\dfs_file.o
                                                   build\packages\cJSON-latest\cJSON_Utils.o
+                                                  build\applications\host.o
                                                   build\applications\class\store.o
                                                   build\kernel\components\libc\compilers\common\cstring.o
 strspn                                            f:/rtthread/env/env-windows/tools/gnu_gcc/arm_gcc/mingw/bin/../lib/gcc/arm-none-eabi/10.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard\libc.a(lib_a-strspn.o)
@@ -17365,6 +17384,7 @@ ulog_output                                       build\kernel\components\utilit
                                                   build\board\port\board_mem.o
                                                   build\board\board.o
                                                   build\applications\main.o
+                                                  build\applications\host_std.o
                                                   build\applications\environment\rtc.o
                                                   build\applications\environment\auto_mount.o
                                                   build\applications\class\upload_store.o
