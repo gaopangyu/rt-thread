@@ -76,60 +76,6 @@ static void protocol_cmd_send_sub_event(void *parameter)
 static double_ret protocol_cmd_set_param(protocol_obj_t self, void *config){
     double_ret result = {0, 0};
 
-    if (self == RT_NULL || config == RT_NULL) 
-    {
-        result.fail++;
-        return result;
-    }
-
-    protocol_cmd_config_t cfg = (protocol_cmd_config_t)config;
-    protocol_cmd_obj_t obj = (protocol_cmd_obj_t)self;
-    protocol_cmd_config_t obj_cfg = &(obj->config);
-
-    if (cfg->lib_name != RT_NULL)
-    {
-        char path[RT_NAME_MAX] = {0};
-        rt_snprintf(path, sizeof(path), "%s%s", LIB_PATH, cfg->lib_name);
-
-        dlerror();
-        void *handle = dlopen(path, RTLD_LAZY);
-        if (!handle) {
-            result.fail++;
-            return result;
-        }
-
-        init_func_t lib_init = (init_func_t)dlsym(handle, "init");
-        destroy_initentry_func_t lib_destroy_initentry = (destroy_initentry_func_t)dlsym(handle, "destroy_initentry");
-        process_data_func_t lib_process_data = (process_data_func_t)dlsym(handle, "process_data");
-        destroy_event_func_t lib_destroy_event = (destroy_event_func_t)dlsym(handle, "destroy_event");
-        remote_control_func_t lib_remote_ctrl = (remote_control_func_t)dlsym(handle, "remote_control");
-        destroy_ctrl_resp_func_t lib_destroy_ctrl_resp  = (destroy_ctrl_resp_func_t)dlsym(handle, "destroy_ctrl_resp");
-
-        if (NULL == lib_init || NULL == lib_destroy_initentry
-         || NULL == lib_process_data|| NULL == lib_destroy_event
-         || NULL == lib_remote_ctrl|| NULL == lib_destroy_ctrl_resp) 
-        {
-            dlclose(handle);
-            result.fail++;
-            return result;
-        }
-
-        obj->lib_init = lib_init;
-        obj->lib_destroy_initentry = lib_destroy_initentry;
-        obj->lib_process_data = lib_process_data;
-        obj->lib_destroy_event = lib_destroy_event;
-        obj->lib_remote_ctrl = lib_remote_ctrl;
-        obj->lib_destroy_ctrl_resp = lib_destroy_ctrl_resp;
-
-        if (obj->lib_handle != RT_NULL)
-            dlclose(obj->lib_handle);
-        obj->lib_handle = handle;
-
-        rt_strncpy(obj->config.lib_name, cfg->lib_name, RT_NAME_MAX - 1);
-        obj->config.lib_name[RT_NAME_MAX - 1] = 0;
-        result.succ++;
-    }
-
     return result;
 }
 
@@ -142,17 +88,6 @@ static rt_err_t protocol_cmd_handle_bind_next( rt_object_t rt_obj,
     if (custom_obj->rxb.pub_event == RT_NULL || custom_obj->event_flag == 0 
     || custom_obj->rxb.pub_succ_event == RT_NULL || custom_obj->rxb.next_event_mask == 0 )
         return -RT_EINVAL;
-
-    // rt_size_t len = 11 + eventi->event_len;
-    // rt_uint8_t * buffer = rt_calloc(1, len);
-    // if (buffer == RT_NULL)
-    // {
-    //     LOG_E("Failed to allocate buffer");
-    //     return -RT_ENOMEM;
-    // }
-
-    // rt_memcpy(buffer, eventi, 11);
-    // rt_memcpy(buffer + 11, eventi->event_detail, eventi->event_len);
 
     custom_obj->rxb.buffer = buffer;
     custom_obj->rxb.len = len;
@@ -174,8 +109,6 @@ static rt_err_t protocol_cmd_handle_bind_next( rt_object_t rt_obj,
     custom_obj->rxb.buffer = RT_NULL;
     custom_obj->rxb.len = 0;
 
-    // rt_free(buffer);
-
     return RT_EOK;
 }
 
@@ -191,24 +124,6 @@ static Event * protocol_cmd_handle_bind_pre(protocol_cmd_obj_t obj, rt_object_t 
         LOG_D("%s process data return 0, use lib: %s\r\n", rt_obj->name, obj->config.lib_name);
         return RT_NULL;
     }
-
-    // LOG_D("%d --- %p\n", event->event_size, event->events);
-    // for (int i=0;i< event->event_size;i++) {
-    //     LOG_D("---- eventype %02X ---- logver %02X ---- systype %02X ---- sysaddr %02X ---- event_len %02X ---- ack_len %02X\n",
-    //             event->events[i].eventype, event->events[i].logver,
-    //             event->events[i].systype, event->events[i].sysaddr,
-    //             event->events[i].event_len, event->events[i].ack_len);
-    //     LOG_D("event detail package are ");
-    //     for(int j=0;j<event->events[i].event_len;j++) {
-    //         rt_kprintf("%02X ", event->events[i].event_detail[j]);
-    //     }
-    //     rt_kprintf("\n");
-    //     LOG_D("ack package are ");
-    //     for(int j=0;j<event->events[i].ack_len;j++) {
-    //         rt_kprintf("%02X ", event->events[i].ack[j]);
-    //     }
-    //     rt_kprintf("\n");
-    // }
 
     return event;
 }
@@ -364,14 +279,110 @@ static void protocol_cmd_send(void *parameter)
  
 static rt_err_t protocol_cmd_delete(protocol_obj_t self)
 {
-    if (self == RT_NULL) {
-        return -RT_EINVAL;
-    }
+    return -RT_ENOSYS;
+}
 
-    protocol_cmd_obj_t obj = (protocol_cmd_obj_t)self;
+static protocol_obj_t  protocol_cmd_create(protocol_obj_t self, char *name, void *config)
+{
+    return RT_NULL;
+}
+
+static const struct protocol_obj_ops protocol_cmd_ops =
+{
+    .create = protocol_cmd_create,
+    .delete = protocol_cmd_delete,
+    .set_param = protocol_cmd_set_param,
+};
+
+static rt_err_t  protocol_cmd_gc(custom_obj_t self)
+{
+    return -RT_ENOSYS;
+}
+
+static const struct custom_object_ops custom_obj_ops =
+{
+    .gc = protocol_cmd_gc,
+};
+
+static int protocol_cmd_init(void)
+{
+    static struct protocol_cmd_obj object = {0};
+    protocol_cmd_obj_t obj = &object;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
+    protocol_obj_t protocol_obj = (protocol_obj_t)obj;
 
+    if (rt_object_find(PROTOCOL_CMD_NAME, RT_Object_Class_Custom) != RT_NULL)
+        return -RT_ERROR;
+
+    custom_obj->type = Custom_Object_Class_Protocol;
+
+    protocol_obj_init(custom_obj);
+
+    custom_obj->ops = &custom_obj_ops;
+    protocol_obj->ops = &protocol_cmd_ops;
+
+    obj->rx_tid = rt_thread_create("protocol_cmd_rx", protocol_cmd_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
+    if (obj->rx_tid == RT_NULL) {
+        LOG_E("create error: rx thread create");
+        goto exit;
+    }
+
+    obj->tx_tid = rt_thread_create("protocol_cmd_tx", protocol_cmd_send, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
+    if (obj->tx_tid == RT_NULL) {
+        LOG_E("create error: tx thread create");
+        goto exit;
+    }
+
+    if((obj->rx_sub_event_tid = rt_thread_create("protocol_cmd_rx_sub_event", protocol_cmd_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+        LOG_E("create error: rx sub event thread create");
+        goto exit;
+    }
+
+    if((obj->tx_sub_event_tid = rt_thread_create("protocol_cmd_tx_sub_event", protocol_cmd_send_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+        LOG_E("create error: tx sub event thread create");
+        goto exit;
+    }
+
+    if(((custom_obj->rxb.bind_mutex = rt_mutex_create("protocol_cmd_rx_bind_mutex", RT_IPC_FLAG_FIFO)) == RT_NULL)) {
+        LOG_E("create error: rx mutex create");
+        goto exit;
+    }
+
+    if(((custom_obj->txb.bind_mutex = rt_mutex_create("protocol_cmd_tx_bind_mutex", RT_IPC_FLAG_FIFO)) == RT_NULL)) {
+        LOG_E("create error: tx mutex create");
+        goto exit;
+    }
+
+    if ((custom_obj->rxb.sub_mb = rt_mb_create("protocol_cmd_rx_sub_mb", CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
+        LOG_E("create error: rx mailbox create");
+        goto exit;
+    }
+
+    if ((custom_obj->txb.sub_mb = rt_mb_create("protocol_cmd_tx_sub_mb", CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
+        LOG_E("create error: tx mailbox create");
+        goto exit;
+    }
+
+    if((custom_obj->rxb.pub_succ_event = rt_event_create("protocol_cmd_rx_pub_succ", RT_IPC_FLAG_PRIO)) == RT_NULL) {
+        LOG_E("create error: rx pub succ event create");
+        goto exit;
+    }
+
+    if((custom_obj->txb.pub_succ_event = rt_event_create("protocol_cmd_tx_pub_succ", RT_IPC_FLAG_PRIO)) == RT_NULL) {
+        LOG_E("create error: tx pub succ event create");
+        goto exit;
+    }
+
+    rt_thread_startup(obj->rx_tid);
+    rt_thread_startup(obj->tx_tid);
+    rt_thread_startup(obj->rx_sub_event_tid);
+    rt_thread_startup(obj->tx_sub_event_tid);
+
+    rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_CMD_NAME);
+    return RT_EOK;
+
+exit:
     if(rt_object_find(rt_obj->name, RT_Object_Class_Custom) != RT_NULL)
         rt_object_detach(rt_obj);
 
@@ -437,279 +448,7 @@ static rt_err_t protocol_cmd_delete(protocol_obj_t self)
         custom_obj->txb.pub_succ_event = RT_NULL;
     }
 
-    if (obj->lib_handle != RT_NULL)
-    {
-        dlclose(obj->lib_handle);
-        obj->lib_handle = RT_NULL;
-    }
-
-    rt_free(obj);
-    obj = RT_NULL;
-
-    return RT_EOK;
-}
-
-static protocol_obj_t  protocol_cmd_create(protocol_obj_t self, char *name, void *config)
-{
-    if (self == RT_NULL || name == RT_NULL) {
-        LOG_E("create error: param");
-        return RT_NULL;
-    }
-
-    if (rt_strncmp(self->parent.parent.name, PROTOCOL_CMD_PARENT_NAME, RT_NAME_MAX) != 0) {
-        LOG_E("create error: invalid parent");
-        return RT_NULL;
-    }
-
-    if (rt_object_find(name, RT_Object_Class_Custom) != RT_NULL)
-    {
-        LOG_E("create error: %s exist", name);
-        return RT_NULL;
-    }
-
-    protocol_cmd_obj_t obj = rt_malloc(sizeof(struct protocol_cmd_obj));
-    if (obj == RT_NULL) {
-        LOG_E("create error: memory allocation");
-        return RT_NULL;
-    }
-
-    rt_object_t rt_obj = (rt_object_t)obj;
-    custom_obj_t custom_obj = (custom_obj_t)obj;
-    protocol_obj_t protocol_obj = (protocol_obj_t)obj;
-
-    rt_memcpy(obj, self, sizeof(struct protocol_cmd_obj));
-
-    if(config == RT_NULL)
-        config = &(obj->config);
-
-    double_ret result = protocol_cmd_set_param(protocol_obj, config);
-    if (result.fail != 0 || result.succ == 0 || obj->lib_handle == RT_NULL)
-    {
-        LOG_E("create error: set param");
-        goto exit;
-    }
-
-    char name_buf[RT_NAME_MAX] = {0};
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx");
-    obj->rx_tid = rt_thread_create(name_buf, protocol_cmd_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
-    if (obj->rx_tid == RT_NULL) {
-        LOG_E("create error: rx thread create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx");
-    obj->tx_tid = rt_thread_create(name_buf, protocol_cmd_send, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
-    if (obj->tx_tid == RT_NULL) {
-        LOG_E("create error: tx thread create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_event");
-    if((obj->rx_sub_event_tid = rt_thread_create(name_buf, protocol_cmd_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
-        LOG_E("create error: rx sub event thread create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_sub_event");
-    if((obj->tx_sub_event_tid = rt_thread_create(name_buf, protocol_cmd_send_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
-        LOG_E("create error: tx sub event thread create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_bind_mutex");
-    if(((custom_obj->rxb.bind_mutex = rt_mutex_create(name_buf, RT_IPC_FLAG_FIFO)) == RT_NULL)) {
-        LOG_E("create error: rx mutex create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_bind_mutex");
-    if(((custom_obj->txb.bind_mutex = rt_mutex_create(name_buf, RT_IPC_FLAG_FIFO)) == RT_NULL)) {
-        LOG_E("create error: tx mutex create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_mb");
-    if ((custom_obj->rxb.sub_mb = rt_mb_create(name_buf, CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
-        LOG_E("create error: rx mailbox create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_sub_mb");
-    if ((custom_obj->txb.sub_mb = rt_mb_create(name_buf, CUSTOM_PER_LAYER_OBJ_MAX, RT_IPC_FLAG_FIFO)) == RT_NULL) {
-        LOG_E("create error: tx mailbox create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_pub_succ");
-    if((custom_obj->rxb.pub_succ_event = rt_event_create(name_buf, RT_IPC_FLAG_PRIO)) == RT_NULL) {
-        LOG_E("create error: rx pub succ event create");
-        goto exit;
-    }
-
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_tx_pub_succ");
-    if((custom_obj->txb.pub_succ_event = rt_event_create(name_buf, RT_IPC_FLAG_PRIO)) == RT_NULL) {
-        LOG_E("create error: tx pub succ event create");
-        goto exit;
-    }
-
-    rt_thread_startup(obj->rx_tid);
-    rt_thread_startup(obj->tx_tid);
-    rt_thread_startup(obj->rx_sub_event_tid);
-    rt_thread_startup(obj->tx_sub_event_tid);
-
-
-    rt_object_init(rt_obj, RT_Object_Class_Custom, name);
-    LOG_I("create success: %s", name);
-    return protocol_obj;
-
-exit:
-    protocol_cmd_delete(protocol_obj);
-    return RT_NULL;
-}
-
-static const struct protocol_obj_ops protocol_cmd_ops =
-{
-    .create = protocol_cmd_create,
-    .delete = protocol_cmd_delete,
-    .set_param = protocol_cmd_set_param,
-};
-
-static rt_err_t  protocol_cmd_gc(custom_obj_t self)
-{
-    if (self == RT_NULL)
-        return -RT_EINVAL;
-
-    protocol_obj_t protocol_obj = (protocol_obj_t)self;
-    return protocol_cmd_delete(protocol_obj);
-}
-
-static const struct custom_object_ops custom_obj_ops =
-{
-    .gc = protocol_cmd_gc,
-};
-
-static int protocol_cmd_init(void)
-{
-    static struct protocol_cmd_obj object = {0};
-    protocol_cmd_obj_t obj = &object;
-    rt_object_t rt_obj = (rt_object_t)obj;
-    custom_obj_t custom_obj = (custom_obj_t)obj;
-    protocol_obj_t protocol_obj = (protocol_obj_t)obj;
-
-    if (rt_object_find(PROTOCOL_CMD_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
-        return -RT_ERROR;
-
-    custom_obj->type = Custom_Object_Class_Protocol;
-
-    protocol_obj_init(custom_obj);
-
-    custom_obj->ops = &custom_obj_ops;
-    protocol_obj->ops = &protocol_cmd_ops;
-
-    rt_strncpy(obj->config.lib_name, "208", rt_strnlen("208", RT_NAME_MAX - 1));
-
-    rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_CMD_PARENT_NAME);
-
-    return RT_EOK;
+    return -RT_ERROR;
 }
 
 INIT_APP_EXPORT(protocol_cmd_init);
-
-static int cmd_create_protocol_cmd(int argc, char *argv[])
-{
-    if (argc < 2)
-    {
-        rt_kprintf("Usage: create_protocol_cmd <name> [-l lib_name]\n");
-        rt_kprintf("Example: create_protocol_cmd protocol_cmd_1 -l 208\n");
-        return -RT_ERROR;
-    }
-
-    const char *name = argv[1];
-    rt_err_t err = custom_obj_msh_check_create_name(name, "protocol_cmd");
-
-    if (err == -RT_EFULL)
-    {
-        rt_kprintf("Object already exists: %s\n", name);
-        return -RT_ERROR;
-    }
-    if (err != RT_EOK)
-    {
-        rt_kprintf("Invalid name: %s\n", name);
-        return -RT_ERROR;
-    }
-
-    protocol_obj_t parent = (protocol_obj_t)rt_object_find(PROTOCOL_CMD_PARENT_NAME, RT_Object_Class_Custom);
-    if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
-    {
-        rt_kprintf("Parent not ready: %s\n", PROTOCOL_CMD_PARENT_NAME);
-        return -RT_ERROR;
-    }
-
-    struct protocol_cmd_config *config_ptr = RT_NULL;
-    struct protocol_cmd_config config = {0};
-    const char *lib_name = custom_obj_msh_get_opt(argc, argv, "l");
-
-    if (lib_name != RT_NULL)
-    {
-        config_ptr = &config;
-        rt_strncpy(config.lib_name, lib_name, RT_NAME_MAX - 1);
-    }
-
-    if (parent->ops->create(parent, (char *)name, config_ptr) == RT_NULL)
-    {
-        rt_kprintf("Failed to create protocol_cmd: %s\n", name);
-        return -RT_ERROR;
-    }
-
-    rt_kprintf("Created protocol_cmd: %s\n", name);
-    return RT_EOK;
-}
-MSH_CMD_EXPORT_ALIAS(cmd_create_protocol_cmd, create_protocol_cmd, Create protocol_cmd object);
-
-static int cmd_delete_protocol_cmd(int argc, char *argv[])
-{
-    const char *name = custom_obj_msh_get_opt(argc, argv, "n");
-
-    if (name == RT_NULL)
-    {
-        rt_kprintf("Usage: delete_protocol_cmd -n <name>\n");
-        rt_kprintf("Example: delete_protocol_cmd -n protocol_cmd_1\n");
-        return -RT_ERROR;
-    }
-
-    if (custom_obj_msh_check_delete_name(name) != RT_EOK)
-    {
-        rt_kprintf("Invalid name: %s\n", name);
-        return -RT_ERROR;
-    }
-
-    protocol_obj_t obj = (protocol_obj_t)rt_object_find(name, RT_Object_Class_Custom);
-    if (obj == RT_NULL)
-    {
-        rt_kprintf("Object not found: %s\n", name);
-        return -RT_ERROR;
-    }
-
-    if (((custom_obj_t)obj)->type != Custom_Object_Class_Protocol)
-    {
-        rt_kprintf("Not a protocol_cmd object: %s\n", name);
-        return -RT_ERROR;
-    }
-
-    if (obj->ops == RT_NULL || obj->ops->delete == RT_NULL)
-    {
-        rt_kprintf("Delete not supported: %s\n", name);
-        return -RT_ERROR;
-    }
-
-    if (obj->ops->delete(obj) != RT_EOK)
-    {
-        rt_kprintf("Failed to delete protocol_cmd: %s\n", name);
-        return -RT_ERROR;
-    }
-
-    rt_kprintf("Deleted protocol_cmd: %s\n", name);
-    return RT_EOK;
-}
-MSH_CMD_EXPORT_ALIAS(cmd_delete_protocol_cmd, delete_protocol_cmd, Delete protocol_cmd object);
