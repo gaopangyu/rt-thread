@@ -384,7 +384,7 @@ static int store_init(void)
 
     return RT_EOK;
 }
-INIT_APP_EXPORT(store_init);
+INIT_ENV_EXPORT(store_init);
 
 void store_run(void)
 {

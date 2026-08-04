@@ -614,7 +614,7 @@ static int protocol_logv1_init(void)
     return RT_EOK;
 }
 
-INIT_APP_EXPORT(protocol_logv1_init);
+INIT_ENV_EXPORT(protocol_logv1_init);
 
 static int cmd_create_protocol_logv1(int argc, char *argv[])
 {

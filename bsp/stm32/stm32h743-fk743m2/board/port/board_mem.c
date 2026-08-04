@@ -278,5 +278,5 @@ static int board_ramfs_init(void)
 
     return RT_EOK;
 }
-INIT_APP_EXPORT(board_ramfs_init);
+INIT_ENV_EXPORT(board_ramfs_init);
 #endif /* RT_USING_DFS_RAMFS */

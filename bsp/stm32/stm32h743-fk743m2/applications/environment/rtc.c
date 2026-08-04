@@ -95,7 +95,7 @@ static int rtc_app_init(void)
 
     return RT_EOK;
 }
-INIT_APP_EXPORT(rtc_app_init);
+INIT_ENV_EXPORT(rtc_app_init);
 
 static int cmd_rtc_set_time(int argc, char **argv)
 {

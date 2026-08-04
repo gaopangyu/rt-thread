@@ -6,8 +6,10 @@
 #include <rtdbg.h>
 
 #define CMD_BUFFER_SIZE 1024
-rt_uint8_t cmd_buffer[CMD_BUFFER_SIZE];
-rt_size_t cmd_len = 0;
+static rt_uint8_t cmd_recv_buffer[CMD_BUFFER_SIZE];
+static rt_size_t cmd_recv_len = 0;
+static rt_uint8_t cmd_send_buffer[CMD_BUFFER_SIZE];
+static rt_size_t cmd_send_len = 0;
 
 static double_ret protocol_cmd_set_param(protocol_obj_t self, void *config)
 {
@@ -126,12 +128,12 @@ static void protocol_cmd_recv(void *parameter)
             if( tx_custom_obj->txb.len > CMD_BUFFER_SIZE )
             {
                 LOG_E("protocol cmd recv len: %d > CMD_BUFFER_SIZE: %d\r\n", tx_custom_obj->txb.len, CMD_BUFFER_SIZE);
-                cmd_len = CMD_BUFFER_SIZE;
+                cmd_recv_len = CMD_BUFFER_SIZE;
             }
             else
-                cmd_len = tx_custom_obj->txb.len;
+                cmd_recv_len = tx_custom_obj->txb.len;
 
-            rt_memcpy(cmd_buffer, tx_custom_obj->txb.buffer, cmd_len);
+            rt_memcpy(cmd_recv_buffer, tx_custom_obj->txb.buffer, cmd_recv_len);
 
             rt_sem_release(obj->recv_sem);
 
@@ -144,6 +146,41 @@ static void protocol_cmd_recv(void *parameter)
 
         rt_mutex_release(custom_obj->txb.bind_mutex);
     }
+}
+
+static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
+{
+    if (buffer == RT_NULL || len == 0)
+        return 0;
+
+    switch(buffer[0])
+    {
+        case 0x01://获取参数
+            LOG_I("protocol cmd parse: 0x01 get param\r\n");
+            break;
+        case 0x02://设置参数
+            LOG_I("protocol cmd parse: 0x02 set param\r\n");
+            break;
+        case 0x03://获取历史报文
+            LOG_I("protocol cmd parse: 0x03 get history messages\r\n");
+            rt_uint8_t host_id = buffer[1];
+            // rt_uint8_t  = buffer[2];
+            break;
+        case 0x04://删除绑定
+            LOG_I("protocol cmd parse: 0x04 delete bind\r\n");
+            break;
+        case 0x05://创建绑定
+            LOG_I("protocol cmd parse: 0x05 create bind\r\n");
+            break;  
+        case 0x06://获取绑定
+            LOG_I("protocol cmd parse: 0x06 get bind\r\n");
+            break;
+        default:
+            LOG_E("protocol cmd parse: unknown command: 0x%02X\r\n", buffer[0]);
+            break;
+    }
+
+    return 0;
 }
 
 static void protocol_cmd_parse(void *parameter)
@@ -167,6 +204,9 @@ static void protocol_cmd_parse(void *parameter)
             break;
         }
 
+        if( (cmd_send_len = parse(cmd_recv_buffer, cmd_recv_len)) == 0 )
+            continue;
+
         //回复
         if (rt_mutex_take(custom_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
@@ -177,8 +217,8 @@ static void protocol_cmd_parse(void *parameter)
         if (custom_obj->rxb.pub_event != RT_NULL && custom_obj->event_flag != 0 
          && custom_obj->rxb.pub_succ_event != RT_NULL && custom_obj->rxb.next_event_mask != 0 )
         {
-            custom_obj->rxb.buffer = RT_NULL;
-            custom_obj->rxb.len = 0;
+            custom_obj->rxb.buffer = cmd_send_buffer;
+            custom_obj->rxb.len = cmd_send_len;
 
             rt_thread_yield();
             LOG_I("%s send rxb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);

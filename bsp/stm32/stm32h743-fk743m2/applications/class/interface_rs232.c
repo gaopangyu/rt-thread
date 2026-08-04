@@ -600,7 +600,7 @@ static int interface_rs232_init(void)
     return RT_EOK;
 }
 
-INIT_APP_EXPORT(interface_rs232_init);
+INIT_ENV_EXPORT(interface_rs232_init);
 
 static int cmd_create_interface_rs232(int argc, char *argv[])
 {

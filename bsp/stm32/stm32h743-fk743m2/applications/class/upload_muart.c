@@ -1312,7 +1312,7 @@ static int upload_muart_init(void)
     return RT_EOK;
 }
 
-INIT_APP_EXPORT(upload_muart_init);
+INIT_ENV_EXPORT(upload_muart_init);
 
 static int cmd_create_upload_muart(int argc, char *argv[])
 {

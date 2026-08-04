@@ -438,7 +438,7 @@ static int upload_store_init(void)
     return RT_EOK;
 }
 
-INIT_APP_EXPORT(upload_store_init);
+INIT_ENV_EXPORT(upload_store_init);
 
 static int cmd_create_upload_store(int argc, char *argv[])
 {
