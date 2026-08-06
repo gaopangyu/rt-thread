@@ -701,7 +701,7 @@ static rt_ssize_t upload_muart_send(upload_obj_t self, const void *buffer, rt_si
     custom_obj->txb.buffer = (rt_uint8_t *)buffer;
     custom_obj->txb.len = size;
 
-    LOG_D("%s send to all bind: %d\r\n", rt_obj->name, size);
+    LOG_D("%s send to all pre tx_bind: %d\r\n", rt_obj->name, size);
 
     rt_thread_yield();
     LOG_I("%s send txb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);

@@ -4,7 +4,6 @@ Breakpoint=F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/board/port/
 Breakpoint=F:/job_hyjx/udtd_v2/rt-thread/components/dfs/dfs_v1/src/dfs_posix.c:658, State=BP_STATE_DISABLED
 OpenDocument="main.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/main.c", Line=16
 OpenDocument="dev_rtc.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/drivers/rtc/dev_rtc.c", Line=212
-OpenDocument="rtc.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/rtc.c", Line=20
 OpenDocument="startup_stm32h743xx.s", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_cmsis_driver-latest/Source/Templates/gcc/startup_stm32h743xx.s", Line=46
 OpenDocument="stm32h7xx_hal_rcc_ex.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_hal_driver-latest/Src/stm32h7xx_hal_rcc_ex.c", Line=918
 OpenDocument="stm32h7xx_hal_rcc.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_hal_driver-latest/Src/stm32h7xx_hal_rcc.c", Line=718
@@ -13,21 +12,19 @@ OpenDocument="board.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h
 OpenDocument="drv_rtc.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/libraries/HAL_Drivers/drivers/drv_rtc.c", Line=275
 OpenDocument="dfs_file.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/dfs/dfs_v1/src/dfs_file.c", Line=288
 OpenDocument="dfs_posix.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/dfs/dfs_v1/src/dfs_posix.c", Line=634
-OpenDocument="auto_mount.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/auto_mount.c", Line=5
 OpenDocument="device.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/drivers/core/device.c", Line=405
-OpenDocument="", FilePath="", Line=0
 OpenDocument="stm32h7xx_hal_rtc.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_hal_driver-latest/Src/stm32h7xx_hal_rtc.c", Line=1925
 OpenToolbar="Debug", Floating=0, x=0, y=0
-OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=1, w=1005, h=335, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Registers 1", DockArea=RIGHT, x=0, y=4, w=1005, h=252, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, FilteredItems=[], RefreshRate=1
+OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=1, w=1005, h=331, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Registers 1", DockArea=RIGHT, x=0, y=4, w=1005, h=254, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, FilteredItems=[], RefreshRate=1
 OpenWindow="Source Files", DockArea=LEFT, x=0, y=3, w=804, h=360, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=0, w=1005, h=268, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Break & Tracepoints", DockArea=LEFT, x=0, y=1, w=804, h=341, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VectorCatchIndexMask=254
+OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=0, w=1005, h=269, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Break & Tracepoints", DockArea=LEFT, x=0, y=1, w=804, h=342, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VectorCatchIndexMask=254
 OpenWindow="Memory 1", DockArea=BOTTOM, x=1, y=0, w=1121, h=371, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, EditorAddress=0x24011A70
-OpenWindow="Global Data", DockArea=RIGHT, x=0, y=2, w=1005, h=243, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Local Data", DockArea=RIGHT, x=0, y=3, w=1005, h=303, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=804, h=377, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Functions", DockArea=LEFT, x=0, y=2, w=804, h=324, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Global Data", DockArea=RIGHT, x=0, y=2, w=1005, h=246, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Local Data", DockArea=RIGHT, x=0, y=3, w=1005, h=301, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=804, h=375, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Functions", DockArea=LEFT, x=0, y=2, w=804, h=325, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=2078, h=371, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
 TableHeader="Global Data", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[350;355;138;100;195;498]

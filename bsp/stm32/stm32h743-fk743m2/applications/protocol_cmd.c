@@ -1,5 +1,6 @@
 #include "protocol_cmd.h"
 #include "bind.h"
+#include "upload_muart.h"
 
 #define DBG_TAG "protocol_cmd"
 #define DBG_LVL DBG_LOG
@@ -152,6 +153,9 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
 {
     if (buffer == RT_NULL || len == 0)
         return 0;
+
+    rt_memcpy(cmd_send_buffer, buffer, len);
+    return len;
 
     switch(buffer[0])
     {
@@ -317,6 +321,34 @@ static int protocol_cmd_init(void)
     rt_thread_startup(obj->recv_sub_event_tid);
 
     rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_CMD_NAME);
+
+    upload_obj_t muart_parent = (upload_obj_t)rt_object_find(UPLOAD_MUART_PARENT_NAME, RT_Object_Class_Custom);
+    if (muart_parent == RT_NULL || muart_parent->ops == RT_NULL || muart_parent->ops->create == RT_NULL)
+    {
+        LOG_E("create error: parent upload muart not found");
+        goto exit;
+    }
+
+    struct upload_muart_config config = { .number = 255 };
+    upload_obj_t upload_muart_255 = muart_parent->ops->create(muart_parent, "upload_muart_255", &config);
+    if (upload_muart_255 == RT_NULL)
+    {
+        LOG_E("create error: upload muart 255 create failed");
+        goto exit;
+    }
+
+    if (bind_create(custom_obj, (custom_obj_t)upload_muart_255, RT_TRUE) != RT_EOK)
+    {
+        LOG_E("create error: rx_bind create failed");
+        goto exit;
+    }
+
+    if (bind_create(custom_obj, (custom_obj_t)upload_muart_255, RT_FALSE) != RT_EOK)
+    {
+        LOG_E("create error: tx_bind create failed");
+        goto exit;
+    }
+
     return RT_EOK;
 
 exit:
