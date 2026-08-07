@@ -2,6 +2,10 @@
 #define __HOST_STD_H__
 
 #include "host.h"
+#include "class/interface_rs232.h"
+#include "class/protocol_logv1.h"
+#include "class/upload_muart.h"
+#include "class/upload_store.h"
 
 struct host_std_config
 {
@@ -10,9 +14,9 @@ struct host_std_config
     
     rt_uint8_t crt_com_id;
     void *crt_interface_cfg;
+    void *crt_protocol_cfg;
     rt_uint8_t bus_com_id;
     void *bus_interface_cfg;
-    void *crt_protocol_cfg;
     void *bus_protocol_cfg;
     void *store_upload_cfg;
     void *muart_upload_cfg[PLATFORM_MAX];
@@ -25,8 +29,8 @@ struct host_std
     struct host parent;
 
     interface_obj_t crt_interface;
-    interface_obj_t bus_interface;
     protocol_obj_t crt_protocol;
+    interface_obj_t bus_interface;
     protocol_obj_t bus_protocol;
     upload_obj_t store_upload;
     upload_obj_t muart_upload[PLATFORM_MAX];

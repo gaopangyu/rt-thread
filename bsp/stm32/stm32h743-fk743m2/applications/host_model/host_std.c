@@ -5,13 +5,36 @@
 #include <rtdbg.h>
 #include <string.h>
 
+static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t size,
+                                      time_t start_time, time_t end_time, rt_size_t count,
+                                      rt_uint8_t event_type)
+{
+    if (self == RT_NULL || buffer == RT_NULL || size == 0 || start_time > end_time || count == 0)
+        return 0;
+
+    host_std_t host_std = (host_std_t)self;
+
+    if (self->type != HOST_TYPE_STD)
+        return 0;
+
+    if (host_std->store_upload == RT_NULL || host_std->store_upload->ops == RT_NULL ||
+        host_std->store_upload->ops->get_history == RT_NULL)
+        return 0;
+
+    return host_std->store_upload->ops->get_history(host_std->store_upload, buffer, size,
+                                                    start_time, end_time, count, event_type);
+}
+
 static rt_err_t host_std_delete_muart_rx_bind(host_t self, rt_uint8_t platform_id)
 {
     if(self == RT_NULL || platform_id >= PLATFORM_MAX)
         return -RT_EINVAL;
 
     host_t host = self;
-    host_std_t host_std = (host_std_t)self;
+    host_std_t host_std = (host_std_t)host;
+
+    if(host->type != HOST_TYPE_STD)
+        return -RT_EINVAL;
 
     bind_delete((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
     bind_delete((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
@@ -25,7 +48,10 @@ static rt_err_t host_std_create_muart_rx_bind(host_t self, rt_uint8_t platform_i
         return -RT_EINVAL;
 
     host_t host = self;
-    host_std_t host_std = (host_std_t)self;
+    host_std_t host_std = (host_std_t)host;
+
+    if(host->type != HOST_TYPE_STD)
+        return -RT_EINVAL;
 
     bind_create((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
     bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
@@ -40,6 +66,9 @@ static rt_err_t host_std_delete(host_t self)
 
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
+
+    if(host->type != HOST_TYPE_STD)
+        return -RT_EINVAL;
 
     g_host[host->id] = RT_NULL;
 
@@ -91,6 +120,14 @@ static rt_err_t host_std_delete(host_t self)
     rt_free(host_std);
     return RT_EOK;
 }
+
+static const struct host_ops host_std_ops =
+{
+    .create_muart_rx_bind = host_std_create_muart_rx_bind,
+    .delete_muart_rx_bind = host_std_delete_muart_rx_bind,
+    .delete_host = host_std_delete,
+    .get_history = host_std_get_history,
+};
 
 rt_err_t host_std_create(host_std_config_t config)
 {
@@ -198,16 +235,14 @@ rt_err_t host_std_create(host_std_config_t config)
         bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[i] , RT_FALSE);
     }
     
-    host->ops->delete_host = host_std_delete;
-    host->ops->create_muart_rx_bind = host_std_create_muart_rx_bind;
-    host->ops->delete_muart_rx_bind = host_std_delete_muart_rx_bind;
+    host->ops = (struct host_ops *)&host_std_ops;
 
     g_host[host->id] = host;
-    LOG_I("host_std %u created", host->id);
+    LOG_I("host_std %d created", host->id);
     return RT_EOK;
 
 exit:
-    LOG_E("host_std %u create failed", config->host_id);
+    LOG_E("host_std %d create failed", config->host_id);
     host_std_delete(host);
     return -RT_ERROR;
 }

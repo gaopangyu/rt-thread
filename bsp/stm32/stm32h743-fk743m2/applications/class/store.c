@@ -249,6 +249,169 @@ static void store_migrate_one(upload_store_obj_t obj)
     rt_mutex_release(obj->ramfs_fd_mutex);
 }
 
+/* 从 path 读入 buffer[offset..)，返回本次写入字节；文件不存在返回 0 */
+static rt_size_t store_append_file(const char *path, rt_uint8_t *buffer, rt_size_t size, rt_size_t offset)
+{
+    int fd;
+    rt_size_t written = 0;
+
+    if (path == RT_NULL || buffer == RT_NULL || offset >= size)
+        return 0;
+
+    fd = open(path, O_RDONLY | O_BINARY, 0);
+    if (fd < 0)
+        return 0;
+
+    while (offset + written < size)
+    {
+        ssize_t n = read(fd, buffer + offset + written, size - offset - written);
+        if (n <= 0)
+            break;
+        written += (rt_size_t)n;
+    }
+
+    close(fd);
+    return written;
+}
+
+/*
+ * 优先读 ramfs（未迁移），不存在再读 diskfs（已落盘）。
+ * 成功打开并读过（含空文件）返回 1，两侧都不存在返回 0。
+ */
+static int store_read_one_log(upload_store_obj_t obj, const char *date_str, const char *type,
+                              rt_uint8_t *buffer, rt_size_t size, rt_size_t *offset)
+{
+    char path[STORE_PATH_MAX];
+    rt_size_t n;
+
+    if (obj->ramfs_path[0] != '\0' &&
+        rt_snprintf(path, sizeof(path), "%s/%s/%s", obj->ramfs_path, date_str, type) < (int)sizeof(path))
+    {
+        int fd = open(path, O_RDONLY | O_BINARY, 0);
+        if (fd >= 0)
+        {
+            close(fd);
+            n = store_append_file(path, buffer, size, *offset);
+            *offset += n;
+            return 1;
+        }
+    }
+
+    if (obj->diskfs_path[0] != '\0' &&
+        rt_snprintf(path, sizeof(path), "%s/%s/%s", obj->diskfs_path, date_str, type) < (int)sizeof(path))
+    {
+        int fd = open(path, O_RDONLY | O_BINARY, 0);
+        if (fd >= 0)
+        {
+            close(fd);
+            n = store_append_file(path, buffer, size, *offset);
+            *offset += n;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * 按 [start_time, end_time] 的本地日历日读取日志。
+ * event_type: 0=全部, 1/'0'=fire.log, 2/'1'=fault.log, 其它=other.log
+ * 最多 count 个文件，内容顺序拼入 buffer，返回写入字节数。
+ */
+rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size,
+                            time_t start_time, time_t end_time, rt_size_t count, rt_uint8_t event_type)
+{
+    static const char * const log_types[] = { "fire.log", "fault.log", "other.log" };
+    const char *only_type = RT_NULL;
+    rt_size_t offset = 0;
+    rt_size_t files = 0;
+    struct tm tm_day;
+    time_t day;
+    time_t end_day;
+
+    if (obj == RT_NULL || buffer == RT_NULL || size == 0 || count == 0)
+        return 0;
+    if (start_time > end_time)
+        return 0;
+    if (obj->ramfs_fd_mutex == RT_NULL || obj->diskfs_fd_mutex == RT_NULL)
+        return 0;
+
+    if (event_type == 1 || event_type == '0')
+        only_type = log_types[0];
+    else if (event_type == 2 || event_type == '1')
+        only_type = log_types[1];
+    else if (event_type != 0)
+        only_type = log_types[2];
+
+    if (rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        return 0;
+    if (rt_mutex_take(obj->diskfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
+    {
+        rt_mutex_release(obj->ramfs_fd_mutex);
+        return 0;
+    }
+
+    {
+        time_t t = start_time;
+        localtime_r(&t, &tm_day);
+        tm_day.tm_hour = 0;
+        tm_day.tm_min = 0;
+        tm_day.tm_sec = 0;
+        tm_day.tm_isdst = -1;
+        day = mktime(&tm_day);
+    }
+    {
+        time_t t = end_time;
+        localtime_r(&t, &tm_day);
+        tm_day.tm_hour = 0;
+        tm_day.tm_min = 0;
+        tm_day.tm_sec = 0;
+        tm_day.tm_isdst = -1;
+        end_day = mktime(&tm_day);
+    }
+
+    if (day == (time_t)-1 || end_day == (time_t)-1)
+        goto out;
+
+    while (day <= end_day && files < count && offset < size)
+    {
+        char date_str[9];
+        int i;
+
+        localtime_r(&day, &tm_day);
+        rt_snprintf(date_str, sizeof(date_str), "%04d%02d%02d",
+                    tm_day.tm_year + 1900, tm_day.tm_mon + 1, tm_day.tm_mday);
+
+        if (only_type != RT_NULL)
+        {
+            if (store_read_one_log(obj, date_str, only_type, buffer, size, &offset))
+                files++;
+        }
+        else
+        {
+            for (i = 0; i < (int)(sizeof(log_types) / sizeof(log_types[0])); i++)
+            {
+                if (files >= count || offset >= size)
+                    break;
+
+                if (store_read_one_log(obj, date_str, log_types[i], buffer, size, &offset))
+                    files++;
+            }
+        }
+
+        tm_day.tm_mday += 1;
+        tm_day.tm_isdst = -1;
+        day = mktime(&tm_day);
+        if (day == (time_t)-1)
+            break;
+    }
+
+out:
+    rt_mutex_release(obj->diskfs_fd_mutex);
+    rt_mutex_release(obj->ramfs_fd_mutex);
+    return offset;
+}
+
 #define STORE_OBJ_MAX   CUSTOM_PER_LAYER_OBJ_MAX
 
 struct store_collect_ctx

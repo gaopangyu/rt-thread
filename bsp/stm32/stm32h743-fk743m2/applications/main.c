@@ -76,6 +76,54 @@ int main(void)
     gettimeofday(&now, RT_NULL);
     LOG_I("time: %lld.%03ld", (long long)now.tv_sec, (long)now.tv_usec / 1000);
 
+    #include "host_std.h"
+    rt_uint8_t host_id = 0;
+    rt_uint8_t platform_id = 0;
+
+    struct interface_rs232_config bus_interface_cfg = 
+    {
+        .uart_name = "uart8",
+        .baud_rate = 115200,
+        .data_bits = 8,
+        .stop_bits = 1,
+        .parity = 0,
+        .bit_order = 0,
+        .rx_bufsz = 10240,
+        .dma_ping_bufsz = 1024,
+        .tx_bufsz = 1024,
+        .rx_en_pin = 80
+    };
+
+    struct protocol_logv1_config bus_protocol_cfg =
+    {
+        .lib_name = "libtx3016a.so"
+    };
+
+    struct upload_store_config store_upload_cfg =
+    {
+        .dir = "logv1",
+        .path = "tx3016a"
+    };
+
+    struct upload_muart_config muart_upload_cfg =
+    {
+        .number = host_id * 10 + platform_id
+    };
+
+    struct host_std_config host_std_cfg = {0};
+    host_std_cfg.host_id = 0;
+    host_std_cfg.host_type = HOST_TYPE_STD;
+    host_std_cfg.crt_com_id = 0;
+    host_std_cfg.crt_interface_cfg = RT_NULL;
+    host_std_cfg.crt_protocol_cfg = RT_NULL;
+    host_std_cfg.bus_com_id = 1;
+    host_std_cfg.bus_interface_cfg = &bus_interface_cfg;
+    host_std_cfg.bus_protocol_cfg = &bus_protocol_cfg;
+    host_std_cfg.store_upload_cfg = &store_upload_cfg;
+    host_std_cfg.muart_upload_cfg[platform_id] = &muart_upload_cfg;
+    
+    host_std_create(&host_std_cfg);
+
     while (1) {
 
         // if(rt_pin_read(MP_STAT_PIN) == PIN_LOW)

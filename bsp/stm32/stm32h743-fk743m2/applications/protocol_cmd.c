@@ -1,16 +1,20 @@
 #include "protocol_cmd.h"
 #include "bind.h"
 #include "upload_muart.h"
+#include "host.h"
+
+#include <time.h>
+#include <string.h>
 
 #define DBG_TAG "protocol_cmd"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define CMD_BUFFER_SIZE 1024
+#define CMD_BUFFER_SIZE 1023
 static rt_uint8_t cmd_recv_buffer[CMD_BUFFER_SIZE];
 static rt_size_t cmd_recv_len = 0;
-static rt_uint8_t cmd_send_buffer[CMD_BUFFER_SIZE];
-static rt_size_t cmd_send_len = 0;
+static rt_uint8_t cmd_reply_buffer[CMD_BUFFER_SIZE];
+static rt_size_t cmd_reply_len = 0;
 
 static double_ret protocol_cmd_set_param(protocol_obj_t self, void *config)
 {
@@ -154,8 +158,7 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
     if (buffer == RT_NULL || len == 0)
         return 0;
 
-    rt_memcpy(cmd_send_buffer, buffer, len);
-    return len;
+    rt_size_t reply_len = 0;
 
     switch(buffer[0])
     {
@@ -166,9 +169,50 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             LOG_I("protocol cmd parse: 0x02 set param\r\n");
             break;
         case 0x03://获取历史报文
+            /* 布局: [0]=0x03 [1]=host_id [2]=event_type
+             *       [3..6]=start_time(u32 LE) [7..10]=end_time(u32 LE) [11]=count */
             LOG_I("protocol cmd parse: 0x03 get history messages\r\n");
-            rt_uint8_t host_id = buffer[1];
-            // rt_uint8_t  = buffer[2];
+            {
+                rt_uint8_t host_id;
+                rt_uint8_t event_type;
+                time_t start_time;
+                time_t end_time;
+                rt_uint8_t count;
+
+                if (len < 12)
+                {
+                    LOG_E("protocol cmd parse: 0x03 frame too short: %d\r\n", (int)len);
+                    break;
+                }
+
+                host_id = buffer[1];
+                event_type = buffer[2];
+                start_time = (time_t)buffer[3]
+                           | ((time_t)buffer[4] << 8)
+                           | ((time_t)buffer[5] << 16)
+                           | ((time_t)buffer[6] << 24);
+                end_time = (time_t)buffer[7]
+                         | ((time_t)buffer[8] << 8)
+                         | ((time_t)buffer[9] << 16)
+                         | ((time_t)buffer[10] << 24);
+                count = buffer[11];
+
+                if (host_id >= HOST_MAX || end_time == 0 || start_time > end_time || count == 0
+                 || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL
+                 || g_host[host_id]->ops->get_history == RT_NULL)
+                {
+                    LOG_E("protocol cmd parse: 0x03 invalid args start=%lld end=%lld count=%d host=%d\r\n",
+                          (long long)start_time, (long long)end_time, count, host_id);
+                    break;
+                }
+
+                cmd_reply_len = g_host[host_id]->ops->get_history(g_host[host_id],
+                                                                  cmd_reply_buffer,
+                                                                  sizeof(cmd_reply_buffer),
+                                                                  start_time, end_time,
+                                                                  count, event_type);
+                reply_len = cmd_reply_len > CMD_BUFFER_SIZE ? CMD_BUFFER_SIZE : cmd_reply_len;
+            }
             break;
         case 0x04://删除绑定
             LOG_I("protocol cmd parse: 0x04 delete bind\r\n");
@@ -184,7 +228,7 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             break;
     }
 
-    return 0;
+    return reply_len;
 }
 
 static void protocol_cmd_parse(void *parameter)
@@ -208,7 +252,7 @@ static void protocol_cmd_parse(void *parameter)
             break;
         }
 
-        if( (cmd_send_len = parse(cmd_recv_buffer, cmd_recv_len)) == 0 )
+        if( (cmd_reply_len = parse(cmd_recv_buffer, cmd_recv_len)) == 0 )
             continue;
 
         //回复
@@ -221,8 +265,8 @@ static void protocol_cmd_parse(void *parameter)
         if (custom_obj->rxb.pub_event != RT_NULL && custom_obj->event_flag != 0 
          && custom_obj->rxb.pub_succ_event != RT_NULL && custom_obj->rxb.next_event_mask != 0 )
         {
-            custom_obj->rxb.buffer = cmd_send_buffer;
-            custom_obj->rxb.len = cmd_send_len;
+            custom_obj->rxb.buffer = cmd_reply_buffer;
+            custom_obj->rxb.len = cmd_reply_len;
 
             rt_thread_yield();
             LOG_I("%s send rxb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);
