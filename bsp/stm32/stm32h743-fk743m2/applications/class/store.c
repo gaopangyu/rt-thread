@@ -66,8 +66,8 @@ static int ensure_parent_dirs(const char *filepath)
 }
 
 /*
- * /ramfs/log/site1/20260714/fire.log
- *   -> /diskfs/log/site1/20260714/fire.log
+ * /ramfs/event/site1/20260714/fire.event
+ *   -> /diskfs/event/site1/20260714/fire.event
  * 相对路径相同，只换挂载根。
  */
 static int ramfs_path_to_diskfs(const char *src, char *dst, rt_size_t dst_sz)
@@ -278,7 +278,7 @@ static rt_size_t store_append_file(const char *path, rt_uint8_t *buffer, rt_size
  * 优先读 ramfs（未迁移），不存在再读 diskfs（已落盘）。
  * 成功打开并读过（含空文件）返回 1，两侧都不存在返回 0。
  */
-static int store_read_one_log(upload_store_obj_t obj, const char *date_str, const char *type,
+static int store_read_one_event(upload_store_obj_t obj, const char *date_str, const char *type,
                               rt_uint8_t *buffer, rt_size_t size, rt_size_t *offset)
 {
     char path[STORE_PATH_MAX];
@@ -315,7 +315,7 @@ static int store_read_one_log(upload_store_obj_t obj, const char *date_str, cons
 
 rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, sub_history_t sub_history)
 {
-    static const char * const log_types[] = { "fire.log", "fault.log", "other.log" };
+    static const char * const event_types[] = { "fire.event", "fault.event", "other.event" };
     const char *only_type = RT_NULL;
     rt_size_t offset = 0;
     rt_size_t files = 0;
@@ -334,11 +334,11 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
         return 0;
 
     if (event_type == 1 || event_type == '0')
-        only_type = log_types[0];
+        only_type = event_types[0];
     else if (event_type == 2 || event_type == '1')
-        only_type = log_types[1];
+        only_type = event_types[1];
     else if (event_type != 0)
-        only_type = log_types[2];
+        only_type = event_types[2];
 
     time_t t = start_time;
     localtime_r(&t, &tm_day);
@@ -378,17 +378,17 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
 
         if (only_type != RT_NULL)
         {
-            if (store_read_one_log(obj, date_str, only_type, buffer, size, &offset))
+            if (store_read_one_event(obj, date_str, only_type, buffer, size, &offset))
                 files++;
         }
         else
         {
-            for (i = 0; i < (int)(sizeof(log_types) / sizeof(log_types[0])); i++)
+            for (i = 0; i < (int)(sizeof(event_types) / sizeof(event_types[0])); i++)
             {
                 if (files >= count || offset >= size)
                     break;
 
-                if (store_read_one_log(obj, date_str, log_types[i], buffer, size, &offset))
+                if (store_read_one_event(obj, date_str, event_types[i], buffer, size, &offset))
                     files++;
             }
         }
@@ -560,7 +560,7 @@ static int cmd_store_run(int argc, char **argv)
     store_run();
     return 0;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_store_run, store_run, migrate ramfs logs to diskfs);
+MSH_CMD_EXPORT_ALIAS(cmd_store_run, store_run, migrate ramfs events to diskfs);
 
 static int cmd_store_run_now(int argc, char **argv)
 {
@@ -569,6 +569,6 @@ static int cmd_store_run_now(int argc, char **argv)
     store_run_now();
     return 0;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_store_run_now, store_run_now, migrate ramfs logs to diskfs now);
+MSH_CMD_EXPORT_ALIAS(cmd_store_run_now, store_run_now, migrate ramfs events to diskfs now);
 
 

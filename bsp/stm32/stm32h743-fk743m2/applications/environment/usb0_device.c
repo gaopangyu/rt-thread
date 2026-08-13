@@ -440,7 +440,7 @@ static int read_block(int argc, char **argv)
 
     if (argc < 2) {
         rt_kprintf("Usage: read_block <sector> [bytes]\n");
-        rt_kprintf("  sector: logical sector index, 0 .. %u\n", (unsigned)(BLOCK_COUNT - 1));
+        rt_kprintf("  sector: eventical sector index, 0 .. %u\n", (unsigned)(BLOCK_COUNT - 1));
         rt_kprintf("  bytes: optional dump length from sector start, default 256, max %u\n",
                    (unsigned)BLOCK_SIZE);
         return 0;

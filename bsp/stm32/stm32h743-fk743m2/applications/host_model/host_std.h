@@ -3,7 +3,7 @@
 
 #include "host.h"
 #include "class/interface_rs232.h"
-#include "class/protocol_logv1.h"
+#include "class/protocol_ev1.h"
 #include "class/upload_muart.h"
 #include "class/upload_store.h"
 

@@ -104,13 +104,13 @@ static void upload_store_handle_rx_bind_pre(upload_store_obj_t obj, rt_object_t 
     switch (buffer[0])
     {
     case '0':
-        type = "fire.log";
+        type = "fire.event";
         break;
     case '1':
-        type = "fault.log";
+        type = "fault.event";
         break;
     default:
-        type = "other.log";
+        type = "other.event";
         break;
     }
 
@@ -454,7 +454,7 @@ static int cmd_create_upload_store(int argc, char *argv[])
     if (argc < 2)
     {
         rt_kprintf("Usage: create_upload_store <name> -d <dir> -p <path>\n");
-        rt_kprintf("Example: create_upload_store upload_store_1 -d log -p site1\n");
+        rt_kprintf("Example: create_upload_store upload_store_1 -d event -p site1\n");
         return -RT_ERROR;
     }
 
@@ -484,7 +484,7 @@ static int cmd_create_upload_store(int argc, char *argv[])
     if (dir == RT_NULL || dir[0] == '\0' || path == RT_NULL || path[0] == '\0')
     {
         rt_kprintf("Usage: create_upload_store <name> -d <dir> -p <path>\n");
-        rt_kprintf("Example: create_upload_store upload_store_1 -d log -p site1\n");
+        rt_kprintf("Example: create_upload_store upload_store_1 -d event -p site1\n");
         return -RT_ERROR;
     }
 

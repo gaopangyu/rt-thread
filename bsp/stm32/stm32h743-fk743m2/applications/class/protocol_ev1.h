@@ -3,17 +3,17 @@
 
 #include "protocol_obj.h"
 
-struct protocol_logv1_config
+struct protocol_ev1_config
 {
     char lib_name[RT_NAME_MAX];
 };
 
-typedef struct protocol_logv1_config *protocol_logv1_config_t;
+typedef struct protocol_ev1_config *protocol_ev1_config_t;
 
-struct protocol_logv1_obj
+struct protocol_ev1_obj
 {
     struct protocol_obj    parent;
-    struct protocol_logv1_config config;
+    struct protocol_ev1_config config;
     void *lib_handle;
     init_func_t lib_init;
     destroy_initentry_func_t lib_destroy_initentry;
@@ -27,6 +27,6 @@ struct protocol_logv1_obj
     rt_thread_t tx_sub_event_tid;
 };
 
-typedef struct protocol_logv1_obj *protocol_logv1_obj_t;
+typedef struct protocol_ev1_obj *protocol_ev1_obj_t;
 
 #endif /* __PROTOCOL_LOGV1_H__ */
