@@ -14,9 +14,6 @@ static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t
 
     host_std_t host_std = (host_std_t)self;
 
-    if (self->type != HOST_TYPE_STD)
-        return 0;
-
     if (host_std->store_upload == RT_NULL || host_std->store_upload->ops == RT_NULL ||
         host_std->store_upload->ops->get_history == RT_NULL)
         return 0;
@@ -33,9 +30,6 @@ static rt_err_t host_std_delete_muart_rx_bind(host_t self, rt_uint8_t platform_i
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
 
-    if(host->type != HOST_TYPE_STD)
-        return -RT_EINVAL;
-
     bind_delete((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
     bind_delete((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
 
@@ -50,9 +44,6 @@ static rt_err_t host_std_create_muart_rx_bind(host_t self, rt_uint8_t platform_i
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
 
-    if(host->type != HOST_TYPE_STD)
-        return -RT_EINVAL;
-
     bind_create((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
     bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
 
@@ -61,14 +52,11 @@ static rt_err_t host_std_create_muart_rx_bind(host_t self, rt_uint8_t platform_i
 
 static rt_err_t host_std_delete(host_t self)
 {
-    if (self == RT_NULL || self->type != HOST_TYPE_STD || self->id >= HOST_MAX)
+    if (self == RT_NULL || self->id >= HOST_MAX)
         return -RT_EINVAL;
 
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
-
-    if(host->type != HOST_TYPE_STD)
-        return -RT_EINVAL;
 
     g_host[host->id] = RT_NULL;
 

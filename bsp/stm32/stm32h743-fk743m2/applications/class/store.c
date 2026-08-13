@@ -326,13 +326,12 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
     rt_size_t offset = 0;
     rt_size_t files = 0;
     struct tm tm_day;
-    time_t day;
+    time_t start_day;
     time_t end_day;
 
-    if (obj == RT_NULL || buffer == RT_NULL || size == 0 || count == 0)
+    if (obj == RT_NULL || buffer == RT_NULL || size == 0 || start_time > end_time || count == 0)
         return 0;
-    if (start_time > end_time)
-        return 0;
+
     if (obj->ramfs_fd_mutex == RT_NULL || obj->diskfs_fd_mutex == RT_NULL)
         return 0;
 
@@ -343,6 +342,25 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
     else if (event_type != 0)
         only_type = log_types[2];
 
+    time_t t = start_time;
+    localtime_r(&t, &tm_day);
+    tm_day.tm_hour = 0;
+    tm_day.tm_min = 0;
+    tm_day.tm_sec = 0;
+    tm_day.tm_isdst = -1;
+    start_day = mktime(&tm_day);
+
+    t = end_time;
+    localtime_r(&t, &tm_day);
+    tm_day.tm_hour = 0;
+    tm_day.tm_min = 0;
+    tm_day.tm_sec = 0;
+    tm_day.tm_isdst = -1;
+    end_day = mktime(&tm_day);
+
+    if (start_day == (time_t)-1 || end_day == (time_t)-1)
+        return 0;
+
     if (rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return 0;
     if (rt_mutex_take(obj->diskfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
@@ -351,34 +369,12 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
         return 0;
     }
 
-    {
-        time_t t = start_time;
-        localtime_r(&t, &tm_day);
-        tm_day.tm_hour = 0;
-        tm_day.tm_min = 0;
-        tm_day.tm_sec = 0;
-        tm_day.tm_isdst = -1;
-        day = mktime(&tm_day);
-    }
-    {
-        time_t t = end_time;
-        localtime_r(&t, &tm_day);
-        tm_day.tm_hour = 0;
-        tm_day.tm_min = 0;
-        tm_day.tm_sec = 0;
-        tm_day.tm_isdst = -1;
-        end_day = mktime(&tm_day);
-    }
-
-    if (day == (time_t)-1 || end_day == (time_t)-1)
-        goto out;
-
-    while (day <= end_day && files < count && offset < size)
+    while (start_day <= end_day && files < count && offset < size)
     {
         char date_str[9];
         int i;
 
-        localtime_r(&day, &tm_day);
+        localtime_r(&start_day, &tm_day);
         rt_snprintf(date_str, sizeof(date_str), "%04d%02d%02d",
                     tm_day.tm_year + 1900, tm_day.tm_mon + 1, tm_day.tm_mday);
 
@@ -401,8 +397,8 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
 
         tm_day.tm_mday += 1;
         tm_day.tm_isdst = -1;
-        day = mktime(&tm_day);
-        if (day == (time_t)-1)
+        start_day = mktime(&tm_day);
+        if (start_day == (time_t)-1)
             break;
     }
 

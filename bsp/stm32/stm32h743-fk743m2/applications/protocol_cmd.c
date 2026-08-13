@@ -169,50 +169,42 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             LOG_I("protocol cmd parse: 0x02 set param\r\n");
             break;
         case 0x03://获取历史报文
+            LOG_I("protocol cmd parse: 0x03 get history messages\r\n");
+
             /* 布局: [0]=0x03 [1]=host_id [2]=event_type
              *       [3..6]=start_time(u32 LE) [7..10]=end_time(u32 LE) [11]=count */
-            LOG_I("protocol cmd parse: 0x03 get history messages\r\n");
+            if (len < 12)
             {
-                rt_uint8_t host_id;
-                rt_uint8_t event_type;
-                time_t start_time;
-                time_t end_time;
-                rt_uint8_t count;
-
-                if (len < 12)
-                {
-                    LOG_E("protocol cmd parse: 0x03 frame too short: %d\r\n", (int)len);
-                    break;
-                }
-
-                host_id = buffer[1];
-                event_type = buffer[2];
-                start_time = (time_t)buffer[3]
-                           | ((time_t)buffer[4] << 8)
-                           | ((time_t)buffer[5] << 16)
-                           | ((time_t)buffer[6] << 24);
-                end_time = (time_t)buffer[7]
-                         | ((time_t)buffer[8] << 8)
-                         | ((time_t)buffer[9] << 16)
-                         | ((time_t)buffer[10] << 24);
-                count = buffer[11];
-
-                if (host_id >= HOST_MAX || end_time == 0 || start_time > end_time || count == 0
-                 || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL
-                 || g_host[host_id]->ops->get_history == RT_NULL)
-                {
-                    LOG_E("protocol cmd parse: 0x03 invalid args start=%lld end=%lld count=%d host=%d\r\n",
-                          (long long)start_time, (long long)end_time, count, host_id);
-                    break;
-                }
-
-                cmd_reply_len = g_host[host_id]->ops->get_history(g_host[host_id],
-                                                                  cmd_reply_buffer,
-                                                                  sizeof(cmd_reply_buffer),
-                                                                  start_time, end_time,
-                                                                  count, event_type);
-                reply_len = cmd_reply_len > CMD_BUFFER_SIZE ? CMD_BUFFER_SIZE : cmd_reply_len;
+                LOG_E("protocol cmd parse: 0x03 frame len: %d < 12\r\n", (int)len);
+                break;
             }
+
+            rt_uint8_t host_id = buffer[1];
+            rt_uint8_t event_type = buffer[2];
+            time_t start_time = (time_t)buffer[3]
+                        | ((time_t)buffer[4] << 8)
+                        | ((time_t)buffer[5] << 16)
+                        | ((time_t)buffer[6] << 24);
+            time_t end_time = (time_t)buffer[7]
+                        | ((time_t)buffer[8] << 8)
+                        | ((time_t)buffer[9] << 16)
+                        | ((time_t)buffer[10] << 24);
+            rt_uint8_t count = buffer[11];
+
+            if (host_id >= HOST_MAX || start_time > end_time || count == 0
+                || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL
+                || g_host[host_id]->ops->get_history == RT_NULL)
+            {
+                LOG_E("protocol cmd parse: 0x03 invalid args start=%lld end=%lld count=%d host=%d\r\n",
+                        (long long)start_time, (long long)end_time, count, host_id);
+                break;
+            }
+
+            reply_len = cmd_reply_len = g_host[host_id]->ops->get_history(g_host[host_id],
+                                                                cmd_reply_buffer,
+                                                                sizeof(cmd_reply_buffer),
+                                                                start_time, end_time,
+                                                                count, event_type);
             break;
         case 0x04://删除绑定
             LOG_I("protocol cmd parse: 0x04 delete bind\r\n");
