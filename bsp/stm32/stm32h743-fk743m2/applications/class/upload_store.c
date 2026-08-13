@@ -392,14 +392,12 @@ exit:
     return RT_NULL;
 }
 
-static rt_size_t upload_store_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size,
-                                          time_t start_time, time_t end_time, rt_size_t count,
-                                          rt_uint8_t event_type)
+static rt_size_t upload_store_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, sub_history_t sub_history)
 {
-    if (self == RT_NULL || buffer == RT_NULL || size == 0 || start_time > end_time || count == 0)
+    if (self == RT_NULL || buffer == RT_NULL || size == 0 || sub_history == RT_NULL)
         return 0;
 
-    return store_get_history((upload_store_obj_t)self, buffer, size, start_time, end_time, count, event_type);
+    return store_get_history((upload_store_obj_t)self, buffer, size, sub_history);
 }
 
 static const struct upload_obj_ops upload_store_ops =

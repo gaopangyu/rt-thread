@@ -23,7 +23,6 @@ struct host
 
     struct host_ops *ops;
 };
-
 typedef struct host *host_t;
 
 struct host_ops
@@ -31,8 +30,7 @@ struct host_ops
     rt_err_t    (*create_muart_rx_bind)   (host_t self, rt_uint8_t platform_id);
     rt_err_t    (*delete_muart_rx_bind)   (host_t self, rt_uint8_t platform_id);
     rt_err_t    (*delete_host)            (host_t self);
-    rt_size_t   (*get_history)            (host_t self, rt_uint8_t *buffer, rt_size_t size,
-                                           time_t start_time, time_t end_time, rt_size_t count, rt_uint8_t event_type);
+    rt_size_t   (*get_history)            (host_t self, rt_uint8_t *buffer, rt_size_t size, sub_history_t sub_history);
 };
 
 extern host_t g_host[HOST_MAX];

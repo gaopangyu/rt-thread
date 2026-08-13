@@ -313,13 +313,7 @@ static int store_read_one_log(upload_store_obj_t obj, const char *date_str, cons
     return 0;
 }
 
-/*
- * 按 [start_time, end_time] 的本地日历日读取日志。
- * event_type: 0=全部, 1/'0'=fire.log, 2/'1'=fault.log, 其它=other.log
- * 最多 count 个文件，内容顺序拼入 buffer，返回写入字节数。
- */
-rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size,
-                            time_t start_time, time_t end_time, rt_size_t count, rt_uint8_t event_type)
+rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, sub_history_t sub_history)
 {
     static const char * const log_types[] = { "fire.log", "fault.log", "other.log" };
     const char *only_type = RT_NULL;
@@ -328,6 +322,10 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
     struct tm tm_day;
     time_t start_day;
     time_t end_day;
+    time_t start_time = sub_history->start_time;
+    time_t end_time = sub_history->end_time;
+    rt_size_t count = sub_history->count;
+    enum event_type event_type = sub_history->event_type;
 
     if (obj == RT_NULL || buffer == RT_NULL || size == 0 || start_time > end_time || count == 0)
         return 0;
