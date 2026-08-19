@@ -133,9 +133,6 @@ static double_ret protocol_ev1_set_param(protocol_obj_t self, void *config){
     return result;
 }
 
-next_filter
-
-
 static rt_err_t protocol_ev1_handle_bind_next( rt_object_t rt_obj,
                                                  custom_obj_t custom_obj,
                                                 //  EventEntry* eventi,
