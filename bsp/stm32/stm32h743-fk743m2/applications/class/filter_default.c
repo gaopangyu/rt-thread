@@ -86,73 +86,20 @@ static double_ret filter_default_set_param(filter_obj_t self, void *config){
     filter_default_obj_t obj = (filter_default_obj_t)self;
     filter_default_config_t obj_cfg = &(obj->config);
 
-    if (cfg->lib_name != RT_NULL)
-    {
-        char path[RT_NAME_MAX] = {0};
-        rt_snprintf(path, sizeof(path), "%s%s", LIB_PATH, cfg->lib_name);
-
-        dlerror();
-        void *handle = dlopen(path, RTLD_LAZY);
-        if (!handle) {
-            result.fail++;
-            return result;
-        }
-
-        init_func_t lib_init = (init_func_t)dlsym(handle, "init");
-        destroy_initentry_func_t lib_destroy_initentry = (destroy_initentry_func_t)dlsym(handle, "destroy_initentry");
-        process_data_func_t lib_process_data = (process_data_func_t)dlsym(handle, "process_data");
-        destroy_event_func_t lib_destroy_event = (destroy_event_func_t)dlsym(handle, "destroy_event");
-        remote_control_func_t lib_remote_ctrl = (remote_control_func_t)dlsym(handle, "remote_control");
-        destroy_ctrl_resp_func_t lib_destroy_ctrl_resp  = (destroy_ctrl_resp_func_t)dlsym(handle, "destroy_ctrl_resp");
-
-        if (NULL == lib_init || NULL == lib_destroy_initentry
-         || NULL == lib_process_data|| NULL == lib_destroy_event
-         || NULL == lib_remote_ctrl|| NULL == lib_destroy_ctrl_resp) 
-        {
-            dlclose(handle);
-            result.fail++;
-            return result;
-        }
-
-        obj->lib_init = lib_init;
-        obj->lib_destroy_initentry = lib_destroy_initentry;
-        obj->lib_process_data = lib_process_data;
-        obj->lib_destroy_event = lib_destroy_event;
-        obj->lib_remote_ctrl = lib_remote_ctrl;
-        obj->lib_destroy_ctrl_resp = lib_destroy_ctrl_resp;
-
-        if (obj->lib_handle != RT_NULL)
-            dlclose(obj->lib_handle);
-        obj->lib_handle = handle;
-
-        rt_strncpy(obj->config.lib_name, cfg->lib_name, RT_NAME_MAX - 1);
-        obj->config.lib_name[RT_NAME_MAX - 1] = 0;
-        result.succ++;
-    }
+    obj->config.func_id = cfg->func_id;
+    result.succ++;
 
     return result;
 }
 
-static rt_err_t filter_default_handle_bind_next( rt_object_t rt_obj,
+static rt_err_t filter_default_handle_rx_bind_next( rt_object_t rt_obj,
                                                  custom_obj_t custom_obj,
-                                                //  EventEntry* eventi,
                                                  rt_uint8_t *buffer,
                                                  rt_size_t len)
 {
     if (custom_obj->rxb.pub_event == RT_NULL || custom_obj->event_flag == 0 
     || custom_obj->rxb.pub_succ_event == RT_NULL || custom_obj->rxb.next_event_mask == 0 )
         return -RT_EINVAL;
-
-    // rt_size_t len = 11 + eventi->event_len;
-    // rt_uint8_t * buffer = rt_calloc(1, len);
-    // if (buffer == RT_NULL)
-    // {
-    //     LOG_E("Failed to allocate buffer");
-    //     return -RT_ENOMEM;
-    // }
-
-    // rt_memcpy(buffer, eventi, 11);
-    // rt_memcpy(buffer + 11, eventi->event_detail, eventi->event_len);
 
     custom_obj->rxb.buffer = buffer;
     custom_obj->rxb.len = len;
@@ -174,43 +121,7 @@ static rt_err_t filter_default_handle_bind_next( rt_object_t rt_obj,
     custom_obj->rxb.buffer = RT_NULL;
     custom_obj->rxb.len = 0;
 
-    // rt_free(buffer);
-
     return RT_EOK;
-}
-
-static Event * filter_default_handle_bind_pre(filter_default_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
-{
-    if (obj->lib_process_data == RT_NULL || obj->lib_destroy_event == RT_NULL || buffer == RT_NULL || len == 0)
-        return RT_NULL;
-
-	const uint8_t timestamp[] = {0, 0, 0, 1, 1, 20};
-	Event * event = obj->lib_process_data(buffer, len, timestamp, sizeof(timestamp)/sizeof(uint8_t));
-	if (NULL == event)
-    {
-        LOG_D("%s process data return 0, use lib: %s\r\n", rt_obj->name, obj->config.lib_name);
-        return RT_NULL;
-    }
-
-    // LOG_D("%d --- %p\n", event->event_size, event->events);
-    // for (int i=0;i< event->event_size;i++) {
-    //     LOG_D("---- eventype %02X ---- logver %02X ---- systype %02X ---- sysaddr %02X ---- event_len %02X ---- ack_len %02X\n",
-    //             event->events[i].eventype, event->events[i].logver,
-    //             event->events[i].systype, event->events[i].sysaddr,
-    //             event->events[i].event_len, event->events[i].ack_len);
-    //     LOG_D("event detail package are ");
-    //     for(int j=0;j<event->events[i].event_len;j++) {
-    //         rt_kprintf("%02X ", event->events[i].event_detail[j]);
-    //     }
-    //     rt_kprintf("\n");
-    //     LOG_D("ack package are ");
-    //     for(int j=0;j<event->events[i].ack_len;j++) {
-    //         rt_kprintf("%02X ", event->events[i].ack[j]);
-    //     }
-    //     rt_kprintf("\n");
-    // }
-
-    return event;
 }
 
 static void filter_default_recv(void *parameter)
@@ -262,16 +173,7 @@ static void filter_default_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            // Event *event = filter_default_handle_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
-
-            // if (event != RT_NULL && obj->lib_destroy_event != RT_NULL)
-            // {
-            //     for (int i=0; i< event->event_size; i++) 
-            //         filter_default_handle_bind_next(rt_obj, custom_obj, &(event->events[i]));
-            //     obj->lib_destroy_event(event);
-            // }
-
-            filter_default_handle_bind_next(rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            filter_default_handle_rx_bind_next(rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
@@ -352,7 +254,6 @@ static void filter_default_send(void *parameter)
                 custom_obj->txb.len = 0;
             }
 
-            
             LOG_I("%s ---> %s send txb.pub_succ_event: 0x%X\r\n", rt_obj->name, tx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(tx_custom_obj->txb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
                     LOG_E("%s send tx_pub_succ_event error: %d/%d\r\n", rt_obj->name, custom_obj->event_flag, tx_custom_obj->txb.pre_event_mask);
@@ -437,12 +338,6 @@ static rt_err_t filter_default_delete(filter_obj_t self)
         custom_obj->txb.pub_succ_event = RT_NULL;
     }
 
-    if (obj->lib_handle != RT_NULL)
-    {
-        dlclose(obj->lib_handle);
-        obj->lib_handle = RT_NULL;
-    }
-
     rt_free(obj);
     obj = RT_NULL;
 
@@ -483,7 +378,7 @@ static filter_obj_t  filter_default_create(filter_obj_t self, char *name, void *
         config = &(obj->config);
 
     double_ret result = filter_default_set_param(filter_obj, config);
-    if (result.fail != 0 || result.succ == 0 || obj->lib_handle == RT_NULL)
+    if (result.fail != 0)
     {
         LOG_E("create error: set param");
         goto exit;
@@ -558,7 +453,6 @@ static filter_obj_t  filter_default_create(filter_obj_t self, char *name, void *
     rt_thread_startup(obj->rx_sub_event_tid);
     rt_thread_startup(obj->tx_sub_event_tid);
 
-
     rt_object_init(rt_obj, RT_Object_Class_Custom, name);
     LOG_I("create success: %s", name);
     return filter_obj;
@@ -600,14 +494,14 @@ static int filter_default_init(void)
     if (rt_object_find(FILTER_DEFAULT_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
         return -RT_ERROR;
 
-    custom_obj->type = Custom_Object_Class_Protocol;
+    custom_obj->type = Custom_Object_Class_Filter;
 
     filter_obj_init(custom_obj);
 
     custom_obj->ops = &custom_obj_ops;
     filter_obj->ops = &filter_default_ops;
 
-    rt_strncpy(obj->config.lib_name, "208", rt_strnlen("208", RT_NAME_MAX - 1));
+    obj->config.func_id = 0;
 
     rt_object_init(rt_obj, RT_Object_Class_Custom, FILTER_DEFAULT_PARENT_NAME);
 
@@ -648,12 +542,12 @@ static int cmd_create_filter_default(int argc, char *argv[])
 
     struct filter_default_config *config_ptr = RT_NULL;
     struct filter_default_config config = {0};
-    const char *lib_name = custom_obj_msh_get_opt(argc, argv, "l");
+    const char *func_id_str = custom_obj_msh_get_opt(argc, argv, "f");
 
-    if (lib_name != RT_NULL)
+    if (func_id_str != RT_NULL)
     {
+        config.func_id = (rt_uint32_t)strtoul(func_id_str, RT_NULL, 10);
         config_ptr = &config;
-        rt_strncpy(config.lib_name, lib_name, RT_NAME_MAX - 1);
     }
 
     if (parent->ops->create(parent, (char *)name, config_ptr) == RT_NULL)
@@ -691,7 +585,7 @@ static int cmd_delete_filter_default(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    if (((custom_obj_t)obj)->type != Custom_Object_Class_Protocol)
+    if (((custom_obj_t)obj)->type != Custom_Object_Class_Filter)
     {
         rt_kprintf("Not a filter_default object: %s\n", name);
         return -RT_ERROR;
