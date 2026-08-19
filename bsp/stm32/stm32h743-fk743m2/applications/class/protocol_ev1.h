@@ -1,5 +1,5 @@
-#ifndef __PROTOCOL_LOGV1_H__
-#define __PROTOCOL_LOGV1_H__
+#ifndef __PROTOCOL_EV1_H__
+#define __PROTOCOL_EV1_H__
 
 #include "protocol_obj.h"
 
@@ -29,4 +29,4 @@ struct protocol_ev1_obj
 
 typedef struct protocol_ev1_obj *protocol_ev1_obj_t;
 
-#endif /* __PROTOCOL_LOGV1_H__ */
+#endif /* __PROTOCOL_EV1_H__ */

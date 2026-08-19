@@ -5,7 +5,7 @@
 #include "bind.h"
 #include "lib.h"
 
-#define FILTER_LOGV1_PARENT_NAME "filter_default_parent"
+#define FILTER_DEFAULT_PARENT_NAME "filter_default_parent"
 #define FILTER_CMD_NAME "filter_cmd"
 
 struct filter_obj

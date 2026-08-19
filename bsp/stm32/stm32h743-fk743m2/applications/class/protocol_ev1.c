@@ -456,7 +456,7 @@ static protocol_obj_t  protocol_ev1_create(protocol_obj_t self, char *name, void
         return RT_NULL;
     }
 
-    if (rt_strncmp(self->parent.parent.name, PROTOCOL_LOGV1_PARENT_NAME, RT_NAME_MAX) != 0) {
+    if (rt_strncmp(self->parent.parent.name, PROTOCOL_EV1_PARENT_NAME, RT_NAME_MAX) != 0) {
         LOG_E("create error: invalid parent");
         return RT_NULL;
     }
@@ -597,7 +597,7 @@ static int protocol_ev1_init(void)
     custom_obj_t custom_obj = (custom_obj_t)obj;
     protocol_obj_t protocol_obj = (protocol_obj_t)obj;
 
-    if (rt_object_find(PROTOCOL_LOGV1_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
+    if (rt_object_find(PROTOCOL_EV1_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
         return -RT_ERROR;
 
     custom_obj->type = Custom_Object_Class_Protocol;
@@ -609,7 +609,7 @@ static int protocol_ev1_init(void)
 
     rt_strncpy(obj->config.lib_name, "208", rt_strnlen("208", RT_NAME_MAX - 1));
 
-    rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_LOGV1_PARENT_NAME);
+    rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_EV1_PARENT_NAME);
 
     return RT_EOK;
 }
@@ -639,10 +639,10 @@ static int cmd_create_protocol_ev1(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    protocol_obj_t parent = (protocol_obj_t)rt_object_find(PROTOCOL_LOGV1_PARENT_NAME, RT_Object_Class_Custom);
+    protocol_obj_t parent = (protocol_obj_t)rt_object_find(PROTOCOL_EV1_PARENT_NAME, RT_Object_Class_Custom);
     if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
     {
-        rt_kprintf("Parent not ready: %s\n", PROTOCOL_LOGV1_PARENT_NAME);
+        rt_kprintf("Parent not ready: %s\n", PROTOCOL_EV1_PARENT_NAME);
         return -RT_ERROR;
     }
 

@@ -5,7 +5,7 @@
 #include "bind.h"
 #include "lib.h"
 
-#define PROTOCOL_LOGV1_PARENT_NAME "protocol_ev1_parent"
+#define PROTOCOL_EV1_PARENT_NAME "protocol_ev1_parent"
 #define PROTOCOL_CMD_NAME "protocol_cmd"
 
 struct protocol_obj

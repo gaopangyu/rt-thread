@@ -133,8 +133,6 @@ static double_ret filter_default_set_param(filter_obj_t self, void *config){
     return result;
 }
 
-next_filter
-
 static rt_err_t filter_default_handle_bind_next( rt_object_t rt_obj,
                                                  custom_obj_t custom_obj,
                                                 //  EventEntry* eventi,
@@ -458,7 +456,7 @@ static filter_obj_t  filter_default_create(filter_obj_t self, char *name, void *
         return RT_NULL;
     }
 
-    if (rt_strncmp(self->parent.parent.name, FILTER_LOGV1_PARENT_NAME, RT_NAME_MAX) != 0) {
+    if (rt_strncmp(self->parent.parent.name, FILTER_DEFAULT_PARENT_NAME, RT_NAME_MAX) != 0) {
         LOG_E("create error: invalid parent");
         return RT_NULL;
     }
@@ -599,7 +597,7 @@ static int filter_default_init(void)
     custom_obj_t custom_obj = (custom_obj_t)obj;
     filter_obj_t filter_obj = (filter_obj_t)obj;
 
-    if (rt_object_find(FILTER_LOGV1_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
+    if (rt_object_find(FILTER_DEFAULT_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
         return -RT_ERROR;
 
     custom_obj->type = Custom_Object_Class_Protocol;
@@ -611,7 +609,7 @@ static int filter_default_init(void)
 
     rt_strncpy(obj->config.lib_name, "208", rt_strnlen("208", RT_NAME_MAX - 1));
 
-    rt_object_init(rt_obj, RT_Object_Class_Custom, FILTER_LOGV1_PARENT_NAME);
+    rt_object_init(rt_obj, RT_Object_Class_Custom, FILTER_DEFAULT_PARENT_NAME);
 
     return RT_EOK;
 }
@@ -641,10 +639,10 @@ static int cmd_create_filter_default(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    filter_obj_t parent = (filter_obj_t)rt_object_find(FILTER_LOGV1_PARENT_NAME, RT_Object_Class_Custom);
+    filter_obj_t parent = (filter_obj_t)rt_object_find(FILTER_DEFAULT_PARENT_NAME, RT_Object_Class_Custom);
     if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
     {
-        rt_kprintf("Parent not ready: %s\n", FILTER_LOGV1_PARENT_NAME);
+        rt_kprintf("Parent not ready: %s\n", FILTER_DEFAULT_PARENT_NAME);
         return -RT_ERROR;
     }
 
