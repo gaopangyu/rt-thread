@@ -761,7 +761,7 @@ static rt_size_t store_get_history_by_index(upload_store_obj_t obj, rt_uint8_t *
 
         if (!found)
         {
-            if (store_find_event_index(path, event_history->event_index, &ev_off) != 0)
+            if (store_find_event_index(path, event_history->fire_index, &ev_off) != 0)
                 continue;
             found = RT_TRUE;
         }
@@ -792,22 +792,6 @@ static rt_size_t store_get_history_by_date(upload_store_obj_t obj, rt_uint8_t *b
     char date_str[9];
     char path[STORE_PATH_MAX];
 
-    if (event_history->count == 0 || event_history->start_time == 0)
-        return 0;
-
-    start_day = store_day_floor(event_history->start_time);
-    if (start_day == (time_t)-1)
-        return 0;
-
-    if (store_history_lock(obj) != RT_EOK)
-        return 0;
-
-    store_date_str(start_day, date_str);
-    if (store_event_file_path(obj, date_str, path, sizeof(path)) == 0)
-        store_copy_events_forward(path, event_history->start_time_offset,
-                                  event_history->count, buffer, size, &offset);
-
-    store_history_unlock(obj);
     return offset;
 }
 
@@ -816,9 +800,13 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
     if (obj == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
         return 0;
 
-    if (event_history->event_index != 0)
+    if (event_history->date != 0)
         return store_get_history_by_index(obj, buffer, size, event_history);
 
     return store_get_history_by_date(obj, buffer, size, event_history);
 }
 
+void get_last_date_file(char *dir, char *date, rt_size_t len)
+{
+    rt_memcpy(date, "20260819", len);
+}

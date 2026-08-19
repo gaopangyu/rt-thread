@@ -136,7 +136,7 @@ rt_err_t host_std_create(host_std_config_t config)
 
     interface_obj_t crt_interface_parent = (interface_obj_t)rt_object_find(g_com[config->crt_com_id], RT_Object_Class_Custom);
     interface_obj_t bus_interface_parent = (interface_obj_t)rt_object_find(g_com[config->bus_com_id], RT_Object_Class_Custom);
-    protocol_obj_t protocol_parent = (protocol_obj_t)rt_object_find(PROTOCOL_LOGV1_PARENT_NAME, RT_Object_Class_Custom);
+    protocol_obj_t protocol_parent = (protocol_obj_t)rt_object_find(PROTOCOL_EV1_PARENT_NAME, RT_Object_Class_Custom);
     upload_obj_t store_parent = (upload_obj_t)rt_object_find(UPLOAD_STORE_PARENT_NAME, RT_Object_Class_Custom);
     upload_obj_t muart_parent = (upload_obj_t)rt_object_find(UPLOAD_MUART_PARENT_NAME, RT_Object_Class_Custom);
 
@@ -163,7 +163,7 @@ rt_err_t host_std_create(host_std_config_t config)
     if (config->crt_protocol_cfg != RT_NULL && protocol_parent != RT_NULL
      && protocol_parent->ops != RT_NULL && protocol_parent->ops->create != RT_NULL)
     {
-        if (generate_name_from_parent(name, sizeof(name), PROTOCOL_LOGV1_PARENT_NAME, config->host_id, config->crt_com_id) == RT_EOK)
+        if (generate_name_from_parent(name, sizeof(name), PROTOCOL_EV1_PARENT_NAME, config->host_id, config->crt_com_id) == RT_EOK)
         {
             host_std->crt_protocol = protocol_parent->ops->create(protocol_parent, name, config->crt_protocol_cfg);
         }
@@ -172,7 +172,7 @@ rt_err_t host_std_create(host_std_config_t config)
     if (config->bus_protocol_cfg != RT_NULL && protocol_parent != RT_NULL
      && protocol_parent->ops != RT_NULL && protocol_parent->ops->create != RT_NULL)
     {
-        if (generate_name_from_parent(name, sizeof(name), PROTOCOL_LOGV1_PARENT_NAME, config->host_id, config->bus_com_id) == RT_EOK)
+        if (generate_name_from_parent(name, sizeof(name), PROTOCOL_EV1_PARENT_NAME, config->host_id, config->bus_com_id) == RT_EOK)
         {
             host_std->bus_protocol = protocol_parent->ops->create(protocol_parent, name, config->bus_protocol_cfg);
         }
