@@ -5,8 +5,13 @@ import os
 
 cwd = GetCurrentDir()
 src = Glob('*.c')
-CPPPATH = [cwd, os.path.join(cwd, '..')]
+CPPPATH = [cwd, os.path.join(cwd, '..'), os.path.join(cwd, 'low_level')]
 
-group = DefineGroup('ApplicationsClass', src, depend = ['RT_USING_CUSTOM'], CPPPATH = CPPPATH)
+group = DefineGroup('ApplicationsClass', src, depend = [''], CPPPATH = CPPPATH)
+
+list = os.listdir(cwd)
+for item in list:
+    if os.path.isfile(os.path.join(cwd, item, 'SConscript')):
+        group = group + SConscript(os.path.join(item, 'SConscript'))
 
 Return('group')

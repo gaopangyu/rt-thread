@@ -5,8 +5,8 @@ import os
 
 cwd = GetCurrentDir()
 src = Glob('*.c')
-CPPPATH = [cwd, os.path.join(cwd, '..'), os.path.join(cwd, '..', 'class')]
+CPPPATH = [cwd, os.path.join(cwd, '..'), os.path.join(cwd, '..', 'class'), os.path.join(cwd, '..', 'class', 'low_level')]
 
-group = DefineGroup('ApplicationsHostModel', src, depend = ['RT_USING_CUSTOM'], CPPPATH = CPPPATH)
+group = DefineGroup('ApplicationsHostModel', src, depend = [''], CPPPATH = CPPPATH)
 
 Return('group')

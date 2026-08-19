@@ -27,4 +27,3 @@ rsource "board/Kconfig"
 endif
 
 osource "packages/Kconfig.local_package"
-osource "applications/Kconfig"

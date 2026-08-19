@@ -7,6 +7,6 @@ cwd = GetCurrentDir()
 src = Glob('*.c')
 CPPPATH = [cwd, os.path.join(cwd, '..')]
 
-group = DefineGroup('ApplicationsEnvironment', src, depend = ['RT_USING_CUSTOM'], CPPPATH = CPPPATH)
+group = DefineGroup('ApplicationsEnvironment', src, depend = [''], CPPPATH = CPPPATH)
 
 Return('group')

@@ -574,31 +574,4 @@
 
 /* end of RT-Thread local packages */
 
-/* Applications Config */
-
-#define RT_USING_CUSTOM
-#define LIB_PATH "/diskfs/lib/"
-
-/* Class Objects */
-
-/* Object class sources under applications/class/ */
-
-#define APP_USING_CLASS
-/* end of Class Objects */
-
-/* Environment */
-
-/* Board environment sources under applications/environment/ */
-
-#define APP_USING_ENVIRONMENT
-/* end of Environment */
-
-/* Host Model */
-
-/* Host model sources under applications/host_model/ */
-
-#define APP_USING_HOST_MODEL
-/* end of Host Model */
-/* end of Applications Config */
-
 #endif

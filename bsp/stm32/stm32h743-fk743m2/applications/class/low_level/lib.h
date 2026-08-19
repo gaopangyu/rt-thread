@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <rtthread.h>
 
+#define LIB_PATH "/diskfs/lib/"
+
 typedef struct {
 	uint8_t interval_len;
 	uint8_t statucode_len;

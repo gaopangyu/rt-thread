@@ -1,0 +1,12 @@
+# applications/class/low_level — bind / store / event / lib
+
+from building import *
+import os
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+CPPPATH = [cwd, os.path.join(cwd, '..'), os.path.join(cwd, '..', '..')]
+
+group = DefineGroup('ApplicationsClassLowLevel', src, depend = [''], CPPPATH = CPPPATH)
+
+Return('group')

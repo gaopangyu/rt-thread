@@ -6,6 +6,7 @@ src = Glob('*.c')
 CPPPATH = [cwd]
 # class / environment / host_model headers used by main and cross modules
 CPPPATH.append(os.path.join(cwd, 'class'))
+CPPPATH.append(os.path.join(cwd, 'class', 'low_level'))
 CPPPATH.append(os.path.join(cwd, 'environment'))
 CPPPATH.append(os.path.join(cwd, 'host_model'))
 if GetDepend(['PKG_USING_ONEMESSAGE']):
