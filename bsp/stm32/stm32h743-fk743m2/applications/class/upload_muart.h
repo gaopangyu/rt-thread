@@ -2,6 +2,7 @@
 #define __UPLOAD_MUART_H__
 
 #include "upload_obj.h"
+#include "ppp.h"
 
 struct upload_muart_config
 {

@@ -12,6 +12,7 @@
 #include <board.h>
 #include "usbd_core.h"
 #include "interface_rs232.h"
+#include "host_std.h"
 
 #define DBG_TAG "main"
 #define DBG_LVL DBG_LOG
@@ -76,7 +77,6 @@ int main(void)
     gettimeofday(&now, RT_NULL);
     LOG_I("time: %lld.%03ld", (long long)now.tv_sec, (long)now.tv_usec / 1000);
 
-    #include "host_std.h"
     rt_uint8_t host_id = 0;
     rt_uint8_t platform_id = 0;
 

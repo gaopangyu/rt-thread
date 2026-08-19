@@ -7,135 +7,6 @@
 
 #define MUART_BUFSZ                 4096
 
-/* 协议限值（与协议图一致） */
-#define MUART_PKT_PAYLOAD_MAX       1023    /* info bit9~0：数据长度 n */
-#define MUART_PKT_RESIDUE_MAX       63      /* info bit15~10：剩余子包数 */
-#define MUART_PKT_BODY_HDR_SIZE     4       /* ctrl(1) + uart_id(1) + info(2) */
-#define MUART_PKT_CRC_SIZE          2
-#define MUART_PKT_MIN               (MUART_PKT_BODY_HDR_SIZE + MUART_PKT_CRC_SIZE) /* 6 */
-#define MUART_PKT_MAX               (MUART_PKT_MIN + MUART_PKT_PAYLOAD_MAX)         /* 1029 */
-
-/* PPP 数据链路层：帧定界符 0x7E，转义字符 0x7D（后跟 byte^0x20） */
-#define MUART_PKT_FLAG              0x7E
-#define MUART_PKT_ESC               0x7D
-#define MUART_PKT_XOR               0x20
-#define MUART_PKT_ESC_FLAG          (MUART_PKT_FLAG ^ MUART_PKT_XOR)  /* 0x5E */
-#define MUART_PKT_ESC_ESC           (MUART_PKT_ESC ^ MUART_PKT_XOR)   /* 0x5D */
-
-#define MUART_PKT_WIRE_BODY_MAX     (MUART_PKT_MAX * 2)
-#define MUART_PKT_WIRE_MAX          (2 + MUART_PKT_WIRE_BODY_MAX + 1) /* flag + body + flag */
-#define MUART_PKT_CTRL_STATUS_MASK  0x70
-#define MUART_PKT_CTRL_STATUS_SHIFT 4
-#define MUART_PKT_CTRL_SEQ_MASK     0x0F
-
-#define MUART_PKT_INFO_LEN_MASK     0x03FF
-#define MUART_PKT_INFO_RESIDUE_SHIFT 10
-
-/* SEND: ctrl bit6~4 命令 */
-#define MUART_PKT_SEND_NORMAL       0
-
-/* ACK: ctrl bit6~4 状态 */
-#define MUART_PKT_ACK_NORMAL        0
-#define MUART_PKT_ACK_RETX          1   /* 立即重发：接收包错误 */
-#define MUART_PKT_ACK_SKIP          2   /* 立即跳过：无 uart 编号 */
-
-#define MUART_PKT_RX_SEQ_NONE       0xFF /* 尚未收到过数据包 */
-
-#define MUART_PKT_CTRL_ACK_MASK     0x80
-/*
- * muart 多串口通信包（单 union）
- * 逻辑帧: [ctrl 1B][uart_id 1B][info 2B][data n B][crc 2B]
- * 线路帧: [0x7E][PPP_escape(逻辑帧)][0x7E]
- */
-union muart_pkt
-{
-    rt_uint8_t raw[MUART_PKT_MAX];
-    struct
-    {
-        union
-        {
-            rt_uint8_t byte;
-            struct
-            {
-                rt_uint8_t seq    : 4;  /* bit3~0   流水号 */
-                rt_uint8_t status : 3;  /* bit6~4   SEND命令/ACK状态 */
-                rt_uint8_t is_ack : 1;  /* bit7     0=SEND 1=ACK */
-            } bits;
-        } ctrl;
-        rt_uint8_t uart_id;
-        union
-        {
-            rt_uint16_t word;           /* 勿直接赋值，见 muart_pkt_info_set() */
-            struct
-            {
-                rt_uint16_t data_len : 10;  /* bit9~0   数据长度 n */
-                rt_uint16_t residue  : 6;   /* bit15~10 剩余子包数 */
-            } bits;
-            struct
-            {
-                rt_uint8_t hi;          /* info 高字节，先发 */
-                rt_uint8_t lo;          /* info 低字节，后发 */
-            } bytes;
-        } info;
-        rt_uint8_t data[MUART_PKT_PAYLOAD_MAX];
-    } __attribute__((packed)) pkt;
-};
-
-static inline void muart_pkt_info_set(union muart_pkt *p, rt_uint8_t residue, rt_uint16_t data_len)
-{
-    rt_uint16_t word;
-
-    if (p == RT_NULL)
-        return;
-
-    word = (rt_uint16_t)((((rt_uint16_t)residue & MUART_PKT_RESIDUE_MAX) << MUART_PKT_INFO_RESIDUE_SHIFT)
-                       | (data_len & MUART_PKT_INFO_LEN_MASK));
-    p->pkt.info.bytes.hi = (rt_uint8_t)(word >> 8);
-    p->pkt.info.bytes.lo = (rt_uint8_t)(word & 0xFF);
-}
-
-static inline rt_uint16_t muart_pkt_payload_len(const uint8_t *pkt)
-{
-    rt_uint16_t info = (rt_uint16_t)(((rt_uint16_t)pkt[2] << 8) | pkt[3]);
-
-    return info & MUART_PKT_INFO_LEN_MASK;
-}
-
-static inline rt_bool_t muart_pkt_is_ack_byte(rt_uint8_t ctrl)
-{
-    return (ctrl & MUART_PKT_CTRL_ACK_MASK) != 0;
-}
-
-static inline rt_uint8_t muart_pkt_ack_status(rt_uint8_t ctrl)
-{
-    return (ctrl & MUART_PKT_CTRL_STATUS_MASK) >> MUART_PKT_CTRL_STATUS_SHIFT;
-}
-
-static inline rt_uint8_t muart_pkt_seq(rt_uint8_t ctrl)
-{
-    return ctrl & MUART_PKT_CTRL_SEQ_MASK;
-}
-
-static inline rt_uint8_t muart_pkt_seq_next(rt_uint8_t seq)
-{
-    return (rt_uint8_t)((seq + 1) & MUART_PKT_CTRL_SEQ_MASK);
-}
-
-static inline rt_uint8_t muart_pkt_uart_id(const uint8_t *pkt)
-{
-    return pkt[1];
-}
-
-static inline const uint8_t *muart_pkt_payload_ptr(const uint8_t *pkt)
-{
-    return pkt + MUART_PKT_BODY_HDR_SIZE;
-}
-
-static inline rt_size_t muart_pkt_wire_size_by_len(rt_uint16_t data_len)
-{
-    return MUART_PKT_MIN + (data_len & MUART_PKT_INFO_LEN_MASK);
-}
-
 static rt_device_t muart = RT_NULL;
 static rt_list_t muart_uart_list;
 static struct rt_mutex muart_send_mutex;
@@ -144,106 +15,6 @@ static union muart_pkt muart_tx_pkt;
 static uint8_t muart_wire_tx[MUART_PKT_WIRE_MAX];
 static uint8_t muart_raw_decode[MUART_PKT_MAX];
 volatile rt_bool_t thread2_idle_flag = RT_FALSE;
-
-static rt_bool_t upload_muart_pkt_ppp_need(uint8_t byte)
-{
-    return (byte == MUART_PKT_FLAG || byte == MUART_PKT_ESC);
-}
-
-static rt_ssize_t upload_muart_pkt_ppp_encode_byte(uint8_t *dst, rt_size_t cap, rt_size_t off, uint8_t byte)
-{
-    if (off >= cap)
-        return -1;
-
-    if (!upload_muart_pkt_ppp_need(byte))
-    {
-        dst[off] = byte;
-        return (rt_ssize_t)(off + 1);
-    }
-
-    if (off + 2 > cap)
-        return -1;
-
-    dst[off] = MUART_PKT_ESC;
-    dst[off + 1] = (uint8_t)(byte ^ MUART_PKT_XOR);
-    return (rt_ssize_t)(off + 2);
-}
-
-static rt_ssize_t upload_muart_pkt_ppp_decode_byte(uint8_t code, uint8_t *byte)
-{
-    if (code == MUART_PKT_ESC_FLAG)
-    {
-        *byte = MUART_PKT_FLAG;
-        return 1;
-    }
-
-    if (code == MUART_PKT_ESC_ESC)
-    {
-        *byte = MUART_PKT_ESC;
-        return 1;
-    }
-
-    return 0;
-}
-
-static rt_ssize_t upload_muart_pkt_to_wire(const uint8_t *raw, rt_size_t raw_len,
-                                         uint8_t *wire, rt_size_t wire_cap)
-{
-    rt_size_t i, off;
-    rt_ssize_t next;
-
-    if (raw == RT_NULL || wire == RT_NULL || raw_len < MUART_PKT_MIN || raw_len > MUART_PKT_MAX)
-        return -1;
-
-    if (wire_cap < 3)
-        return -1;
-
-    wire[0] = MUART_PKT_FLAG;
-    off = 1;
-
-    for (i = 0; i < raw_len; i++)
-    {
-        next = upload_muart_pkt_ppp_encode_byte(wire, wire_cap - 1, off, raw[i]);
-        if (next < 0)
-            return -1;
-        off = (rt_size_t)next;
-    }
-
-    if (off + 1 > wire_cap)
-        return -1;
-
-    wire[off] = MUART_PKT_FLAG;
-    return (rt_ssize_t)(off + 1);
-}
-
-static rt_uint16_t crc16_modbus(const uint8_t *buf, rt_size_t len)
-{
-    rt_uint16_t crc = 0xFFFF;
-    rt_size_t i;
-    int j;
-
-    if (buf == RT_NULL || len == 0)
-        return crc;
-
-    for (i = 0; i < len; i++)
-    {
-        crc ^= buf[i];
-        for (j = 0; j < 8; j++)
-        {
-            if (crc & 0x0001)
-                crc = (crc >> 1) ^ 0xA001;
-            else
-                crc >>= 1;
-        }
-    }
-
-    return crc;
-}
-
-static rt_uint16_t upload_muart_pkt_calc_crc(const uint8_t *pkt, rt_uint16_t payload_len)
-{
-    return crc16_modbus(pkt, MUART_PKT_BODY_HDR_SIZE + payload_len);
-}
 
 static rt_ssize_t upload_muart_pkt_write_all(const void *buf, rt_size_t size)
 {
@@ -274,58 +45,6 @@ static rt_ssize_t upload_muart_pkt_write_all(const void *buf, rt_size_t size)
     return send_len;
 }
 
-static void upload_muart_pkt_set_crc(union muart_pkt *pkt, rt_uint16_t payload_len, rt_uint16_t crc)
-{
-    rt_uint8_t *crc_ptr = &pkt->raw[MUART_PKT_BODY_HDR_SIZE + payload_len];
-
-    crc_ptr[0] = (rt_uint8_t)(crc >> 8);
-    crc_ptr[1] = (rt_uint8_t)(crc & 0xFF);
-}
-
-static void upload_muart_pkt_build_hdr(union muart_pkt *pkt, rt_uint8_t uart_id,
-                                       rt_uint8_t residue, rt_uint16_t data_len,
-                                       rt_bool_t is_ack, rt_uint8_t ack_status, rt_uint8_t seq)
-{
-    pkt->pkt.ctrl.byte = 0;
-    pkt->pkt.ctrl.bits.seq = seq & MUART_PKT_CTRL_SEQ_MASK;
-    if (is_ack)
-    {
-        pkt->pkt.ctrl.bits.is_ack = 1;
-        pkt->pkt.ctrl.bits.status = ack_status & 0x07;
-    }
-    else
-    {
-        pkt->pkt.ctrl.bits.is_ack = 0;
-        pkt->pkt.ctrl.bits.status = MUART_PKT_SEND_NORMAL;
-    }
-    pkt->pkt.uart_id = uart_id;
-    muart_pkt_info_set(pkt, residue, data_len);
-}
-
-static rt_bool_t upload_muart_pkt_build(union muart_pkt *pkt, upload_muart_obj_t obj,
-                                        const uint8_t *payload, rt_uint16_t data_len,
-                                        rt_uint8_t residue, rt_bool_t is_ack, rt_uint8_t ack_status,
-                                        rt_uint8_t seq)
-{
-    rt_uint16_t crc;
-
-    if (pkt == RT_NULL || obj == RT_NULL || data_len > MUART_PKT_PAYLOAD_MAX)
-        return RT_FALSE;
-
-    if (data_len > 0 && payload == RT_NULL)
-        return RT_FALSE;
-
-    upload_muart_pkt_build_hdr(pkt, obj->config.number, residue, data_len, is_ack, ack_status, seq);
-
-    if (data_len > 0)
-        rt_memcpy(pkt->pkt.data, payload, data_len);
-
-    crc = upload_muart_pkt_calc_crc(pkt->raw, data_len);
-    upload_muart_pkt_set_crc(pkt, data_len, crc);
-
-    return RT_TRUE;
-}
-
 static rt_size_t upload_muart_pkt_send_wire_locked(const uint8_t *raw, rt_size_t raw_len)
 {
     rt_ssize_t wire_len;
@@ -334,7 +53,7 @@ static rt_size_t upload_muart_pkt_send_wire_locked(const uint8_t *raw, rt_size_t
     if (raw == RT_NULL || raw_len == 0)
         return 0;
 
-    wire_len = upload_muart_pkt_to_wire(raw, raw_len, muart_wire_tx, sizeof(muart_wire_tx));
+    wire_len = ppp_to_wire(raw, raw_len, muart_wire_tx, sizeof(muart_wire_tx));
     if (wire_len <= 0)
         return 0;
 
@@ -369,117 +88,15 @@ static rt_size_t upload_muart_pkt_send_ack_id(rt_uint8_t uart_id, rt_uint8_t ack
     if (rt_mutex_take(&muart_send_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return 0;
 
-    upload_muart_pkt_build_hdr(pkt, uart_id, 0, 0, RT_TRUE, ack_status, seq);
-    crc = upload_muart_pkt_calc_crc(pkt->raw, 0);
-    upload_muart_pkt_set_crc(pkt, 0, crc);
+    muart_pkt_build_hdr(pkt, uart_id, 0, 0, RT_TRUE, ack_status, seq);
+    crc = muart_pkt_calc_crc(pkt->raw, 0);
+    muart_pkt_set_crc(pkt, 0, crc);
 
     sent = upload_muart_pkt_send_wire_locked(pkt->raw, MUART_PKT_MIN);
 
     rt_mutex_release(&muart_send_mutex);
 
     return sent;
-}
-
-/*
- * 从 PPP 线路帧解转义，输出逻辑帧到 raw。
- * 返回值：>0 从 wire_start 起消费的线路字节数；0 不完整；-1 格式错误
- */
-static rt_ssize_t upload_muart_pkt_from_wire(const uint8_t *wire, rt_size_t wire_len, rt_size_t wire_start,
-                                             uint8_t *raw, rt_size_t raw_cap, rt_size_t *raw_len)
-{
-    rt_size_t i, o;
-    uint8_t byte;
-
-    if (wire == RT_NULL || raw == RT_NULL || raw_len == RT_NULL || wire_len < wire_start + 2)
-        return 0;
-
-    if (wire[wire_start] != MUART_PKT_FLAG)
-        return -1;
-
-    if (wire_start + 1 >= wire_len)
-        return 0;
-
-    o = 0;
-    i = wire_start + 1;
-
-    while (i < wire_len)
-    {
-        if (wire[i] == MUART_PKT_FLAG)
-        {
-            if (o < MUART_PKT_MIN)
-                return -1;
-
-            *raw_len = o;
-            return (rt_ssize_t)(i + 1 - wire_start);
-        }
-
-        if (wire[i] == MUART_PKT_ESC)
-        {
-            if (i + 1 >= wire_len)
-                return 0;
-
-            if (!upload_muart_pkt_ppp_decode_byte(wire[i + 1], &byte))
-                return -1;
-
-            if (o >= raw_cap)
-                return -1;
-
-            raw[o++] = byte;
-            i += 2;
-            continue;
-        }
-
-        if (o >= raw_cap)
-            return -1;
-
-        raw[o++] = wire[i++];
-    }
-
-    return 0;
-}
-
-static rt_bool_t upload_muart_pkt_shape_ok(const uint8_t *pkt, rt_size_t pkt_len)
-{
-    rt_uint16_t payload_len;
-
-    if (pkt == RT_NULL || pkt_len < MUART_PKT_MIN || pkt_len > MUART_PKT_MAX)
-        return RT_FALSE;
-
-    payload_len = muart_pkt_payload_len(pkt);
-    if (pkt_len != muart_pkt_wire_size_by_len(payload_len))
-        return RT_FALSE;
-
-    return RT_TRUE;
-}
-
-static rt_bool_t upload_muart_pkt_crc_ok(const uint8_t *pkt, rt_size_t pkt_len)
-{
-    rt_uint16_t payload_len;
-    rt_uint16_t crc_calc;
-    rt_uint16_t crc_rx;
-
-    payload_len = muart_pkt_payload_len(pkt);
-    crc_calc = upload_muart_pkt_calc_crc(pkt, payload_len);
-    crc_rx = (rt_uint16_t)((pkt[pkt_len - 2] << 8) | pkt[pkt_len - 1]);
-
-    return (crc_calc == crc_rx);
-}
-
-static rt_bool_t upload_muart_pkt_validate(const uint8_t *pkt, rt_size_t pkt_len)
-{
-    return upload_muart_pkt_shape_ok(pkt, pkt_len)
-        && upload_muart_pkt_crc_ok(pkt, pkt_len);
-}
-
-static rt_ssize_t upload_muart_pkt_find_flag(const uint8_t *buf, rt_size_t len, rt_size_t pos)
-{
-    for (; pos < len; pos++)
-    {
-        if (buf[pos] == MUART_PKT_FLAG)
-            return (rt_ssize_t)pos;
-    }
-
-    return -1;
 }
 
 static rt_bool_t upload_muart_pkt_check(uint8_t *buf, rt_size_t *buflen, rt_size_t *pkt_len)
@@ -496,7 +113,7 @@ static rt_bool_t upload_muart_pkt_check(uint8_t *buf, rt_size_t *buflen, rt_size
 
     while (pos < len)
     {
-        flag = upload_muart_pkt_find_flag(buf, len, pos);
+        flag = ppp_find_flag(buf, len, pos);
         if (flag < 0)
             break;
 
@@ -509,8 +126,8 @@ static rt_bool_t upload_muart_pkt_check(uint8_t *buf, rt_size_t *buflen, rt_size
             continue;
         }
 
-        consumed = upload_muart_pkt_from_wire(buf, len, start, muart_raw_decode,
-                                              MUART_PKT_MAX, &raw_len);
+        consumed = ppp_from_wire(buf, len, start, muart_raw_decode,
+                                 MUART_PKT_MAX, &raw_len);
 
         if (consumed == 0)
         {
@@ -529,13 +146,13 @@ static rt_bool_t upload_muart_pkt_check(uint8_t *buf, rt_size_t *buflen, rt_size
             continue;
         }
 
-        if (!upload_muart_pkt_shape_ok(muart_raw_decode, raw_len))
+        if (!muart_pkt_shape_ok(muart_raw_decode, raw_len))
         {
             pos = start + 1;
             continue;
         }
 
-        if (!upload_muart_pkt_crc_ok(muart_raw_decode, raw_len))
+        if (!muart_pkt_crc_ok(muart_raw_decode, raw_len))
         {
             upload_muart_pkt_send_ack_id(muart_pkt_uart_id(muart_raw_decode), MUART_PKT_ACK_RETX,
                                          muart_pkt_seq(muart_raw_decode[0]));
@@ -598,7 +215,7 @@ static rt_size_t upload_muart_pkt_send(upload_muart_obj_t obj, const uint8_t *bu
     if (rt_mutex_take(&muart_send_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return 0;
 
-    if (!upload_muart_pkt_build(&muart_tx_pkt, obj, buf, (rt_uint16_t)len, (rt_uint8_t)residue, is_ack, ack_status, seq))
+    if (!muart_pkt_build(&muart_tx_pkt, obj->config.number, buf, (rt_uint16_t)len, (rt_uint8_t)residue, is_ack, ack_status, seq))
     {
         rt_mutex_release(&muart_send_mutex);
         return 0;
@@ -896,7 +513,7 @@ static rt_size_t upload_muart_parent_send(upload_muart_obj_t obj, const void *bu
     return send_total;
 }
 
-static rt_err_t upload_muart_handle_bind_pre(upload_obj_t self, const void *buffer, rt_size_t size)
+static rt_err_t upload_muart_handle_rx_bind_pre(upload_obj_t self, const void *buffer, rt_size_t size)
 {
     if (self == RT_NULL || buffer == RT_NULL || size == 0) {
         return 0;
@@ -963,7 +580,7 @@ static void upload_muart_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            upload_muart_handle_bind_pre(upload_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            upload_muart_handle_rx_bind_pre(upload_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
@@ -1421,15 +1038,3 @@ static int cmd_delete_upload_muart(int argc, char *argv[])
     return RT_EOK;
 }
 MSH_CMD_EXPORT_ALIAS(cmd_delete_upload_muart, delete_upload_muart, Delete upload_muart object);
-
-
-// 测试示例（PPP 线路帧，定界符 0x7E，转义 0x7D）：
-// T0  基线明文 hello   逻辑 00 01 00 05 68 65 6C 6C 6F 5D 19   线路 7E 00 01 00 05 68 65 6C 6C 6F 5D 19 7E
-// T1  payload 含 0x7E   逻辑 00 01 00 01 7E 4C A4   线路 7E 00 01 00 01 7D 5E 4C A4 7E
-// T2  payload 含 0x7D   逻辑 00 01 00 01 7D CC 64   线路 7E 00 01 00 01 7D 5D CC 64 7E
-// T3  ACK_NORMAL seq=0 uart_id=1   逻辑 80 01 00 00 24 78   线路 7E 80 01 00 00 24 78 7E
-// T4  ACK_RETX seq=0 uart_id=1      逻辑 90 01 00 00 E4 7C   线路 7E 90 01 00 00 E4 7C 7E
-// T5  帧前垃圾   FF FE 7D 5E ... 7E [T0线路帧] 7E 7E ...   跳过假 7E/垃圾，正确解析 T0
-// T6  粘包   连续两帧 T0 线路帧无间隔   解析出 2 帧
-// T7  CRC错误   篡改线路帧任一数据字节   仅回 ACK_RETX（T4）
-// T8  未知uart_id 逻辑 00 02 00 03 ...   回 ACK_SKIP 逻辑 80 02 00 00 E4 83
