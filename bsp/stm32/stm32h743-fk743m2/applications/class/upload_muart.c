@@ -1185,11 +1185,21 @@ exit:
     return RT_NULL;
 }
 
+static rt_size_t upload_muart_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
+{
+    RT_UNUSED(self);
+    RT_UNUSED(buffer);
+    RT_UNUSED(size);
+    RT_UNUSED(event_history);
+    return 0;
+}
+
 static const struct upload_obj_ops upload_muart_ops =
 {
     .create = upload_muart_create,
     .delete = upload_muart_delete,
     .set_param = upload_muart_set_param,
+    .get_history = upload_muart_get_history,
 };
 
 static rt_err_t  upload_muart_gc(custom_obj_t self)

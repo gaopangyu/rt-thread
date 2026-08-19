@@ -11,8 +11,9 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define STORE_PATH_MAX          256
-#define STORE_COPY_CHUNK        512
+#define STORE_PATH_MAX              256
+#define STORE_COPY_CHUNK            512
+#define STORE_EVENT_SIZE            32
 
 static struct rt_semaphore store_run_sem;
 static struct rt_semaphore store_run_now_sem;
@@ -249,162 +250,6 @@ static void store_migrate_one(upload_store_obj_t obj)
     rt_mutex_release(obj->ramfs_fd_mutex);
 }
 
-/* 从 path 读入 buffer[offset..)，返回本次写入字节；文件不存在返回 0 */
-static rt_size_t store_append_file(const char *path, rt_uint8_t *buffer, rt_size_t size, rt_size_t offset)
-{
-    int fd;
-    rt_size_t written = 0;
-
-    if (path == RT_NULL || buffer == RT_NULL || offset >= size)
-        return 0;
-
-    fd = open(path, O_RDONLY | O_BINARY, 0);
-    if (fd < 0)
-        return 0;
-
-    while (offset + written < size)
-    {
-        ssize_t n = read(fd, buffer + offset + written, size - offset - written);
-        if (n <= 0)
-            break;
-        written += (rt_size_t)n;
-    }
-
-    close(fd);
-    return written;
-}
-
-/*
- * 优先读 ramfs（未迁移），不存在再读 diskfs（已落盘）。
- * 成功打开并读过（含空文件）返回 1，两侧都不存在返回 0。
- */
-static int store_read_one_event(upload_store_obj_t obj, const char *date_str, const char *type,
-                              rt_uint8_t *buffer, rt_size_t size, rt_size_t *offset)
-{
-    char path[STORE_PATH_MAX];
-    rt_size_t n;
-
-    if (obj->ramfs_path[0] != '\0' &&
-        rt_snprintf(path, sizeof(path), "%s/%s/%s", obj->ramfs_path, date_str, type) < (int)sizeof(path))
-    {
-        int fd = open(path, O_RDONLY | O_BINARY, 0);
-        if (fd >= 0)
-        {
-            close(fd);
-            n = store_append_file(path, buffer, size, *offset);
-            *offset += n;
-            return 1;
-        }
-    }
-
-    if (obj->diskfs_path[0] != '\0' &&
-        rt_snprintf(path, sizeof(path), "%s/%s/%s", obj->diskfs_path, date_str, type) < (int)sizeof(path))
-    {
-        int fd = open(path, O_RDONLY | O_BINARY, 0);
-        if (fd >= 0)
-        {
-            close(fd);
-            n = store_append_file(path, buffer, size, *offset);
-            *offset += n;
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, sub_history_t sub_history)
-{
-    static const char * const event_types[] = { "fire.event", "fault.event", "other.event" };
-    const char *only_type = RT_NULL;
-    rt_size_t offset = 0;
-    rt_size_t files = 0;
-    struct tm tm_day;
-    time_t start_day;
-    time_t end_day;
-    time_t start_time = sub_history->start_time;
-    time_t end_time = sub_history->end_time;
-    rt_size_t count = sub_history->count;
-    enum event_type event_type = sub_history->event_type;
-
-    if (obj == RT_NULL || buffer == RT_NULL || size == 0 || start_time > end_time || count == 0)
-        return 0;
-
-    if (obj->ramfs_fd_mutex == RT_NULL || obj->diskfs_fd_mutex == RT_NULL)
-        return 0;
-
-    if (event_type == 1 || event_type == '0')
-        only_type = event_types[0];
-    else if (event_type == 2 || event_type == '1')
-        only_type = event_types[1];
-    else if (event_type != 0)
-        only_type = event_types[2];
-
-    time_t t = start_time;
-    localtime_r(&t, &tm_day);
-    tm_day.tm_hour = 0;
-    tm_day.tm_min = 0;
-    tm_day.tm_sec = 0;
-    tm_day.tm_isdst = -1;
-    start_day = mktime(&tm_day);
-
-    t = end_time;
-    localtime_r(&t, &tm_day);
-    tm_day.tm_hour = 0;
-    tm_day.tm_min = 0;
-    tm_day.tm_sec = 0;
-    tm_day.tm_isdst = -1;
-    end_day = mktime(&tm_day);
-
-    if (start_day == (time_t)-1 || end_day == (time_t)-1)
-        return 0;
-
-    if (rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        return 0;
-    if (rt_mutex_take(obj->diskfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
-    {
-        rt_mutex_release(obj->ramfs_fd_mutex);
-        return 0;
-    }
-
-    while (start_day <= end_day && files < count && offset < size)
-    {
-        char date_str[9];
-        int i;
-
-        localtime_r(&start_day, &tm_day);
-        rt_snprintf(date_str, sizeof(date_str), "%04d%02d%02d",
-                    tm_day.tm_year + 1900, tm_day.tm_mon + 1, tm_day.tm_mday);
-
-        if (only_type != RT_NULL)
-        {
-            if (store_read_one_event(obj, date_str, only_type, buffer, size, &offset))
-                files++;
-        }
-        else
-        {
-            for (i = 0; i < (int)(sizeof(event_types) / sizeof(event_types[0])); i++)
-            {
-                if (files >= count || offset >= size)
-                    break;
-
-                if (store_read_one_event(obj, date_str, event_types[i], buffer, size, &offset))
-                    files++;
-            }
-        }
-
-        tm_day.tm_mday += 1;
-        tm_day.tm_isdst = -1;
-        start_day = mktime(&tm_day);
-        if (start_day == (time_t)-1)
-            break;
-    }
-
-out:
-    rt_mutex_release(obj->diskfs_fd_mutex);
-    rt_mutex_release(obj->ramfs_fd_mutex);
-    return offset;
-}
 
 #define STORE_OBJ_MAX   CUSTOM_PER_LAYER_OBJ_MAX
 
@@ -453,6 +298,7 @@ static rt_err_t store_upload_store_collect(struct rt_object *object, void *data)
 
 static void store_ramfs_to_diskfs(void)
 {
+    //存事件
     struct store_collect_ctx ctx;
     int i;
 
@@ -471,6 +317,8 @@ static void store_ramfs_to_diskfs(void)
 
     for (i = 0; i < ctx.count; i++)
         store_migrate_one(ctx.objs[i]);
+
+    //存错误日志log
 }
 
 static void store_run_entry(void *parameter)
@@ -571,4 +419,406 @@ static int cmd_store_run_now(int argc, char **argv)
 }
 MSH_CMD_EXPORT_ALIAS(cmd_store_run_now, store_run_now, migrate ramfs events to diskfs now);
 
+/////////////////////////////////////////////get history/////////////////////////////////////////////
+
+static time_t store_day_floor(time_t t)
+{
+    struct tm tm_day;
+
+    localtime_r(&t, &tm_day);
+    tm_day.tm_hour = 0;
+    tm_day.tm_min = 0;
+    tm_day.tm_sec = 0;
+    tm_day.tm_isdst = -1;
+    return mktime(&tm_day);
+}
+
+static void store_date_str(time_t day, char date_str[9])
+{
+    struct tm tm_day;
+
+    localtime_r(&day, &tm_day);
+    rt_snprintf(date_str, 9, "%04d%02d%02d",
+                tm_day.tm_year + 1900, tm_day.tm_mon + 1, tm_day.tm_mday);
+}
+
+static int store_parse_event_date(const char *name, rt_uint32_t *date)
+{
+    rt_size_t i;
+    rt_uint32_t value = 0;
+
+    if (name == RT_NULL || date == RT_NULL)
+        return -1;
+    if (rt_strlen(name) != 14 || rt_strcmp(name + 8, ".event") != 0)
+        return -1;
+
+    for (i = 0; i < 8; i++)
+    {
+        if (name[i] < '0' || name[i] > '9')
+            return -1;
+        value = value * 10 + (rt_uint32_t)(name[i] - '0');
+    }
+
+    *date = value;
+    return 0;
+}
+
+static rt_uint32_t store_scan_dir_prev_date(const char *dir_path, rt_uint32_t upper)
+{
+    DIR *dir;
+    struct dirent *dent;
+    rt_uint32_t best = 0;
+
+    if (dir_path == RT_NULL || dir_path[0] == '\0')
+        return 0;
+
+    dir = opendir(dir_path);
+    if (dir == RT_NULL)
+        return 0;
+
+    while ((dent = readdir(dir)) != RT_NULL)
+    {
+        rt_uint32_t date;
+
+        if (store_parse_event_date(dent->d_name, &date) != 0)
+            continue;
+        if (date < upper && date > best)
+            best = date;
+    }
+
+    closedir(dir);
+    return best;
+}
+
+static rt_uint32_t store_scan_ramfs_prev_date(upload_store_obj_t obj, rt_uint32_t upper)
+{
+    DIR *dir;
+    struct dirent *dent;
+    char prefix[RT_NAME_MAX];
+    rt_size_t prefix_len;
+    const char *rest;
+    rt_uint32_t best = 0;
+
+    if (obj->ramfs_path[0] == '\0' ||
+        rt_strncmp(obj->ramfs_path, RAMFS_ROOT, sizeof(RAMFS_ROOT) - 1) != 0)
+        return 0;
+
+    rest = obj->ramfs_path + (sizeof(RAMFS_ROOT) - 1);
+    if (*rest == '/')
+        rest++;
+    rt_strncpy(prefix, rest, sizeof(prefix) - 1);
+    prefix[sizeof(prefix) - 1] = '\0';
+    prefix_len = rt_strlen(prefix);
+    if (prefix_len == 0)
+        return 0;
+
+    dir = opendir(RAMFS_ROOT);
+    if (dir == RT_NULL)
+        return 0;
+
+    while ((dent = readdir(dir)) != RT_NULL)
+    {
+        rt_size_t name_len;
+        const char *fname;
+        rt_uint32_t date;
+
+        name_len = rt_strlen(dent->d_name);
+        if (name_len < prefix_len + 1 + 14)
+            continue;
+        if (rt_strncmp(dent->d_name, prefix, prefix_len) != 0)
+            continue;
+        if (dent->d_name[prefix_len] != '/')
+            continue;
+
+        fname = dent->d_name + prefix_len + 1;
+        if (store_parse_event_date(fname, &date) != 0)
+            continue;
+        if (date < upper && date > best)
+            best = date;
+    }
+
+    closedir(dir);
+    return best;
+}
+
+/* 在 ramfs/diskfs 已有日期文件中，找小于 upper 的最大 YYYYMMDD；没有返回 0 */
+static rt_uint32_t store_find_prev_event_date(upload_store_obj_t obj, rt_uint32_t upper)
+{
+    rt_uint32_t ramfs_date = store_scan_ramfs_prev_date(obj, upper);
+    rt_uint32_t diskfs_date = store_scan_dir_prev_date(obj->diskfs_path, upper);
+
+    return ramfs_date > diskfs_date ? ramfs_date : diskfs_date;
+}
+
+/* 优先 ramfs，没有再 diskfs。找到返回 0。 */
+static int store_event_file_path(upload_store_obj_t obj, const char *date_str,
+                                 char *path, rt_size_t path_sz)
+{
+    struct stat st;
+
+    if (obj->ramfs_path[0] != '\0' &&
+        rt_snprintf(path, path_sz, "%s/%s.event", obj->ramfs_path, date_str) < (int)path_sz &&
+        stat(path, &st) == 0 && S_ISREG(st.st_mode))
+        return 0;
+
+    if (obj->diskfs_path[0] != '\0' &&
+        rt_snprintf(path, path_sz, "%s/%s.event", obj->diskfs_path, date_str) < (int)path_sz &&
+        stat(path, &st) == 0 && S_ISREG(st.st_mode))
+        return 0;
+
+    return -1;
+}
+
+static rt_size_t store_event_file_count(const char *path)
+{
+    struct stat st;
+
+    if (stat(path, &st) != 0 || st.st_size <= 0)
+        return 0;
+
+    return (rt_size_t)st.st_size / STORE_EVENT_SIZE;
+}
+
+static int store_read_event_at(int fd, rt_size_t ev_idx, rt_uint8_t *ev)
+{
+    if (lseek(fd, (off_t)(ev_idx * STORE_EVENT_SIZE), SEEK_SET) < 0)
+        return -1;
+    if (read(fd, ev, STORE_EVENT_SIZE) != STORE_EVENT_SIZE)
+        return -1;
+    return 0;
+}
+
+static rt_uint32_t store_event_id(const rt_uint8_t *ev)
+{
+    rt_uint32_t id;
+
+    rt_memcpy(&id, ev, sizeof(id));
+    return id;
+}
+
+static rt_bool_t store_append_event(rt_uint8_t *buffer, rt_size_t size, rt_size_t *offset,
+                                    const rt_uint8_t *ev)
+{
+    if (*offset + STORE_EVENT_SIZE > size)
+        return RT_FALSE;
+
+    rt_memcpy(buffer + *offset, ev, STORE_EVENT_SIZE);
+    *offset += STORE_EVENT_SIZE;
+    return RT_TRUE;
+}
+
+/* 从文件 ev_off 起按时间递增读到文件末尾，返回读到的事件数 */
+static rt_size_t store_copy_events_forward(const char *path, rt_size_t ev_off, rt_size_t remain,
+                                           rt_uint8_t *buffer, rt_size_t size, rt_size_t *offset)
+{
+    int fd;
+    rt_size_t total;
+    rt_size_t copied = 0;
+    rt_uint8_t ev[STORE_EVENT_SIZE];
+
+    total = store_event_file_count(path);
+    if (total == 0 || ev_off >= total || remain == 0)
+        return 0;
+
+    fd = open(path, O_RDONLY | O_BINARY, 0);
+    if (fd < 0)
+        return 0;
+
+    while (ev_off < total && copied < remain)
+    {
+        if (store_read_event_at(fd, ev_off, ev) != 0)
+            break;
+        if (!store_append_event(buffer, size, offset, ev))
+            break;
+        ev_off++;
+        copied++;
+    }
+
+    close(fd);
+    return copied;
+}
+
+/* 从文件 ev_off 起按时间递减读到文件头，返回读到的事件数 */
+static rt_size_t store_copy_events_backward(const char *path, rt_size_t ev_off, rt_size_t remain,
+                                            rt_uint8_t *buffer, rt_size_t size, rt_size_t *offset)
+{
+    int fd;
+    rt_size_t total;
+    rt_size_t copied = 0;
+    rt_uint8_t ev[STORE_EVENT_SIZE];
+
+    total = store_event_file_count(path);
+    if (total == 0 || ev_off >= total || remain == 0)
+        return 0;
+
+    fd = open(path, O_RDONLY | O_BINARY, 0);
+    if (fd < 0)
+        return 0;
+
+    while (copied < remain)
+    {
+        if (store_read_event_at(fd, ev_off, ev) != 0)
+            break;
+        if (!store_append_event(buffer, size, offset, ev))
+            break;
+        copied++;
+        if (ev_off == 0)
+            break;
+        ev_off--;
+    }
+
+    close(fd);
+    return copied;
+}
+
+static int store_find_event_index(const char *path, rt_size_t event_index, rt_size_t *ev_off)
+{
+    int fd;
+    rt_size_t total;
+    rt_size_t i;
+    rt_uint8_t ev[STORE_EVENT_SIZE];
+
+    total = store_event_file_count(path);
+    if (total == 0)
+        return -1;
+
+    fd = open(path, O_RDONLY | O_BINARY, 0);
+    if (fd < 0)
+        return -1;
+
+    for (i = total; i > 0; i--)
+    {
+        if (store_read_event_at(fd, i - 1, ev) != 0)
+            continue;
+        if (store_event_id(ev) == (rt_uint32_t)event_index)
+        {
+            *ev_off = i - 1;
+            close(fd);
+            return 0;
+        }
+    }
+
+    close(fd);
+    return -1;
+}
+
+static rt_err_t store_history_lock(upload_store_obj_t obj)
+{
+    if (obj->ramfs_fd_mutex == RT_NULL || obj->diskfs_fd_mutex == RT_NULL)
+        return -RT_ERROR;
+
+    if (rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        return -RT_ERROR;
+    if (rt_mutex_take(obj->diskfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
+    {
+        rt_mutex_release(obj->ramfs_fd_mutex);
+        return -RT_ERROR;
+    }
+
+    return RT_EOK;
+}
+
+static void store_history_unlock(upload_store_obj_t obj)
+{
+    rt_mutex_release(obj->diskfs_fd_mutex);
+    rt_mutex_release(obj->ramfs_fd_mutex);
+}
+
+/*
+ * 扫描文件夹中已有的 YYYYMMDD.event，从日期最大的开始递减查找 event_index
+ * （每条 32B，前 4B 为编号），找到后按时间递减继续读，直到 count 条。
+ */
+static rt_size_t store_get_history_by_index(upload_store_obj_t obj, rt_uint8_t *buffer,
+                                            rt_size_t size, event_history_t event_history)
+{
+    rt_size_t offset = 0;
+    rt_size_t remain = event_history->count;
+    rt_uint32_t last_date = 100000000; /* 大于任意 YYYYMMDD */
+    rt_bool_t found = RT_FALSE;
+
+    if (remain == 0)
+        return 0;
+
+    if (store_history_lock(obj) != RT_EOK)
+        return 0;
+
+    while (remain > 0)
+    {
+        char date_str[9];
+        char path[STORE_PATH_MAX];
+        rt_uint32_t date;
+        rt_size_t ev_off = 0;
+        rt_size_t n;
+
+        date = store_find_prev_event_date(obj, last_date);
+        if (date == 0)
+            break;
+        last_date = date;
+
+        rt_snprintf(date_str, sizeof(date_str), "%08u", date);
+        if (store_event_file_path(obj, date_str, path, sizeof(path)) != 0)
+            continue;
+
+        if (!found)
+        {
+            if (store_find_event_index(path, event_history->event_index, &ev_off) != 0)
+                continue;
+            found = RT_TRUE;
+        }
+        else
+        {
+            n = store_event_file_count(path);
+            if (n == 0)
+                continue;
+            ev_off = n - 1;
+        }
+
+        remain -= store_copy_events_backward(path, ev_off, remain, buffer, size, &offset);
+    }
+
+    store_history_unlock(obj);
+    return offset;
+}
+
+/*
+ * 只读 start_time 当天文件，从 start_time_offset 条事件起往后读，
+ * 直到文件结尾或 count 条。
+ */
+static rt_size_t store_get_history_by_date(upload_store_obj_t obj, rt_uint8_t *buffer,
+                                           rt_size_t size, event_history_t event_history)
+{
+    rt_size_t offset = 0;
+    time_t start_day;
+    char date_str[9];
+    char path[STORE_PATH_MAX];
+
+    if (event_history->count == 0 || event_history->start_time == 0)
+        return 0;
+
+    start_day = store_day_floor(event_history->start_time);
+    if (start_day == (time_t)-1)
+        return 0;
+
+    if (store_history_lock(obj) != RT_EOK)
+        return 0;
+
+    store_date_str(start_day, date_str);
+    if (store_event_file_path(obj, date_str, path, sizeof(path)) == 0)
+        store_copy_events_forward(path, event_history->start_time_offset,
+                                  event_history->count, buffer, size, &offset);
+
+    store_history_unlock(obj);
+    return offset;
+}
+
+rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
+{
+    if (obj == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
+        return 0;
+
+    if (event_history->event_index != 0)
+        return store_get_history_by_index(obj, buffer, size, event_history);
+
+    return store_get_history_by_date(obj, buffer, size, event_history);
+}
 

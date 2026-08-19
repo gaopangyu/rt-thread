@@ -577,11 +577,21 @@ exit:
     return RT_NULL;
 }
 
+static rt_size_t upload_screen_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
+{
+    RT_UNUSED(self);
+    RT_UNUSED(buffer);
+    RT_UNUSED(size);
+    RT_UNUSED(event_history);
+    return 0;
+}
+
 static const struct upload_obj_ops upload_screen_ops =
 {
     .create = upload_screen_create,
     .delete = upload_screen_delete,
     .set_param = upload_screen_set_param,
+    .get_history = upload_screen_get_history,
 };
 
 

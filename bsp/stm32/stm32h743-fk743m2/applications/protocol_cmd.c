@@ -179,27 +179,24 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
                 break;
             }
 
-            struct sub_history sub_history = {0};
-            sub_history.host_id = buffer[1];
-            sub_history.event_type = (enum event_type)buffer[2];
-            sub_history.time_increases = (buffer[3] == 0);
-            sub_history.start_time = (time_t)buffer[4] | ((time_t)buffer[5] << 8) | ((time_t)buffer[6] << 16) | ((time_t)buffer[7] << 24);
-            sub_history.end_time =   (time_t)buffer[8] | ((time_t)buffer[9] << 8) | ((time_t)buffer[10] << 16) | ((time_t)buffer[11] << 24);
-            rt_uint8_t count = buffer[12];
+            struct event_history event_history = {0};
+            event_history.host_id = buffer[1];
+            event_history.event_index = buffer[2];
+            event_history.count = buffer[3];
 
-            if (sub_history.host_id >= HOST_MAX || sub_history.start_time > sub_history.end_time || count == 0
-                || g_host[sub_history.host_id] == RT_NULL || g_host[sub_history.host_id]->ops == RT_NULL
-                || g_host[sub_history.host_id]->ops->get_history == RT_NULL)
+            if (event_history.host_id >= HOST_MAX || event_history.event_index < 1 || event_history.count == 0
+                || g_host[event_history.host_id] == RT_NULL || g_host[event_history.host_id]->ops == RT_NULL
+                || g_host[event_history.host_id]->ops->get_history == RT_NULL)
             {
-                LOG_E("protocol cmd parse: 0x03 invalid args start=%lld end=%lld count=%d host=%d\r\n",
-                        (long long)sub_history.start_time, (long long)sub_history.end_time, count, sub_history.host_id);
+                LOG_E("protocol cmd parse: 0x03 invalid args host=%d event_index=%lld count=%d \r\n",
+                        event_history.host_id, (long long)event_history.event_index, event_history.count);
                 break;
             }
 
-            reply_len = cmd_reply_len = g_host[sub_history.host_id]->ops->get_history(g_host[sub_history.host_id],
+            reply_len = cmd_reply_len = g_host[event_history.host_id]->ops->get_history(g_host[event_history.host_id],
                                                                 cmd_reply_buffer,
                                                                 sizeof(cmd_reply_buffer),
-                                                                &sub_history);
+                                                                &event_history);
             break;
         case 0x04://删除绑定
             LOG_I("protocol cmd parse: 0x04 delete bind\r\n");

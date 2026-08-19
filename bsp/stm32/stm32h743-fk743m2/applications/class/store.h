@@ -17,9 +17,7 @@ int ensure_dir(const char *path);
 void store_run(void);
 void store_run_now(void);
 
-/* 按 [start_time, end_time] 日期范围读取历史日志到 buffer，最多 count 个文件，返回写入字节数。
- * event_type: 0=全部, 1/'0'=fire, 2/'1'=fault, 其它=other
- */
-rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, sub_history_t sub_history);
+/* 按事件编号或日期偏移读取 {YYYYMMDD}.event，每条事件 32 字节，返回写入字节数。 */
+rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history);
 
 #endif /* __STORE_H__ */

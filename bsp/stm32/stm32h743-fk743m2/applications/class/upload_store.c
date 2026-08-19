@@ -100,22 +100,8 @@ static void upload_store_handle_rx_bind_pre(upload_store_obj_t obj, rt_object_t 
     rt_snprintf(date_str, sizeof(date_str), "%04d%02d%02d",
                 tm_now.tm_year + 1900, tm_now.tm_mon + 1, tm_now.tm_mday);
 
-    char *type = RT_NULL;
-    switch (buffer[0])
-    {
-    case '0':
-        type = "fire.event";
-        break;
-    case '1':
-        type = "fault.event";
-        break;
-    default:
-        type = "other.event";
-        break;
-    }
-
     char path[RT_NAME_MAX];
-    rt_snprintf(path, sizeof(path), "%s/%s/%s", obj->ramfs_path, date_str, type);
+    rt_snprintf(path, sizeof(path), "%s/%s.event", obj->ramfs_path, date_str);
 
     if (rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return;
@@ -392,12 +378,12 @@ exit:
     return RT_NULL;
 }
 
-static rt_size_t upload_store_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, sub_history_t sub_history)
+static rt_size_t upload_store_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
 {
-    if (self == RT_NULL || buffer == RT_NULL || size == 0 || sub_history == RT_NULL)
+    if (self == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
         return 0;
 
-    return store_get_history((upload_store_obj_t)self, buffer, size, sub_history);
+    return store_get_history((upload_store_obj_t)self, buffer, size, event_history);
 }
 
 static const struct upload_obj_ops upload_store_ops =

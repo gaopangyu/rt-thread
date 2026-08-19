@@ -24,6 +24,16 @@ struct upload_store_obj
 
     rt_thread_t rx_tid;
     rt_thread_t rx_sub_event_tid;
+
+    rt_uint32_t reset_last_num;
+    rt_uint32_t fire_last_num;
+    rt_uint32_t monitor_last_num;
+    rt_uint32_t fault_last_num;
+    rt_uint32_t action_last_num;
+    rt_uint32_t linkage_last_num;
+    rt_uint32_t mask_last_num;
+    rt_uint32_t other_last_num;
+    rt_uint32_t ctrl_last_num;
 };
 
 typedef struct upload_store_obj *upload_store_obj_t;

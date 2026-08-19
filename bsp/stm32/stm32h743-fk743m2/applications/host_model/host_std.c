@@ -5,9 +5,9 @@
 #include <rtdbg.h>
 #include <string.h>
 
-static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t size, sub_history_t sub_history)
+static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
 {
-    if (self == RT_NULL || buffer == RT_NULL || size == 0 || sub_history == RT_NULL)
+    if (self == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
         return 0;
 
     host_std_t host_std = (host_std_t)self;
@@ -16,7 +16,7 @@ static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t
         host_std->store_upload->ops->get_history == RT_NULL)
         return 0;
 
-    return host_std->store_upload->ops->get_history(host_std->store_upload, buffer, size, sub_history);
+    return host_std->store_upload->ops->get_history(host_std->store_upload, buffer, size, event_history);
 }
 
 static rt_err_t host_std_delete_muart_rx_bind(host_t self, rt_uint8_t platform_id)
