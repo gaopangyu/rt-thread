@@ -291,7 +291,7 @@ static void ppp_deliver(struct ppp_adapter *adp, struct ppp_link *link,
                         const uint8_t *payload, rt_size_t len)
 {
     if (adp->ops != RT_NULL && adp->ops->on_data != RT_NULL)
-        adp->ops->on_data(adp->dev, link, payload, len);
+        adp->ops->on_data(link, payload, len);
 }
 
 /* residue>0 只缓存；residue==0 拼完整包后 on_data。单包不走缓冲。 */
@@ -623,7 +623,7 @@ static void ppp_adapter_dispatch(struct ppp_adapter *adp)
     if (adp->ops == RT_NULL || adp->ops->find_link == RT_NULL)
         return;
 
-    link = adp->ops->find_link(adp->dev, ppp->pkt.uart_id);
+    link = adp->ops->find_link(ppp->pkt.uart_id);
 
     if (ppp->pkt.ctrl.bits.is_ack)
         ppp_dispatch_ack(link, ppp);

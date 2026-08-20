@@ -90,9 +90,9 @@ struct ppp_link
 
 struct ppp_adapter_ops
 {
-    struct ppp_link *(*find_link)(void *user, rt_uint8_t id);
+    struct ppp_link *(*find_link)(rt_uint8_t id);
     /* payload 仅在回调期间有效 */
-    void (*on_data)(void *user, struct ppp_link *link, const uint8_t *payload, rt_size_t len);
+    void (*on_data)(struct ppp_link *link, const uint8_t *payload, rt_size_t len);
 };
 
 struct ppp_adapter

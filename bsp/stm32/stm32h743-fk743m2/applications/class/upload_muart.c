@@ -246,12 +246,10 @@ static void upload_muart_recv(void *parameter)
 }
 
 /* 按 uart_id 找到对应通道的 ppp_link */
-static struct ppp_link *upload_muart_ppp_find_link(void *user, rt_uint8_t id)
+static struct ppp_link *upload_muart_ppp_find_link(rt_uint8_t id)
 {
     struct upload_muart_obj *node;
     struct ppp_link *link = RT_NULL;
-
-    RT_UNUSED(user);
 
     rt_enter_critical();
     rt_list_for_each_entry(node, &muart_link_list, list)
@@ -268,12 +266,10 @@ static struct ppp_link *upload_muart_ppp_find_link(void *user, rt_uint8_t id)
 }
 
 /* PPP 组包完成：把完整消息交给绑定下游 */
-static void upload_muart_ppp_on_data(void *user, struct ppp_link *link,
+static void upload_muart_ppp_on_data(struct ppp_link *link,
                                      const uint8_t *payload, rt_size_t len)
 {
     upload_muart_obj_t obj;
-
-    RT_UNUSED(user);
 
     if (link == RT_NULL)
         return;
