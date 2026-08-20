@@ -5,25 +5,119 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-/*
- * UART RX : parent_recv → ppp_adapter_input → on_data → upload_muart_send（给绑定）
- * 绑定 RX : recv → ppp_tx → ppp_adapter_send（经 UART 发出）
- * UART TX : ppp 内部 rt_device_write(muart_dev)
- */
-
-#define MUART_PARENT_RX_BUFSZ                 4096
-
 static rt_device_t muart_dev = RT_NULL;
 static rt_list_t muart_link_list;
 static struct rt_semaphore muart_parent_rx_sem;
 static struct ppp_adapter muart_ppp_adapter;
 volatile rt_bool_t muart_parent_idle_flag = RT_FALSE;
 
-/* -------------------------------------------------------------------------- */
-/* PPP 适配器回调 + 绑定侧发出                                                 */
-/* -------------------------------------------------------------------------- */
+static rt_err_t upload_muart_parent_rx_ind(rt_device_t dev, rt_size_t size)
+{
+    UNUSED(dev);
+    UNUSED(size);
 
-/* PPP 收齐一条消息后：把完整 payload 发给本对象的绑定下游 */
+    rt_sem_release(&muart_parent_rx_sem);
+
+    return RT_EOK;
+}
+
+static void upload_muart_recv_sub_event(void *parameter)
+{
+    if (parameter == RT_NULL)
+        return;
+
+    upload_muart_obj_t obj = (upload_muart_obj_t)parameter;
+    rt_object_t rt_obj = (rt_object_t)obj;
+    custom_obj_t custom_obj = (custom_obj_t)obj;
+
+    if(custom_obj->rxb.sub_mb == RT_NULL)
+        return;
+
+    while (1)
+    {
+        while(custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0)
+            rt_thread_mdelay(100);
+
+        rt_uint32_t recv_event_flag = 0;
+        if(rt_event_recv(custom_obj->rxb.sub_event, custom_obj->rxb.pre_event_mask, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
+        {
+            if (custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0 || recv_event_flag == 0)
+                continue;
+            LOG_E("%s recv tx_sub_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->rxb.pre_event_mask);
+            break;
+        }
+
+        if (rt_mb_send(custom_obj->rxb.sub_mb, recv_event_flag) != RT_EOK)
+        {
+            LOG_E("%s send tx_sub_mb error: %d\r\n", rt_obj->name, recv_event_flag);
+            break;
+        }
+    }
+}
+
+static double_ret upload_muart_set_param(upload_obj_t self, void *config)
+{
+    double_ret result = {0, 0};
+
+    if (self == RT_NULL || config == RT_NULL) 
+    {
+        result.fail++;
+        return result;
+    }
+
+    upload_muart_config_t cfg = (upload_muart_config_t)config;
+    upload_muart_obj_t obj = (upload_muart_obj_t)self;
+    upload_muart_config_t obj_cfg = &(obj->config);
+
+    obj_cfg->number = cfg->number;
+    obj->link.id = cfg->number;
+    result.succ++;
+
+    return result;
+}
+
+static void upload_muart_parent_recv(void *parameter)
+{
+    static uint8_t buf[PPP_PKT_WIRE_MAX * 2];
+    static rt_size_t len = 0;
+    rt_object_t rt_obj;
+    rt_size_t n;
+
+    if (parameter == RT_NULL)
+        return;
+
+    rt_obj = (rt_object_t)parameter;
+
+    while (1)
+    {
+        muart_parent_idle_flag = RT_TRUE;
+        if (rt_sem_take(&muart_parent_rx_sem, RT_WAITING_FOREVER) != RT_EOK)
+        {
+            LOG_E("%s take muart_parent_rx_sem error", rt_obj->name);
+            break;
+        }
+        muart_parent_idle_flag = RT_FALSE;
+
+        while (len < sizeof(buf))
+        {
+            n = rt_device_read(muart_dev, 0, buf + len, sizeof(buf) - len);
+            if (n <= 0)
+                break;
+            len += n;
+        }
+
+        while (ppp_adapter_recv(&muart_ppp_adapter, buf, &len))
+            ;
+
+        /* 抽完帧后缓冲仍满：半帧/垃圾占满，丢弃才能继续收 */
+        if (len >= sizeof(buf))
+        {
+            LOG_W("%s rx buffer full, no complete frame, drop", rt_obj->name);
+            len = 0;
+        }
+    }
+}
+
 static rt_ssize_t upload_muart_send(upload_obj_t self, const void *buffer, rt_size_t size)
 {
     if (self == RT_NULL || buffer == RT_NULL || size == 0)
@@ -71,167 +165,6 @@ static rt_ssize_t upload_muart_send(upload_obj_t self, const void *buffer, rt_si
     return size;
 }
 
-/* 按 uart_id 找到对应通道的 ppp_link */
-static struct ppp_link *upload_muart_ppp_find_link(void *user, rt_uint8_t id)
-{
-    struct upload_muart_obj *node;
-    struct ppp_link *link = RT_NULL;
-
-    RT_UNUSED(user);
-
-    rt_enter_critical();
-    rt_list_for_each_entry(node, &muart_link_list, list)
-    {
-        if (node->link.id == id)
-        {
-            link = &node->link;
-            break;
-        }
-    }
-    rt_exit_critical();
-
-    return link;
-}
-
-/* PPP 组包完成：把完整消息交给绑定下游 */
-static void upload_muart_ppp_on_data(void *user, struct ppp_link *link,
-                                     const uint8_t *payload, rt_size_t len)
-{
-    upload_muart_obj_t obj;
-
-    RT_UNUSED(user);
-
-    if (link == RT_NULL)
-        return;
-
-    obj = rt_container_of(link, struct upload_muart_obj, link);
-    upload_muart_send((upload_obj_t)obj, payload, len);
-}
-
-static const struct ppp_adapter_ops muart_ppp_ops =
-{
-    .find_link = upload_muart_ppp_find_link,
-    .on_data = upload_muart_ppp_on_data,
-};
-
-static rt_err_t upload_muart_parent_rx_ind(rt_device_t dev, rt_size_t size)
-{
-    UNUSED(dev);
-    UNUSED(size);
-
-    rt_sem_release(&muart_parent_rx_sem);
-
-    return RT_EOK;
-}
-
-static double_ret upload_muart_set_param(upload_obj_t self, void *config)
-{
-    double_ret result = {0, 0};
-
-    if (self == RT_NULL || config == RT_NULL) 
-    {
-        result.fail++;
-        return result;
-    }
-
-    upload_muart_config_t cfg = (upload_muart_config_t)config;
-    upload_muart_obj_t obj = (upload_muart_obj_t)self;
-    upload_muart_config_t obj_cfg = &(obj->config);
-
-    obj_cfg->number = cfg->number;
-    obj->link.id = cfg->number;
-    result.succ++;
-
-    return result;
-}
-
-/* -------------------------------------------------------------------------- */
-/* UART 收：对端 → ppp_adapter_input → on_data → 绑定                          */
-/* -------------------------------------------------------------------------- */
-
-/* UART 收包线程：读设备，循环喂给 ppp_adapter_input */
-static void upload_muart_parent_recv(void *parameter)
-{
-    static uint8_t buf[MUART_PARENT_RX_BUFSZ];
-    static rt_size_t len = 0;
-    rt_object_t rt_obj;
-    rt_size_t n;
-
-    if (parameter == RT_NULL)
-        return;
-
-    rt_obj = (rt_object_t)parameter;
-
-    while (1)
-    {
-        muart_parent_idle_flag = RT_TRUE;
-        if (rt_sem_take(&muart_parent_rx_sem, RT_WAITING_FOREVER) != RT_EOK)
-        {
-            LOG_E("%s take muart_parent_rx_sem error", rt_obj->name);
-            break;
-        }
-        muart_parent_idle_flag = RT_FALSE;
-
-        while (len < sizeof(buf))
-        {
-            n = rt_device_read(muart_dev, 0, buf + len, sizeof(buf) - len);
-            if (n <= 0)
-                break;
-            len += n;
-        }
-
-        while (ppp_adapter_input(&muart_ppp_adapter, buf, &len))
-            ;
-
-        /* 抽完帧后缓冲仍满：半帧/垃圾占满，丢弃才能继续收 */
-        if (len >= sizeof(buf))
-        {
-            LOG_W("%s rx buffer full, no complete frame, drop", rt_obj->name);
-            len = 0;
-        }
-    }
-}
-
-/* 绑定事件转邮箱，供 upload_muart_recv 取数据 */
-static void upload_muart_recv_sub_event(void *parameter)
-{
-    if (parameter == RT_NULL)
-        return;
-
-    upload_muart_obj_t obj = (upload_muart_obj_t)parameter;
-    rt_object_t rt_obj = (rt_object_t)obj;
-    custom_obj_t custom_obj = (custom_obj_t)obj;
-
-    if(custom_obj->rxb.sub_mb == RT_NULL)
-        return;
-
-    while (1)
-    {
-        while(custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0)
-            rt_thread_mdelay(100);
-
-        rt_uint32_t recv_event_flag = 0;
-        if(rt_event_recv(custom_obj->rxb.sub_event, custom_obj->rxb.pre_event_mask, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
-        {
-            if (custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0 || recv_event_flag == 0)
-                continue;
-            LOG_E("%s recv tx_sub_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->rxb.pre_event_mask);
-            break;
-        }
-
-        if (rt_mb_send(custom_obj->rxb.sub_mb, recv_event_flag) != RT_EOK)
-        {
-            LOG_E("%s send tx_sub_mb error: %d\r\n", rt_obj->name, recv_event_flag);
-            break;
-        }
-    }
-}
-
-/* -------------------------------------------------------------------------- */
-/* 绑定收：绑定对象 → ppp_adapter_send → UART                                 */
-/* -------------------------------------------------------------------------- */
-
-/* 绑定对象送来的数据，经 PPP 分包发出 */
 static rt_err_t upload_muart_handle_rx_bind_pre(upload_obj_t self, const void *buffer, rt_size_t size)
 {
     upload_muart_obj_t obj;
@@ -312,9 +245,48 @@ static void upload_muart_recv(void *parameter)
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/* 对象生命周期                                                                */
-/* -------------------------------------------------------------------------- */
+/* 按 uart_id 找到对应通道的 ppp_link */
+static struct ppp_link *upload_muart_ppp_find_link(void *user, rt_uint8_t id)
+{
+    struct upload_muart_obj *node;
+    struct ppp_link *link = RT_NULL;
+
+    RT_UNUSED(user);
+
+    rt_enter_critical();
+    rt_list_for_each_entry(node, &muart_link_list, list)
+    {
+        if (node->link.id == id)
+        {
+            link = &node->link;
+            break;
+        }
+    }
+    rt_exit_critical();
+
+    return link;
+}
+
+/* PPP 组包完成：把完整消息交给绑定下游 */
+static void upload_muart_ppp_on_data(void *user, struct ppp_link *link,
+                                     const uint8_t *payload, rt_size_t len)
+{
+    upload_muart_obj_t obj;
+
+    RT_UNUSED(user);
+
+    if (link == RT_NULL)
+        return;
+
+    obj = rt_container_of(link, struct upload_muart_obj, link);
+    upload_muart_send((upload_obj_t)obj, payload, len);
+}
+
+static const struct ppp_adapter_ops muart_ppp_ops =
+{
+    .find_link = upload_muart_ppp_find_link,
+    .on_data = upload_muart_ppp_on_data,
+};
 
 static rt_err_t upload_muart_delete(upload_obj_t self)
 {

@@ -10,7 +10,7 @@
  * 线路帧: [0x7E][转义后的逻辑帧][0x7E]   转义: 0x7D，再异或 0x20
  *
  * 使用：实现 ops → ppp_adapter_init → 每通道 ppp_link_init
- *       发 ppp_adapter_send / 收 ppp_adapter_input
+ *       发 ppp_adapter_send / 收 ppp_adapter_recv
  */
 
 #define PPP_PKT_PAYLOAD_MAX         1023    /* info bit9~0：本包 payload */
@@ -119,6 +119,6 @@ rt_size_t ppp_adapter_send(struct ppp_adapter *adp, struct ppp_link *link,
                            const uint8_t *data, rt_size_t size);
 
 /* 抽出 1 帧并分发。抽出一帧返回 RT_TRUE，可循环直到 RT_FALSE */
-rt_bool_t ppp_adapter_input(struct ppp_adapter *adp, uint8_t *buf, rt_size_t *buflen);
+rt_bool_t ppp_adapter_recv(struct ppp_adapter *adp, uint8_t *buf, rt_size_t *buflen);
 
 #endif /* __PPP_H__ */

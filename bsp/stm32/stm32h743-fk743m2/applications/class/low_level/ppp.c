@@ -631,7 +631,7 @@ static void ppp_adapter_dispatch(struct ppp_adapter *adp)
         ppp_dispatch_data(adp, link, ppp);
 }
 
-rt_bool_t ppp_adapter_input(struct ppp_adapter *adp, uint8_t *buf, rt_size_t *buflen)
+rt_bool_t ppp_adapter_recv(struct ppp_adapter *adp, uint8_t *buf, rt_size_t *buflen)
 {
     if (!ppp_adapter_pull(adp, buf, buflen))
         return RT_FALSE;
