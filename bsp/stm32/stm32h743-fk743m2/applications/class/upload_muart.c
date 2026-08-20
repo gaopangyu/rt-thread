@@ -5,294 +5,25 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define MUART_BUFSZ                 4096
-
-static rt_device_t muart = RT_NULL;
-static rt_list_t muart_uart_list;
-static struct rt_mutex muart_send_mutex;
-static struct rt_semaphore muart_rx_sem;
-static union muart_pkt muart_tx_pkt;
-static uint8_t muart_wire_tx[MUART_PKT_WIRE_MAX];
-static uint8_t muart_raw_decode[MUART_PKT_MAX];
-volatile rt_bool_t thread2_idle_flag = RT_FALSE;
-
-static rt_ssize_t upload_muart_pkt_write_all(const void *buf, rt_size_t size)
-{
-    const uint8_t *p = (const uint8_t *)buf;
-    rt_ssize_t send_len = 0;
-    rt_uint8_t retry = 0;
-
-    if (buf == RT_NULL || size == 0)
-        return 0;
-
-    while ((rt_size_t)send_len < size)
-    {
-        rt_ssize_t len = rt_device_write(muart, 0, p + send_len, size - (rt_size_t)send_len);
-
-        if (len > 0)
-        {
-            send_len += len;
-            retry = 0;
-            continue;
-        }
-
-        if (++retry > 50)
-            break;
-
-        rt_thread_mdelay(20);
-    }
-
-    return send_len;
-}
-
-static rt_size_t upload_muart_pkt_send_wire_locked(const uint8_t *raw, rt_size_t raw_len)
-{
-    rt_ssize_t wire_len;
-    rt_ssize_t send_len;
-
-    if (raw == RT_NULL || raw_len == 0)
-        return 0;
-
-    wire_len = ppp_to_wire(raw, raw_len, muart_wire_tx, sizeof(muart_wire_tx));
-    if (wire_len <= 0)
-        return 0;
-
-    send_len = upload_muart_pkt_write_all(muart_wire_tx, (rt_size_t)wire_len);
-
-    return ((rt_size_t)send_len == (rt_size_t)wire_len) ? raw_len : 0;
-}
-
-static rt_size_t upload_muart_pkt_send_wire(const uint8_t *raw, rt_size_t raw_len)
-{
-    rt_size_t sent;
-
-    if (raw == RT_NULL || raw_len == 0)
-        return 0;
-
-    if (rt_mutex_take(&muart_send_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        return 0;
-
-    sent = upload_muart_pkt_send_wire_locked(raw, raw_len);
-
-    rt_mutex_release(&muart_send_mutex);
-
-    return sent;
-}
-
-static rt_size_t upload_muart_pkt_send_ack_id(rt_uint8_t uart_id, rt_uint8_t ack_status, rt_uint8_t seq)
-{
-    union muart_pkt *pkt = &muart_tx_pkt;
-    rt_uint16_t crc;
-    rt_size_t sent;
-
-    if (rt_mutex_take(&muart_send_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        return 0;
-
-    muart_pkt_build_hdr(pkt, uart_id, 0, 0, RT_TRUE, ack_status, seq);
-    crc = muart_pkt_calc_crc(pkt->raw, 0);
-    muart_pkt_set_crc(pkt, 0, crc);
-
-    sent = upload_muart_pkt_send_wire_locked(pkt->raw, MUART_PKT_MIN);
-
-    rt_mutex_release(&muart_send_mutex);
-
-    return sent;
-}
-
-static rt_bool_t upload_muart_pkt_check(uint8_t *buf, rt_size_t *buflen, rt_size_t *pkt_len)
-{
-    rt_size_t len, start, pos, raw_len, rest;
-    rt_ssize_t flag, consumed;
-
-    if (buf == RT_NULL || buflen == RT_NULL || pkt_len == RT_NULL)
-        return RT_FALSE;
-
-    len = *buflen;
-    *pkt_len = 0;
-    pos = 0;
-
-    while (pos < len)
-    {
-        flag = ppp_find_flag(buf, len, pos);
-        if (flag < 0)
-            break;
-
-        start = (rt_size_t)flag;
-
-        /* 跳过连续 0x7E 空帧 */
-        if (start + 1 < len && buf[start + 1] == MUART_PKT_FLAG)
-        {
-            pos = start + 1;
-            continue;
-        }
-
-        consumed = ppp_from_wire(buf, len, start, muart_raw_decode,
-                                 MUART_PKT_MAX, &raw_len);
-
-        if (consumed == 0)
-        {
-            if (start > 0)
-            {
-                len -= start;
-                rt_memmove(buf, buf + start, len);
-            }
-            *buflen = len;
-            return RT_FALSE;
-        }
-
-        if (consumed < 0)
-        {
-            pos = start + 1;
-            continue;
-        }
-
-        if (!muart_pkt_shape_ok(muart_raw_decode, raw_len))
-        {
-            pos = start + 1;
-            continue;
-        }
-
-        if (!muart_pkt_crc_ok(muart_raw_decode, raw_len))
-        {
-            upload_muart_pkt_send_ack_id(muart_pkt_uart_id(muart_raw_decode), MUART_PKT_ACK_RETX,
-                                         muart_pkt_seq(muart_raw_decode[0]));
-            pos = start + 1;
-            continue;
-        }
-
-        rest = len - (start + (rt_size_t)consumed);
-        rt_memcpy(buf, muart_raw_decode, raw_len);
-        if (rest > 0)
-            rt_memmove(buf + raw_len, buf + start + (rt_size_t)consumed, rest);
-
-        *pkt_len = raw_len;
-        *buflen = raw_len + rest;
-        return RT_TRUE;
-    }
-
-    if (len > 0 && buf[len - 1] == MUART_PKT_FLAG)
-    {
-        buf[0] = MUART_PKT_FLAG;
-        *buflen = 1;
-        return RT_FALSE;
-    }
-
-    *buflen = 0;
-    return RT_FALSE;
-}
-
-static upload_muart_obj_t upload_muart_pkt_find_by_id(rt_uint8_t uart_id)
-{
-    struct upload_muart_obj *node;
-
-    rt_enter_critical();
-    rt_list_for_each_entry(node, &muart_uart_list, list)
-    {
-        if (node->config.number == uart_id)
-        {
-            rt_exit_critical();
-            return node;
-        }
-    }
-    rt_exit_critical();
-
-    return RT_NULL;
-}
-
-static rt_size_t upload_muart_pkt_send(upload_muart_obj_t obj, const uint8_t *buf, rt_size_t len,
-                                       rt_size_t residue, rt_bool_t is_ack, rt_uint8_t ack_status,
-                                       rt_uint8_t seq)
-{
-    rt_size_t wire_size;
-    rt_size_t sent;
-
-    if (obj == RT_NULL || len > MUART_PKT_PAYLOAD_MAX)
-        return 0;
-
-    if (buf == RT_NULL && len != 0)
-        return 0;
-
-    if (rt_mutex_take(&muart_send_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        return 0;
-
-    if (!muart_pkt_build(&muart_tx_pkt, obj->config.number, buf, (rt_uint16_t)len, (rt_uint8_t)residue, is_ack, ack_status, seq))
-    {
-        rt_mutex_release(&muart_send_mutex);
-        return 0;
-    }
-
-    wire_size = muart_pkt_wire_size_by_len((rt_uint16_t)len);
-    sent = upload_muart_pkt_send_wire_locked(muart_tx_pkt.raw, wire_size);
-
-    rt_mutex_release(&muart_send_mutex);
-
-    return sent;
-}
-
-static rt_err_t upload_muart_parent_rx_ind(rt_device_t dev, rt_size_t size)
-{
-    UNUSED(dev);
-    UNUSED(size);
-
-    rt_sem_release(&muart_rx_sem);
-
-    return RT_EOK;
-}
-
-static void upload_muart_recv_sub_event(void *parameter)
-{
-    if (parameter == RT_NULL)
-        return;
-
-    upload_muart_obj_t obj = (upload_muart_obj_t)parameter;
-    rt_object_t rt_obj = (rt_object_t)obj;
-    custom_obj_t custom_obj = (custom_obj_t)obj;
-
-    if(custom_obj->rxb.sub_mb == RT_NULL)
-        return;
-
-    while (1)
-    {
-        while(custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0)
-            rt_thread_mdelay(100);
-
-        rt_uint32_t recv_event_flag = 0;
-        if(rt_event_recv(custom_obj->rxb.sub_event, custom_obj->rxb.pre_event_mask, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
-        {
-            if (custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0 || recv_event_flag == 0)
-                continue;
-            LOG_E("%s recv tx_sub_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->rxb.pre_event_mask);
-            break;
-        }
-
-        if (rt_mb_send(custom_obj->rxb.sub_mb, recv_event_flag) != RT_EOK)
-        {
-            LOG_E("%s send tx_sub_mb error: %d\r\n", rt_obj->name, recv_event_flag);
-            break;
-        }
-    }
-}
-
-static double_ret upload_muart_set_param(upload_obj_t self, void *config)
-{
-    double_ret result = {0, 0};
-
-    if (self == RT_NULL || config == RT_NULL) 
-    {
-        result.fail++;
-        return result;
-    }
-
-    upload_muart_config_t cfg = (upload_muart_config_t)config;
-    upload_muart_obj_t obj = (upload_muart_obj_t)self;
-    upload_muart_config_t obj_cfg = &(obj->config);
-
-    obj_cfg->number = cfg->number;
-    result.succ++;
-
-    return result;
-}
-
+/*
+ * UART RX : parent_recv → ppp_adapter_input → on_data → upload_muart_send（给绑定）
+ * 绑定 RX : recv → ppp_tx → ppp_adapter_send（经 UART 发出）
+ * UART TX : ppp 内部 rt_device_write(muart_dev)
+ */
+
+#define MUART_PARENT_RX_BUFSZ                 4096
+
+static rt_device_t muart_dev = RT_NULL;
+static rt_list_t muart_link_list;
+static struct rt_semaphore muart_parent_rx_sem;
+static struct ppp_adapter muart_ppp_adapter;
+volatile rt_bool_t muart_parent_idle_flag = RT_FALSE;
+
+/* -------------------------------------------------------------------------- */
+/* PPP 适配器回调 + 绑定侧发出                                                 */
+/* -------------------------------------------------------------------------- */
+
+/* PPP 收齐一条消息后：把完整 payload 发给本对象的绑定下游 */
 static rt_ssize_t upload_muart_send(upload_obj_t self, const void *buffer, rt_size_t size)
 {
     if (self == RT_NULL || buffer == RT_NULL || size == 0)
@@ -340,195 +71,185 @@ static rt_ssize_t upload_muart_send(upload_obj_t self, const void *buffer, rt_si
     return size;
 }
 
-static void upload_muart_parent_handle_rx(const uint8_t *pkt, rt_size_t pkt_len)
+/* 按 uart_id 找到对应通道的 ppp_link */
+static struct ppp_link *upload_muart_ppp_find_link(void *user, rt_uint8_t id)
 {
-    upload_muart_obj_t node;
-    rt_uint8_t uart_id;
-    rt_uint8_t seq;
-    rt_size_t payload_len;
+    struct upload_muart_obj *node;
+    struct ppp_link *link = RT_NULL;
 
-    uart_id = muart_pkt_uart_id(pkt);
-    seq = muart_pkt_seq(pkt[0]);
+    RT_UNUSED(user);
 
-    if (muart_pkt_is_ack_byte(pkt[0]))
+    rt_enter_critical();
+    rt_list_for_each_entry(node, &muart_link_list, list)
     {
-        node = upload_muart_pkt_find_by_id(uart_id);
-        if (node == RT_NULL)
-            return;
-
-        if (seq != node->seq)
+        if (node->link.id == id)
         {
-            LOG_W("muart ack seq mismatch, expect %d got %d", node->seq, seq);
-            return;
+            link = &node->link;
+            break;
         }
-
-        node->ack_status = muart_pkt_ack_status(pkt[0]);
-        rt_sem_release(node->ack_sem);
-        return;
     }
+    rt_exit_critical();
 
-    node = upload_muart_pkt_find_by_id(uart_id);
-    if (node == RT_NULL)
-    {
-        LOG_W("muart rx unknown uart_id %d, ack skip", uart_id);
-        upload_muart_pkt_send_ack_id(uart_id, MUART_PKT_ACK_SKIP, seq);
-        return;
-    }
-
-    if (node->rx_seq != MUART_PKT_RX_SEQ_NONE && seq == node->rx_seq)
-    {
-        LOG_D("muart rx duplicate seq %d, ignore", seq);
-        upload_muart_pkt_send(node, RT_NULL, 0, 0, RT_TRUE, MUART_PKT_ACK_NORMAL, seq);
-        return;
-    }
-
-    payload_len = pkt_len - MUART_PKT_MIN;
-    upload_muart_send((upload_obj_t)node, muart_pkt_payload_ptr(pkt), payload_len);
-    upload_muart_pkt_send(node, RT_NULL, 0, 0, RT_TRUE, MUART_PKT_ACK_NORMAL, seq);
-    node->rx_seq = seq;
+    return link;
 }
 
+/* PPP 组包完成：把完整消息交给绑定下游 */
+static void upload_muart_ppp_on_data(void *user, struct ppp_link *link,
+                                     const uint8_t *payload, rt_size_t len)
+{
+    upload_muart_obj_t obj;
+
+    RT_UNUSED(user);
+
+    if (link == RT_NULL)
+        return;
+
+    obj = rt_container_of(link, struct upload_muart_obj, link);
+    upload_muart_send((upload_obj_t)obj, payload, len);
+}
+
+static const struct ppp_adapter_ops muart_ppp_ops =
+{
+    .find_link = upload_muart_ppp_find_link,
+    .on_data = upload_muart_ppp_on_data,
+};
+
+static rt_err_t upload_muart_parent_rx_ind(rt_device_t dev, rt_size_t size)
+{
+    UNUSED(dev);
+    UNUSED(size);
+
+    rt_sem_release(&muart_parent_rx_sem);
+
+    return RT_EOK;
+}
+
+static double_ret upload_muart_set_param(upload_obj_t self, void *config)
+{
+    double_ret result = {0, 0};
+
+    if (self == RT_NULL || config == RT_NULL) 
+    {
+        result.fail++;
+        return result;
+    }
+
+    upload_muart_config_t cfg = (upload_muart_config_t)config;
+    upload_muart_obj_t obj = (upload_muart_obj_t)self;
+    upload_muart_config_t obj_cfg = &(obj->config);
+
+    obj_cfg->number = cfg->number;
+    obj->link.id = cfg->number;
+    result.succ++;
+
+    return result;
+}
+
+/* -------------------------------------------------------------------------- */
+/* UART 收：对端 → ppp_adapter_input → on_data → 绑定                          */
+/* -------------------------------------------------------------------------- */
+
+/* UART 收包线程：读设备，循环喂给 ppp_adapter_input */
 static void upload_muart_parent_recv(void *parameter)
+{
+    static uint8_t buf[MUART_PARENT_RX_BUFSZ];
+    static rt_size_t len = 0;
+    rt_object_t rt_obj;
+    rt_size_t n;
+
+    if (parameter == RT_NULL)
+        return;
+
+    rt_obj = (rt_object_t)parameter;
+
+    while (1)
+    {
+        muart_parent_idle_flag = RT_TRUE;
+        if (rt_sem_take(&muart_parent_rx_sem, RT_WAITING_FOREVER) != RT_EOK)
+        {
+            LOG_E("%s take muart_parent_rx_sem error", rt_obj->name);
+            break;
+        }
+        muart_parent_idle_flag = RT_FALSE;
+
+        while (len < sizeof(buf))
+        {
+            n = rt_device_read(muart_dev, 0, buf + len, sizeof(buf) - len);
+            if (n <= 0)
+                break;
+            len += n;
+        }
+
+        while (ppp_adapter_input(&muart_ppp_adapter, buf, &len))
+            ;
+
+        /* 抽完帧后缓冲仍满：半帧/垃圾占满，丢弃才能继续收 */
+        if (len >= sizeof(buf))
+        {
+            LOG_W("%s rx buffer full, no complete frame, drop", rt_obj->name);
+            len = 0;
+        }
+    }
+}
+
+/* 绑定事件转邮箱，供 upload_muart_recv 取数据 */
+static void upload_muart_recv_sub_event(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
     upload_muart_obj_t obj = (upload_muart_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
+    custom_obj_t custom_obj = (custom_obj_t)obj;
 
-    static uint8_t muart_recv_buffer[MUART_BUFSZ];
-    static rt_size_t muart_recv_index = 0;
+    if(custom_obj->rxb.sub_mb == RT_NULL)
+        return;
 
     while (1)
     {
-        thread2_idle_flag = RT_TRUE;
-        if (rt_sem_take(&muart_rx_sem, RT_WAITING_FOREVER) != RT_EOK)
+        while(custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0)
+            rt_thread_mdelay(100);
+
+        rt_uint32_t recv_event_flag = 0;
+        if(rt_event_recv(custom_obj->rxb.sub_event, custom_obj->rxb.pre_event_mask, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR , RT_WAITING_FOREVER, &recv_event_flag) != RT_EOK)
         {
-            LOG_E("%s take muart_rx_sem error", rt_obj->name);
+            if (custom_obj->rxb.sub_event == RT_NULL || custom_obj->rxb.pre_event_mask == 0 || recv_event_flag == 0)
+                continue;
+            LOG_E("%s recv tx_sub_event error: %d/%d\r\n", rt_obj->name, recv_event_flag, custom_obj->rxb.pre_event_mask);
             break;
         }
-        thread2_idle_flag = RT_FALSE;
 
-        rt_size_t len;
-        while (muart_recv_index < sizeof(muart_recv_buffer) &&
-               (len = rt_device_read(muart, 0, muart_recv_buffer + muart_recv_index,
-                                      sizeof(muart_recv_buffer) - muart_recv_index)) > 0)
+        if (rt_mb_send(custom_obj->rxb.sub_mb, recv_event_flag) != RT_EOK)
         {
-            // LOG_D("%s recv len: %d", rt_obj->name, len);
-            muart_recv_index += len;
-        }
-
-        if (muart_recv_index >= sizeof(muart_recv_buffer))
-        {
-            LOG_W("%s rx buffer full, reset", rt_obj->name);
-            muart_recv_index = 0;
-            continue;
-        }
-
-        while (muart_recv_index >= 3)
-        {
-            rt_size_t pkt_len = 0;
-
-            if (!upload_muart_pkt_check(muart_recv_buffer, &muart_recv_index, &pkt_len))
-                break;
-
-            upload_muart_parent_handle_rx(muart_recv_buffer, pkt_len);
-
-            muart_recv_index -= pkt_len;
-            if (muart_recv_index > 0)
-                rt_memmove(muart_recv_buffer, muart_recv_buffer + pkt_len, muart_recv_index);
+            LOG_E("%s send tx_sub_mb error: %d\r\n", rt_obj->name, recv_event_flag);
+            break;
         }
     }
 }
 
-static rt_size_t upload_muart_parent_send(upload_muart_obj_t obj, const void *buffer, rt_size_t size)
-{
-    if (obj == RT_NULL || buffer == RT_NULL || size == 0)
-        return 0;
+/* -------------------------------------------------------------------------- */
+/* 绑定收：绑定对象 → ppp_adapter_send → UART                                 */
+/* -------------------------------------------------------------------------- */
 
-    const uint8_t *data = (const uint8_t *)buffer;
-    rt_size_t offset = 0;
-    rt_size_t send_total = 0;
-    rt_size_t send_pkt_total = (size + MUART_PKT_PAYLOAD_MAX - 1) / MUART_PKT_PAYLOAD_MAX;
-    rt_size_t send_pkt_index = 1;
-
-    while (offset < size)
-    {
-        rt_size_t chunk = size - offset;
-        if (chunk > MUART_PKT_PAYLOAD_MAX)
-            chunk = MUART_PKT_PAYLOAD_MAX;
-
-        rt_bool_t pkt_done = RT_FALSE;
-        rt_uint8_t retry = 3;
-
-        while (!pkt_done && retry > 0)
-        {
-            while (rt_sem_take(obj->ack_sem, 0) == RT_EOK)
-                ;
-            obj->ack_status = MUART_PKT_ACK_NORMAL;
-
-            upload_muart_pkt_send(obj, data + offset, chunk, send_pkt_total - send_pkt_index, RT_FALSE, 0, obj->seq);
-
-            if (rt_sem_take(obj->ack_sem, 3000) != RT_EOK)
-            {
-                LOG_W("%s sub-pkt ack timeout, retry %d", ((rt_object_t)obj)->name, retry);
-                retry--;
-                continue;
-            }
-
-            switch (obj->ack_status)
-            {
-            case MUART_PKT_ACK_NORMAL:
-                pkt_done = RT_TRUE;
-                obj->seq = muart_pkt_seq_next(obj->seq);
-                break;
-            case MUART_PKT_ACK_RETX:
-                LOG_W("%s sub-pkt ack retx, resend now, retry %d", ((rt_object_t)obj)->name, retry);
-                retry--;
-                break;
-            case MUART_PKT_ACK_SKIP:
-                LOG_W("%s sub-pkt ack skip", ((rt_object_t)obj)->name);
-                pkt_done = RT_TRUE;
-                obj->seq = muart_pkt_seq_next(obj->seq);
-                break;
-            default:
-                LOG_W("%s sub-pkt ack unknown status %d", ((rt_object_t)obj)->name, obj->ack_status);
-                retry--;
-                break;
-            }
-        }
-
-        if (!pkt_done)
-        {
-            LOG_E("%s sub-pkt send failed at offset %d", ((rt_object_t)obj)->name, offset);
-            return send_total;
-        }
-
-        // LOG_D("%s sub-pkt %d/%d send: %d", ((rt_object_t)obj)->name, send_pkt_index, send_pkt_total, chunk);
-        offset += chunk;
-        send_total += chunk;
-        send_pkt_index++;
-    }
-
-    return send_total;
-}
-
+/* 绑定对象送来的数据，经 PPP 分包发出 */
 static rt_err_t upload_muart_handle_rx_bind_pre(upload_obj_t self, const void *buffer, rt_size_t size)
 {
-    if (self == RT_NULL || buffer == RT_NULL || size == 0) {
-        return 0;
-    }
-
-    upload_muart_obj_t obj = (upload_muart_obj_t)self;
-    custom_obj_t custom_obj = (custom_obj_t)obj;
+    upload_muart_obj_t obj;
+    custom_obj_t custom_obj;
     rt_size_t sent;
 
-    sent = upload_muart_parent_send(obj, buffer, size);
+    if (self == RT_NULL || buffer == RT_NULL || size == 0)
+        return -RT_EINVAL;
+
+    obj = (upload_muart_obj_t)self;
+    custom_obj = (custom_obj_t)obj;
+    sent = ppp_adapter_send(&muart_ppp_adapter, &obj->link, buffer, size);
     custom_obj_bind_ext_add_send(custom_obj, sent, RT_TRUE);
 
-    return RT_EOK;
+    return (sent == size) ? RT_EOK : -RT_ERROR;
 }
 
+/* 绑定侧收包线程：从绑定对象取数据，调用 upload_muart_handle_rx_bind_pre 发出 */
 static void upload_muart_recv(void *parameter)
 {
     if (parameter == RT_NULL)
@@ -544,14 +265,14 @@ static void upload_muart_recv(void *parameter)
 
     while (1)
     {
-        obj->thread1_idle_flag = RT_TRUE;
+        obj->link_idle_flag = RT_TRUE;
         rt_uint32_t recv_event_flag = 0;
         if(rt_mb_recv(custom_obj->rxb.sub_mb, (rt_ubase_t *)&recv_event_flag, RT_WAITING_FOREVER) != RT_EOK)
         {
             LOG_E("%s recv rxb.sub_mb error", rt_obj->name);
             break;
         }
-        obj->thread1_idle_flag = RT_FALSE;
+        obj->link_idle_flag = RT_FALSE;
         
         rt_thread_yield();
 
@@ -590,7 +311,11 @@ static void upload_muart_recv(void *parameter)
         rt_mutex_release(custom_obj->rxb.bind_mutex);
     }
 }
- 
+
+/* -------------------------------------------------------------------------- */
+/* 对象生命周期                                                                */
+/* -------------------------------------------------------------------------- */
+
 static rt_err_t upload_muart_delete(upload_obj_t self)
 {
     if (self == RT_NULL) {
@@ -608,7 +333,7 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
 
     rt_enter_critical();
     struct upload_muart_obj *muart_obj, *next_muart_obj;
-    rt_list_for_each_entry_safe(muart_obj, next_muart_obj, &muart_uart_list, list)
+    rt_list_for_each_entry_safe(muart_obj, next_muart_obj, &muart_link_list, list)
     {
         if(muart_obj == obj)
             rt_list_remove(&muart_obj->list);
@@ -621,12 +346,12 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
         obj->rx_sub_event_tid = RT_NULL;
     }
 
-    while(obj->rx_tid != RT_NULL && obj->thread1_idle_flag == RT_FALSE)
+    while(obj->rx_tid != RT_NULL && obj->link_idle_flag == RT_FALSE)
     {
         rt_thread_mdelay(20);
     }
 
-    while(thread2_idle_flag == RT_FALSE)
+    while(muart_parent_idle_flag == RT_FALSE)
     {
         rt_thread_mdelay(20);
     }
@@ -637,11 +362,13 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
         obj->rx_tid = RT_NULL;
     }
     
-    if(obj->ack_sem != RT_NULL)
+    if(obj->link.ack_sem != RT_NULL)
     {
-        rt_sem_delete(obj->ack_sem);
-        obj->ack_sem = RT_NULL;
+        rt_sem_delete(obj->link.ack_sem);
+        obj->link.ack_sem = RT_NULL;
     }
+
+    ppp_link_deinit(&obj->link);
 
     if(custom_obj->rxb.sub_mb != RT_NULL)
     {
@@ -685,7 +412,7 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
     return RT_EOK;
 }
 
-static upload_obj_t  upload_muart_create(upload_obj_t self, char *name, void *config)
+static upload_obj_t upload_muart_create(upload_obj_t self, char *name, void *config)
 {
     if (self == RT_NULL || name == RT_NULL) {
         LOG_E("create error: param");
@@ -776,20 +503,18 @@ static upload_obj_t  upload_muart_create(upload_obj_t self, char *name, void *co
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_ack");
-    if((obj->ack_sem = rt_sem_create(name_buf, 0, RT_IPC_FLAG_FIFO)) == RT_NULL) {
+    if((obj->link.ack_sem = rt_sem_create(name_buf, 0, RT_IPC_FLAG_FIFO)) == RT_NULL) {
         LOG_E("create error: ack sem create");
         goto exit;
     }
 
-    obj->ack_status = MUART_PKT_ACK_NORMAL;
-    obj->seq = 0;
-    obj->rx_seq = MUART_PKT_RX_SEQ_NONE;
+    ppp_link_init(&obj->link, obj->config.number, obj->link.ack_sem);
 
     rt_thread_startup(obj->rx_tid);
     rt_thread_startup(obj->rx_sub_event_tid);
 
     rt_enter_critical();
-    rt_list_insert_after(&muart_uart_list, &obj->list);
+    rt_list_insert_after(&muart_link_list, &obj->list);
     rt_exit_critical();
 
     rt_object_init(rt_obj, RT_Object_Class_Custom, name);
@@ -833,6 +558,7 @@ static const struct custom_object_ops custom_obj_ops =
     .gc = upload_muart_gc,
 };
 
+/* 打开 UART、初始化 PPP 适配器、启动 parent_recv 收包线程 */
 static int upload_muart_init(void)
 {
     static struct upload_muart_obj object = {0};
@@ -846,7 +572,7 @@ static int upload_muart_init(void)
 
     custom_obj->type = Custom_Object_Class_Upload;
 
-    obj->thread1_idle_flag = RT_FALSE;
+    obj->link_idle_flag = RT_FALSE;
 
     upload_obj_init(custom_obj);
 
@@ -856,19 +582,19 @@ static int upload_muart_init(void)
 
     // rt_pin_mode(GET_PIN(F, 2), PIN_MODE_OUTPUT);
     // rt_pin_write(GET_PIN(F, 2), PIN_HIGH);
-    // muart = rt_device_find("uart3");
+    // muart_dev = rt_device_find("uart3");
 
     // rt_pin_mode(GET_PIN(F, 3), PIN_MODE_OUTPUT);
     // rt_pin_write(GET_PIN(F, 3), PIN_HIGH);
-    // muart = rt_device_find("uart6");
+    // muart_dev = rt_device_find("uart6");
 
-    muart = rt_device_find("uart5");
-    if (muart == RT_NULL) 
+    muart_dev = rt_device_find("uart5");
+    if (muart_dev == RT_NULL) 
         return -RT_ERROR;
 
-    if (muart->ref_count != 0)
+    if (muart_dev->ref_count != 0)
     {
-        LOG_E("init error: muart ref_count is not 0");
+        LOG_E("init error: muart_dev ref_count is not 0");
         return -RT_ERROR;
     }
 
@@ -878,34 +604,34 @@ static int upload_muart_init(void)
     serial_cfg.stop_bits = STOP_BITS_1;
     serial_cfg.parity = PARITY_NONE;
     serial_cfg.bit_order = BIT_ORDER_LSB;
-    serial_cfg.rx_bufsz = MUART_BUFSZ;
+    serial_cfg.rx_bufsz = PPP_PKT_WIRE_MAX * 2;
     #ifdef RT_SERIAL_USING_DMA
         serial_cfg.dma_ping_bufsz = serial_cfg.rx_bufsz / 2;
     #endif
-    serial_cfg.tx_bufsz = MUART_BUFSZ;
+    serial_cfg.tx_bufsz = PPP_PKT_WIRE_MAX;
 
-    rt_err_t err = rt_device_control(muart, RT_DEVICE_CTRL_CONFIG, &serial_cfg);
+    rt_err_t err = rt_device_control(muart_dev, RT_DEVICE_CTRL_CONFIG, &serial_cfg);
     if (err != RT_EOK) {
         LOG_E("init error: failed to set serial config");
         return -RT_ERROR;
     }
 
-    err = rt_mutex_init(&muart_send_mutex, "muart_send_mutex", RT_IPC_FLAG_PRIO);
+    err = ppp_adapter_init(&muart_ppp_adapter, "muart_ppp_adapter", muart_dev, &muart_ppp_ops);
     if (err != RT_EOK)
     {
-        LOG_E("init error: failed to init muart send mutex");
+        LOG_E("init error: failed to init ppp adapter");
         return -RT_ERROR;
     }
 
-    err = rt_sem_init(&muart_rx_sem, "muart_rx_sem", 0, RT_IPC_FLAG_FIFO);
+    err = rt_sem_init(&muart_parent_rx_sem, "muart_parent_rx_sem", 0, RT_IPC_FLAG_FIFO);
     if (err != RT_EOK)    
     {
-        LOG_E("init error: failed to init muart rx semaphore");
-        rt_mutex_detach(&muart_send_mutex);
+        LOG_E("init error: failed to init muart_dev rx semaphore");
+        ppp_adapter_deinit(&muart_ppp_adapter);
         return -RT_ERROR;
     }
 
-    rt_list_init(&muart_uart_list);
+    rt_list_init(&muart_link_list);
 
     rt_thread_t tid = rt_thread_create("upload_muart_parent_recv",
                                      upload_muart_parent_recv,
@@ -916,20 +642,20 @@ static int upload_muart_init(void)
     if (tid == RT_NULL)
     {
         LOG_E("init error: failed to create upload_muart_parent_recv thread");
-        rt_sem_detach(&muart_rx_sem);
-        rt_mutex_detach(&muart_send_mutex);
+        rt_sem_detach(&muart_parent_rx_sem);
+        ppp_adapter_deinit(&muart_ppp_adapter);
         return -RT_ERROR;
     }
     rt_thread_startup(tid);
 
-    rt_device_set_rx_indicate(muart, upload_muart_parent_rx_ind);
+    rt_device_set_rx_indicate(muart_dev, upload_muart_parent_rx_ind);
 
-    if (rt_device_open(muart, RT_DEVICE_OFLAG_RDWR | RT_SERIAL_RX_NON_BLOCKING | RT_SERIAL_TX_BLOCKING) != RT_EOK)
+    if (rt_device_open(muart_dev, RT_DEVICE_OFLAG_RDWR | RT_SERIAL_RX_NON_BLOCKING | RT_SERIAL_TX_BLOCKING) != RT_EOK)
     {
-        LOG_E("init error: failed to open muart");
-        rt_device_set_rx_indicate(muart, RT_NULL);
-        rt_sem_detach(&muart_rx_sem);
-        rt_mutex_detach(&muart_send_mutex);
+        LOG_E("init error: failed to open muart_dev");
+        rt_device_set_rx_indicate(muart_dev, RT_NULL);
+        rt_sem_detach(&muart_parent_rx_sem);
+        ppp_adapter_deinit(&muart_ppp_adapter);
         rt_thread_delete(tid);
         return -RT_ERROR;
     }
