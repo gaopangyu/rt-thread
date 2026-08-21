@@ -6,7 +6,7 @@
 #include <rtdevice.h>
 
 /*
- * 逻辑帧: [ctrl 1B][uart_id 1B][info 2B BE][data n B][crc 2B]
+ * 逻辑帧: [ctrl 1B][link_id 1B][info 2B BE][data n B][crc 2B]
  * 线路帧: [0x7E][转义后的逻辑帧][0x7E]   转义: 0x7D，再异或 0x20
  *
  * 使用：实现 ops → ppp_adapter_init → 每通道 ppp_link_init
@@ -17,7 +17,7 @@
 #define PPP_PKT_RESIDUE_MAX         63      /* info bit15~10：本包之后剩余子包数 */
 #define PPP_PKT_FRAG_MAX            (PPP_PKT_RESIDUE_MAX + 1)
 #define PPP_PKT_ASM_MAX             (PPP_PKT_FRAG_MAX * PPP_PKT_PAYLOAD_MAX)
-#define PPP_PKT_HDR_SIZE            4       /* ctrl + uart_id + info */
+#define PPP_PKT_HDR_SIZE            4       /* ctrl + link_id + info */
 #define PPP_PKT_CRC_SIZE            2
 #define PPP_PKT_MIN                 (PPP_PKT_HDR_SIZE + PPP_PKT_CRC_SIZE)
 #define PPP_PKT_MAX                 (PPP_PKT_MIN + PPP_PKT_PAYLOAD_MAX)
@@ -47,7 +47,7 @@
 
 /*
  * info 只走 bytes.hi/lo（线路大端）。
- * 访问：ppp->pkt.ctrl.bits.* / uart_id / info.hi|lo / data
+ * 访问：ppp->pkt.ctrl.bits.* / link_id / info.hi|lo / data
  */
 union ppp_pkt
 {
@@ -64,7 +64,7 @@ union ppp_pkt
                 rt_uint8_t is_ack : 1;  /* bit7    0=DATA 1=ACK */
             } bits;
         } ctrl;
-        rt_uint8_t uart_id;
+        rt_uint8_t link_id;
         struct
         {
             rt_uint8_t hi;
@@ -74,7 +74,7 @@ union ppp_pkt
     } __attribute__((packed)) pkt;
 };
 
-/* 一条 PPP 通道（每个 uart_id 一个） */
+/* 一条 PPP 链路（每个 link_id 一个） */
 struct ppp_link
 {
     rt_uint8_t id;
@@ -102,8 +102,8 @@ struct ppp_adapter
     struct rt_mutex lock;
     rt_int32_t ack_timeout_ms;
     rt_uint8_t send_retry;
-    union ppp_pkt tx;
-    union ppp_pkt rx;
+    union ppp_pkt ppp_tx;
+    union ppp_pkt ppp_rx;
     uint8_t wire[PPP_PKT_WIRE_MAX];
 };
 

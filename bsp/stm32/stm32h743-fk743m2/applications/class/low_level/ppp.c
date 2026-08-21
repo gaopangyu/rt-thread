@@ -70,7 +70,7 @@ static void ppp_pkt_put_crc(union ppp_pkt *ppp, rt_uint16_t data_len)
 }
 
 /* 组一帧逻辑包，成功返回帧长，失败返回 0 */
-static rt_size_t ppp_pkt_make(union ppp_pkt *ppp, rt_uint8_t uart_id, rt_uint8_t seq,
+static rt_size_t ppp_pkt_make(union ppp_pkt *ppp, rt_uint8_t link_id, rt_uint8_t seq,
                               rt_bool_t is_ack, rt_uint8_t status,
                               rt_uint8_t residue, const uint8_t *payload, rt_uint16_t data_len)
 {
@@ -83,7 +83,7 @@ static rt_size_t ppp_pkt_make(union ppp_pkt *ppp, rt_uint8_t uart_id, rt_uint8_t
     ppp->pkt.ctrl.bits.seq = seq & PPP_PKT_SEQ_MASK;
     ppp->pkt.ctrl.bits.is_ack = is_ack ? 1 : 0;
     ppp->pkt.ctrl.bits.status = status & 0x07;
-    ppp->pkt.uart_id = uart_id;
+    ppp->pkt.link_id = link_id;
     ppp_pkt_info_set(ppp, residue, data_len);
 
     if (data_len > 0)
@@ -396,10 +396,10 @@ static rt_size_t ppp_adapter_out(struct ppp_adapter *adp, rt_uint8_t id, rt_uint
     if (rt_mutex_take(&adp->lock, RT_WAITING_FOREVER) != RT_EOK)
         return 0;
 
-    raw_len = ppp_pkt_make(&adp->tx, id, seq, is_ack, status, residue, payload, data_len);
+    raw_len = ppp_pkt_make(&adp->ppp_tx, id, seq, is_ack, status, residue, payload, data_len);
     if (raw_len != 0)
     {
-        wire_len = ppp_to_wire(&adp->tx, raw_len, adp->wire, sizeof(adp->wire));
+        wire_len = ppp_to_wire(&adp->ppp_tx, raw_len, adp->wire, sizeof(adp->wire));
         if (wire_len > 0)
         {
             n = ppp_device_write_all(adp->dev, adp->wire, (rt_size_t)wire_len);
@@ -541,7 +541,7 @@ static rt_bool_t ppp_adapter_pull(struct ppp_adapter *adp, uint8_t *buf, rt_size
             continue;
         }
 
-        n = ppp_from_wire(buf, len, &adp->rx, &raw_len);
+        n = ppp_from_wire(buf, len, &adp->ppp_rx, &raw_len);
         if (n == 0)
         {
             *buflen = len;
@@ -553,10 +553,10 @@ static rt_bool_t ppp_adapter_pull(struct ppp_adapter *adp, uint8_t *buf, rt_size
             continue;
         }
 
-        if (!ppp_pkt_shape_ok(&adp->rx, raw_len) || !ppp_pkt_crc_ok(&adp->rx))
+        if (!ppp_pkt_shape_ok(&adp->ppp_rx, raw_len) || !ppp_pkt_crc_ok(&adp->ppp_rx))
         {
-            ppp_adapter_send_ack(adp, adp->rx.pkt.uart_id,
-                                 PPP_PKT_ACK_RETX, adp->rx.pkt.ctrl.bits.seq);
+            ppp_adapter_send_ack(adp, adp->ppp_rx.pkt.link_id,
+                                 PPP_PKT_ACK_RETX, adp->ppp_rx.pkt.ctrl.bits.seq);
             ppp_buf_drop(buf, &len, (rt_size_t)n);
             continue;
         }
@@ -587,19 +587,19 @@ static void ppp_dispatch_ack(struct ppp_link *link, const union ppp_pkt *ppp)
 static void ppp_dispatch_data(struct ppp_adapter *adp, struct ppp_link *link,
                               const union ppp_pkt *ppp)
 {
-    rt_uint8_t id = ppp->pkt.uart_id;
+    rt_uint8_t id = ppp->pkt.link_id;
     rt_uint8_t seq = ppp->pkt.ctrl.bits.seq;
 
     if (link == RT_NULL)
     {
-        LOG_W("ppp rx unknown id %d, ack skip", id);
+        LOG_W("ppp ppp_rx unknown id %d, ack skip", id);
         ppp_adapter_send_ack(adp, id, PPP_PKT_ACK_SKIP, seq);
         return;
     }
 
     if (link->rx_seq != PPP_PKT_RX_SEQ_NONE && seq == link->rx_seq)
     {
-        LOG_D("ppp rx duplicate seq %d, ignore", seq);
+        LOG_D("ppp ppp_rx duplicate seq %d, ignore", seq);
         ppp_adapter_send_ack(adp, id, PPP_PKT_ACK_NORMAL, seq);
         return;
     }
@@ -617,13 +617,13 @@ static void ppp_dispatch_data(struct ppp_adapter *adp, struct ppp_link *link,
 
 static void ppp_adapter_dispatch(struct ppp_adapter *adp)
 {
-    const union ppp_pkt *ppp = &adp->rx;
+    const union ppp_pkt *ppp = &adp->ppp_rx;
     struct ppp_link *link;
 
     if (adp->ops == RT_NULL || adp->ops->find_link == RT_NULL)
         return;
 
-    link = adp->ops->find_link(ppp->pkt.uart_id);
+    link = adp->ops->find_link(ppp->pkt.link_id);
 
     if (ppp->pkt.ctrl.bits.is_ack)
         ppp_dispatch_ack(link, ppp);
@@ -644,8 +644,8 @@ rt_bool_t ppp_adapter_recv(struct ppp_adapter *adp, uint8_t *buf, rt_size_t *buf
  * T0  基线明文 hello   逻辑 00 01 00 05 68 65 6C 6C 6F 5D 19   线路 7E 00 01 00 05 68 65 6C 6C 6F 5D 19 7E
  * T1  payload 含 0x7E   逻辑 00 01 00 01 7E 4C A4   线路 7E 00 01 00 01 7D 5E 4C A4 7E
  * T2  payload 含 0x7D   逻辑 00 01 00 01 7D CC 64   线路 7E 00 01 00 01 7D 5D CC 64 7E
- * T3  ACK_NORMAL seq=0 uart_id=1   逻辑 80 01 00 00 24 78   线路 7E 80 01 00 00 24 78 7E
- * T4  ACK_RETX seq=0 uart_id=1      逻辑 90 01 00 00 E4 7C   线路 7E 90 01 00 00 E4 7C 7E
+ * T3  ACK_NORMAL seq=0 link_id=1   逻辑 80 01 00 00 24 78   线路 7E 80 01 00 00 24 78 7E
+ * T4  ACK_RETX seq=0 link_id=1      逻辑 90 01 00 00 E4 7C   线路 7E 90 01 00 00 E4 7C 7E
  * T5  帧前垃圾   FF FE 7D 5E ... 7E [T0线路帧] 7E 7E ...   跳过假 7E/垃圾，正确解析 T0
  * T6  粘包   连续两帧 T0 线路帧无间隔   解析出 2 帧
  * T7  CRC错误   篡改线路帧任一数据字节   仅回 ACK_RETX（T4）
