@@ -4,10 +4,8 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define PPP_ACK_TIMEOUT     0xFF
-
 /* -------------------------------------------------------------------------- */
-/* 1. 逻辑包                                                                    */
+/* 1. ppp逻辑包                                                                */
 /* -------------------------------------------------------------------------- */
 
 static void ppp_pkt_info_set(union ppp_pkt *ppp, rt_uint8_t residue, rt_uint16_t data_len)
@@ -226,13 +224,22 @@ static void ppp_buf_drop(uint8_t *buf, rt_size_t *len, rt_size_t n)
 /* 3. 会话 / 组包                                                               */
 /* -------------------------------------------------------------------------- */
 
-void ppp_link_init(struct ppp_link *link, rt_uint8_t id, rt_sem_t ack_sem)
+rt_err_t ppp_link_init(struct ppp_link *link, rt_uint8_t id)
 {
+    char name[RT_NAME_MAX];
+
     if (link == RT_NULL)
-        return;
+        return -RT_EINVAL;
+
+    if (link->ack_sem != RT_NULL || link->asm_buf != RT_NULL)
+        ppp_link_deinit(link);
+
+    rt_snprintf(name, sizeof(name), "ppp%u_ack", (unsigned)id);
+    link->ack_sem = rt_sem_create(name, 0, RT_IPC_FLAG_FIFO);
+    if (link->ack_sem == RT_NULL)
+        return -RT_ENOMEM;
 
     link->id = id;
-    link->ack_sem = ack_sem;
     link->ack_status = PPP_PKT_ACK_NORMAL;
     link->seq = 0;
     link->rx_seq = PPP_PKT_RX_SEQ_NONE;
@@ -240,12 +247,19 @@ void ppp_link_init(struct ppp_link *link, rt_uint8_t id, rt_sem_t ack_sem)
     link->asm_cap = 0;
     link->asm_len = 0;
     link->asm_next_residue = PPP_ASM_IDLE;
+    return RT_EOK;
 }
 
 void ppp_link_deinit(struct ppp_link *link)
 {
     if (link == RT_NULL)
         return;
+
+    if (link->ack_sem != RT_NULL)
+    {
+        rt_sem_delete(link->ack_sem);
+        link->ack_sem = RT_NULL;
+    }
 
     if (link->asm_buf != RT_NULL)
     {
@@ -263,23 +277,48 @@ static void ppp_link_asm_reset(struct ppp_link *link)
     link->asm_next_residue = PPP_ASM_IDLE;
 }
 
+static void ppp_link_asm_free(struct ppp_link *link)
+{
+    if (link->asm_buf != RT_NULL)
+    {
+        rt_free(link->asm_buf);
+        link->asm_buf = RT_NULL;
+    }
+    link->asm_cap = 0;
+    ppp_link_asm_reset(link);
+}
+
+/* 首包按 residue 申请：本包 len + 后续 residue 包 * PAYLOAD_MAX */
+static rt_bool_t ppp_link_asm_alloc(struct ppp_link *link, rt_size_t first_len, rt_uint8_t residue)
+{
+    rt_size_t need = first_len + (rt_size_t)residue * PPP_PKT_PAYLOAD_MAX;
+
+    if (need == 0 || need > PPP_PKT_ASM_MAX)
+        return RT_FALSE;
+
+    if (link->asm_buf != RT_NULL)
+    {
+        if (link->asm_cap >= need)
+            return RT_TRUE;
+        rt_free(link->asm_buf);
+        link->asm_buf = RT_NULL;
+        link->asm_cap = 0;
+    }
+
+    link->asm_buf = rt_malloc(need);
+    if (link->asm_buf == RT_NULL)
+        return RT_FALSE;
+
+    link->asm_cap = need;
+    return RT_TRUE;
+}
+
 static rt_bool_t ppp_link_asm_append(struct ppp_link *link, const uint8_t *data, rt_size_t len)
 {
     if (len == 0)
         return RT_TRUE;
 
-    if (link->asm_buf == RT_NULL)
-    {
-        link->asm_buf = rt_malloc(PPP_PKT_ASM_MAX);
-        if (link->asm_buf == RT_NULL)
-        {
-            link->asm_cap = 0;
-            return RT_FALSE;
-        }
-        link->asm_cap = PPP_PKT_ASM_MAX;
-    }
-
-    if (link->asm_len + len > link->asm_cap)
+    if (link->asm_buf == RT_NULL || link->asm_len + len > link->asm_cap)
         return RT_FALSE;
 
     rt_memcpy(link->asm_buf + link->asm_len, data, len);
@@ -294,15 +333,18 @@ static void ppp_deliver(struct ppp_adapter *adp, struct ppp_link *link,
         adp->ops->on_data(link, payload, len);
 }
 
-/* residue>0 只缓存；residue==0 拼完整包后 on_data。单包不走缓冲。 */
+/*
+ * residue==0 且未在组包：一包传完，直接推 payload，不申请内存。
+ * residue>0：按首包 residue 申请组包缓冲；收齐后再 on_data。
+ */
 static rt_bool_t ppp_link_asm_push(struct ppp_adapter *adp, struct ppp_link *link,
                                    const uint8_t *payload, rt_size_t len, rt_uint8_t residue)
 {
     if (link->asm_next_residue != PPP_ASM_IDLE && residue != link->asm_next_residue)
     {
-        LOG_W("ppp id=%d residue mismatch, expect %d got %d, reset",
+        LOG_W("ppp id=%d residue mismatch, expect %d got %d, drop",
               link->id, link->asm_next_residue, residue);
-        ppp_link_asm_reset(link);
+        ppp_link_asm_free(link);
     }
 
     if (residue == 0 && link->asm_len == 0)
@@ -311,10 +353,18 @@ static rt_bool_t ppp_link_asm_push(struct ppp_adapter *adp, struct ppp_link *lin
         return RT_TRUE;
     }
 
+    if (link->asm_len == 0 &&
+        !ppp_link_asm_alloc(link, len, residue))
+    {
+        LOG_E("ppp id=%d assemble alloc failed, drop", link->id);
+        ppp_link_asm_free(link);
+        return RT_FALSE;
+    }
+
     if (!ppp_link_asm_append(link, payload, len))
     {
-        LOG_E("ppp id=%d assemble overflow or no memory, drop", link->id);
-        ppp_link_asm_reset(link);
+        LOG_E("ppp id=%d assemble overflow, drop", link->id);
+        ppp_link_asm_free(link);
         return RT_FALSE;
     }
 
@@ -435,7 +485,7 @@ static rt_uint8_t ppp_link_wait_ack(struct ppp_link *link, rt_int32_t timeout)
 {
     if (link->ack_sem == RT_NULL)
         return PPP_ACK_TIMEOUT;
-    if (rt_sem_take(link->ack_sem, timeout) != RT_EOK)
+    if (rt_sem_take(link->ack_sem, rt_tick_from_millisecond(timeout)) != RT_EOK)
         return PPP_ACK_TIMEOUT;
 
     return link->ack_status;
@@ -453,8 +503,13 @@ static rt_bool_t ppp_adapter_send_one(struct ppp_adapter *adp, struct ppp_link *
 
         ppp_link_flush_ack(link);
         link->ack_status = PPP_PKT_ACK_NORMAL;
-        ppp_adapter_out(adp, link->id, link->seq, RT_FALSE, PPP_PKT_SEND_NORMAL,
-                        residue, data, chunk);
+        if (ppp_adapter_out(adp, link->id, link->seq, RT_FALSE, PPP_PKT_SEND_NORMAL,
+                            residue, data, chunk) == 0)
+        {
+            LOG_W("ppp id=%d tx failed, retry %d", link->id, retry);
+            retry--;
+            continue;
+        }
 
         ack = ppp_link_wait_ack(link, adp->ack_timeout_ms);
         if (ack == PPP_PKT_ACK_NORMAL || ack == PPP_PKT_ACK_SKIP)
@@ -553,10 +608,17 @@ static rt_bool_t ppp_adapter_pull(struct ppp_adapter *adp, uint8_t *buf, rt_size
             continue;
         }
 
-        if (!ppp_pkt_shape_ok(&adp->ppp_rx, raw_len) || !ppp_pkt_crc_ok(&adp->ppp_rx))
+        if (!ppp_pkt_shape_ok(&adp->ppp_rx, raw_len))
         {
-            ppp_adapter_send_ack(adp, adp->ppp_rx.pkt.link_id,
-                                 PPP_PKT_ACK_RETX, adp->ppp_rx.pkt.ctrl.bits.seq);
+            ppp_buf_drop(buf, &len, (rt_size_t)n);
+            continue;
+        }
+
+        if (!ppp_pkt_crc_ok(&adp->ppp_rx))
+        {
+            if (!adp->ppp_rx.pkt.ctrl.bits.is_ack)
+                ppp_adapter_send_ack(adp, adp->ppp_rx.pkt.link_id,
+                                     PPP_PKT_ACK_RETX, adp->ppp_rx.pkt.ctrl.bits.seq);
             ppp_buf_drop(buf, &len, (rt_size_t)n);
             continue;
         }

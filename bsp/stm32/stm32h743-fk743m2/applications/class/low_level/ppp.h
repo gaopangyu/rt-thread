@@ -38,6 +38,7 @@
 #define PPP_PKT_ACK_NORMAL          0   /* 接收正确 */
 #define PPP_PKT_ACK_RETX            1   /* 包错误，立即重发 */
 #define PPP_PKT_ACK_SKIP            2   /* 无此通道，立即跳过 */
+#define PPP_ACK_TIMEOUT             0xFF
 
 #define PPP_PKT_RX_SEQ_NONE         0xFF
 #define PPP_ASM_IDLE                0xFF
@@ -111,7 +112,7 @@ rt_err_t ppp_adapter_init(struct ppp_adapter *adp, const char *name,
                           rt_device_t dev, const struct ppp_adapter_ops *ops);
 rt_err_t ppp_adapter_deinit(struct ppp_adapter *adp);
 
-void ppp_link_init(struct ppp_link *link, rt_uint8_t id, rt_sem_t ack_sem);
+rt_err_t ppp_link_init(struct ppp_link *link, rt_uint8_t id);
 void ppp_link_deinit(struct ppp_link *link);
 
 /* >1023 自动分包，每包等 ACK；residue 从 N-1 递减到 0 */

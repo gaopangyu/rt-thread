@@ -81,7 +81,7 @@ static void upload_muart_parent_recv(void *parameter)
     static uint8_t buf[PPP_PKT_WIRE_MAX * 2];
     static rt_size_t len = 0;
     rt_object_t rt_obj;
-    rt_size_t n;
+    rt_ssize_t n;
 
     if (parameter == RT_NULL)
         return;
@@ -329,12 +329,6 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
         rt_thread_delete(obj->rx_tid);
         obj->rx_tid = RT_NULL;
     }
-    
-    if(obj->link.ack_sem != RT_NULL)
-    {
-        rt_sem_delete(obj->link.ack_sem);
-        obj->link.ack_sem = RT_NULL;
-    }
 
     ppp_link_deinit(&obj->link);
 
@@ -470,13 +464,10 @@ static upload_obj_t upload_muart_create(upload_obj_t self, char *name, void *con
         goto exit;
     }
 
-    rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_ack");
-    if((obj->link.ack_sem = rt_sem_create(name_buf, 0, RT_IPC_FLAG_FIFO)) == RT_NULL) {
-        LOG_E("create error: ack sem create");
+    if (ppp_link_init(&obj->link, obj->config.number) != RT_EOK) {
+        LOG_E("create error: ppp link init");
         goto exit;
     }
-
-    ppp_link_init(&obj->link, obj->config.number, obj->link.ack_sem);
 
     rt_thread_startup(obj->rx_tid);
     rt_thread_startup(obj->rx_sub_event_tid);
@@ -540,7 +531,7 @@ static int upload_muart_init(void)
 
     custom_obj->type = Custom_Object_Class_Upload;
 
-    obj->link_idle_flag = RT_FALSE;
+    obj->link_idle_flag = RT_TRUE;
 
     upload_obj_init(custom_obj);
 
@@ -566,7 +557,7 @@ static int upload_muart_init(void)
         return -RT_ERROR;
     }
 
-    struct serial_configure serial_cfg;
+    struct serial_configure serial_cfg = RT_SERIAL_CONFIG_DEFAULT;
     serial_cfg.baud_rate = BAUD_RATE_2000000;
     serial_cfg.data_bits = DATA_BITS_8;
     serial_cfg.stop_bits = STOP_BITS_1;
