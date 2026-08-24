@@ -310,6 +310,10 @@ static rt_err_t interface_rs232_delete(interface_obj_t self)
         return -RT_EINVAL;
     }
 
+    if (rt_strncmp(self->parent.parent.name, INTRFACE_RS232_PARENT_NAME, RT_NAME_MAX) == 0) {
+        return -RT_EINVAL;
+    }
+
     interface_rs232_obj_t obj = (interface_rs232_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
@@ -434,6 +438,8 @@ static interface_obj_t  interface_rs232_create(interface_obj_t self, char *name,
     interface_obj_t interface_obj = (interface_obj_t)obj;
 
     rt_memcpy(obj, self, sizeof(struct interface_rs232_obj));
+    rt_strncpy(rt_obj->name, name, RT_NAME_MAX - 1);
+    rt_obj->name[RT_NAME_MAX - 1] = 0;
 
     if(config == RT_NULL)
         config = &(obj->config);

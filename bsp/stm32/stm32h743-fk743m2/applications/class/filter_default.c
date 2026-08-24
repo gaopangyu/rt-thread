@@ -270,6 +270,10 @@ static rt_err_t filter_default_delete(filter_obj_t self)
         return -RT_EINVAL;
     }
 
+    if (rt_strncmp(self->parent.parent.name, FILTER_DEFAULT_PARENT_NAME, RT_NAME_MAX) == 0) {
+        return -RT_EINVAL;
+    }
+
     filter_default_obj_t obj = (filter_default_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
@@ -374,6 +378,8 @@ static filter_obj_t  filter_default_create(filter_obj_t self, char *name, void *
     filter_obj_t filter_obj = (filter_obj_t)obj;
 
     rt_memcpy(obj, self, sizeof(struct filter_default_obj));
+    rt_strncpy(rt_obj->name, name, RT_NAME_MAX - 1);
+    rt_obj->name[RT_NAME_MAX - 1] = 0;
 
     if(config == RT_NULL)
         config = &(obj->config);

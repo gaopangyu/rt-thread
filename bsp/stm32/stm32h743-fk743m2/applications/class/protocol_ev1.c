@@ -368,6 +368,10 @@ static rt_err_t protocol_ev1_delete(protocol_obj_t self)
         return -RT_EINVAL;
     }
 
+    if (rt_strncmp(self->parent.parent.name, PROTOCOL_EV1_PARENT_NAME, RT_NAME_MAX) == 0) {
+        return -RT_EINVAL;
+    }
+
     protocol_ev1_obj_t obj = (protocol_ev1_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
@@ -478,6 +482,8 @@ static protocol_obj_t  protocol_ev1_create(protocol_obj_t self, char *name, void
     protocol_obj_t protocol_obj = (protocol_obj_t)obj;
 
     rt_memcpy(obj, self, sizeof(struct protocol_ev1_obj));
+    rt_strncpy(rt_obj->name, name, RT_NAME_MAX - 1);
+    rt_obj->name[RT_NAME_MAX - 1] = 0;
 
     if(config == RT_NULL)
         config = &(obj->config);

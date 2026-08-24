@@ -344,6 +344,10 @@ static rt_err_t upload_screen_delete(upload_obj_t self)
         return -RT_EINVAL;
     }
 
+    if (rt_strncmp(self->parent.parent.name, UPLOAD_SCREEN_PARENT_NAME, RT_NAME_MAX) == 0) {
+        return -RT_EINVAL;
+    }
+
     upload_screen_obj_t obj = (upload_screen_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
@@ -468,6 +472,8 @@ static upload_obj_t  upload_screen_create(upload_obj_t self, char *name, void *c
     upload_obj_t upload_obj = (upload_obj_t)obj;
 
     rt_memcpy(obj, self, sizeof(struct upload_screen_obj));
+    rt_strncpy(rt_obj->name, name, RT_NAME_MAX - 1);
+    rt_obj->name[RT_NAME_MAX - 1] = 0;
 
     if(config == RT_NULL)
         config = &(obj->config);

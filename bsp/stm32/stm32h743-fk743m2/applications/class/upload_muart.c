@@ -9,7 +9,7 @@ static rt_device_t muart_dev = RT_NULL;
 static rt_list_t muart_link_list;
 static struct rt_semaphore muart_parent_rx_sem;
 static struct ppp_adapter muart_ppp_adapter;
-volatile rt_bool_t muart_parent_idle_flag = RT_FALSE;
+volatile rt_bool_t muart_parent_idle_flag = RT_TRUE;
 
 static rt_err_t upload_muart_parent_rx_ind(rt_device_t dev, rt_size_t size)
 {
@@ -290,6 +290,10 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
         return -RT_EINVAL;
     }
 
+    if (rt_strncmp(self->parent.parent.name, UPLOAD_MUART_PARENT_NAME, RT_NAME_MAX) == 0) {
+        return -RT_EINVAL;
+    }
+
     upload_muart_obj_t obj = (upload_muart_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
@@ -402,6 +406,8 @@ static upload_obj_t upload_muart_create(upload_obj_t self, char *name, void *con
     upload_obj_t upload_obj = (upload_obj_t)obj;
 
     rt_memcpy(obj, self, sizeof(struct upload_muart_obj));
+    rt_strncpy(rt_obj->name, name, RT_NAME_MAX - 1);
+    rt_obj->name[RT_NAME_MAX - 1] = 0;
 
     if(config == RT_NULL)
         config = &(obj->config);

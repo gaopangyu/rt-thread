@@ -371,7 +371,7 @@ static rt_bool_t ppp_link_asm_push(struct ppp_adapter *adp, struct ppp_link *lin
     if (residue == 0)
     {
         ppp_deliver(adp, link, link->asm_buf, link->asm_len);
-        ppp_link_asm_reset(link);
+        ppp_link_asm_free(link);
         return RT_TRUE;
     }
 
