@@ -99,6 +99,11 @@ int main(void)
         .lib_name = "libtx3016a.so"
     };
 
+    struct funnel_default_config default_funnel_cfg =
+    {
+        .func_id = 0,
+    };
+
     struct upload_store_config store_upload_cfg =
     {
         .dir = "ev1",
@@ -119,6 +124,7 @@ int main(void)
     host_std_cfg.bus_com_id = 1;
     host_std_cfg.bus_interface_cfg = &bus_interface_cfg;
     host_std_cfg.bus_protocol_cfg = &bus_protocol_cfg;
+    host_std_cfg.default_funnel_cfg = &default_funnel_cfg;
     host_std_cfg.store_upload_cfg = &store_upload_cfg;
     host_std_cfg.muart_upload_cfg[platform_id] = &muart_upload_cfg;
     

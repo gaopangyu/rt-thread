@@ -183,7 +183,7 @@ static rt_err_t funnel_default_handle_rx_bind_pre(funnel_default_obj_t obj,
     rt_memcpy(new_buffer + 4, buffer, len);
 
     custom_obj->rxb.buffer = new_buffer;
-    custom_obj->rxb.len = len;
+    custom_obj->rxb.len = new_len;
 
     rt_thread_yield();
     LOG_I("%s send rxb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);

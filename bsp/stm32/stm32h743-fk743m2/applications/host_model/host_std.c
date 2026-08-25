@@ -27,8 +27,8 @@ static rt_err_t host_std_delete_muart_rx_bind(host_t self, rt_uint8_t platform_i
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
 
-    bind_delete((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
-    bind_delete((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
+    bind_delete((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
+    bind_delete((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
 
     return RT_EOK;
 }
@@ -41,8 +41,8 @@ static rt_err_t host_std_create_muart_rx_bind(host_t self, rt_uint8_t platform_i
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
 
-    bind_create((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
-    bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
+    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
+    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload[platform_id], RT_TRUE);
 
     return RT_EOK;
 }
@@ -56,6 +56,13 @@ static rt_err_t host_std_delete(host_t self)
     host_std_t host_std = (host_std_t)host;
 
     g_host[host->id] = RT_NULL;
+
+    if (host_std->default_funnel != RT_NULL && host_std->default_funnel->ops != RT_NULL &&
+        host_std->default_funnel->ops->delete != RT_NULL)
+    {
+        host_std->default_funnel->ops->delete(host_std->default_funnel);
+        host_std->default_funnel = RT_NULL;
+    }
 
     if (host_std->store_upload != RT_NULL && host_std->store_upload->ops != RT_NULL &&
         host_std->store_upload->ops->delete != RT_NULL)
@@ -137,6 +144,7 @@ rt_err_t host_std_create(host_std_config_t config)
     interface_obj_t crt_interface_parent = (interface_obj_t)rt_object_find(g_com[config->crt_com_id], RT_Object_Class_Custom);
     interface_obj_t bus_interface_parent = (interface_obj_t)rt_object_find(g_com[config->bus_com_id], RT_Object_Class_Custom);
     protocol_obj_t protocol_parent = (protocol_obj_t)rt_object_find(PROTOCOL_EV1_PARENT_NAME, RT_Object_Class_Custom);
+    funnel_obj_t funnel_parent = (funnel_obj_t)rt_object_find(FUNNEL_DEFAULT_PARENT_NAME, RT_Object_Class_Custom);
     upload_obj_t store_parent = (upload_obj_t)rt_object_find(UPLOAD_STORE_PARENT_NAME, RT_Object_Class_Custom);
     upload_obj_t muart_parent = (upload_obj_t)rt_object_find(UPLOAD_MUART_PARENT_NAME, RT_Object_Class_Custom);
 
@@ -178,6 +186,15 @@ rt_err_t host_std_create(host_std_config_t config)
         }
     }
 
+    if (config->default_funnel_cfg != RT_NULL && funnel_parent != RT_NULL
+     && funnel_parent->ops != RT_NULL && funnel_parent->ops->create != RT_NULL)
+    {
+        if (generate_name_from_parent(name, sizeof(name), FUNNEL_DEFAULT_PARENT_NAME, config->host_id, 'x' - 0x30) == RT_EOK)
+        {
+            host_std->default_funnel = funnel_parent->ops->create(funnel_parent, name, config->default_funnel_cfg);
+        }
+    }
+
     if (config->store_upload_cfg != RT_NULL && store_parent != RT_NULL
      && store_parent->ops != RT_NULL && store_parent->ops->create != RT_NULL)
     {
@@ -200,24 +217,27 @@ rt_err_t host_std_create(host_std_config_t config)
     }
 
     bind_create((custom_obj_t)host_std->crt_interface, (custom_obj_t)host_std->crt_protocol, RT_TRUE);
-    bind_create((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->store_upload, RT_TRUE);
+    bind_create((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->default_funnel, RT_TRUE);
+    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->store_upload, RT_TRUE);
     for (int i = 0; i < PLATFORM_MAX; i++)
     {
-        bind_create((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->muart_upload[i] , RT_TRUE);
+        bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload[i] , RT_TRUE);
     }
 
     bind_create((custom_obj_t)host_std->bus_interface, (custom_obj_t)host_std->bus_protocol, RT_TRUE);
-    bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->store_upload, RT_TRUE);
+    bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->default_funnel, RT_TRUE);
+    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->store_upload, RT_TRUE);
     for (int i = 0; i < PLATFORM_MAX; i++)
     {
-        bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[i] , RT_TRUE);
+        bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload[i] , RT_TRUE);
     }
 
     bind_create((custom_obj_t)host_std->bus_interface, (custom_obj_t)host_std->bus_protocol, RT_FALSE);
-    bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->store_upload, RT_FALSE);
+    bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->default_funnel, RT_FALSE);
+    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->store_upload, RT_FALSE);
     for (int i = 0; i < PLATFORM_MAX; i++)
     {
-        bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->muart_upload[i] , RT_FALSE);
+        bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload[i] , RT_FALSE);
     }
     
     host->ops = (struct host_ops *)&host_std_ops;
