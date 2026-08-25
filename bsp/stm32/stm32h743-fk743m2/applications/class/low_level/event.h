@@ -45,7 +45,7 @@ struct event_history
     rt_uint8_t event_type; // 低4位 FILE_TYPE_*，0x0F 表示所有类型
     rt_uint16_t count;
     rt_uint32_t date; // 十进制整数，如 20260825 只读该日；0xFFFFFFFF 只读最近一天；0 不分日期
-    rt_uint32_t reset_index; // 该类型从 number=index 起读（含）
+    rt_uint32_t reset_index; // 该类型从 number=index 起读（含）；0xFFFFFFFF 读最后一条
     rt_uint32_t fire_index;
     rt_uint32_t monitor_index;
     rt_uint32_t fault_index;

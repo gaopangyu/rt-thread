@@ -422,6 +422,7 @@ MSH_CMD_EXPORT_ALIAS(cmd_store_run_now, store_run_now, migrate ramfs events to d
 #define STORE_EVENT_SIZE            sizeof(struct event_num_pack)
 #define STORE_DATE_ALL              0x00000000u
 #define STORE_DATE_LATEST           0xFFFFFFFFu
+#define STORE_INDEX_LAST            0xFFFFFFFFu
 #define STORE_TYPE_ALL              0x0Fu
 #define STORE_DATE_CEIL             100000000u
 
@@ -504,6 +505,12 @@ static void store_copy_day(upload_store_obj_t obj, rt_uint32_t date, const char 
 
     roots[0] = obj->diskfs_path;
     roots[1] = obj->ramfs_path;
+    if (cursor == STORE_INDEX_LAST)
+    {
+        /* 最后一条在 ramfs（新）里，没有再落到 diskfs */
+        roots[0] = obj->ramfs_path;
+        roots[1] = obj->diskfs_path;
+    }
 
     for (r = 0; r < 2 && *remain > 0; r++)
     {
@@ -521,17 +528,18 @@ static void store_copy_day(upload_store_obj_t obj, rt_uint32_t date, const char 
         if (fd < 0)
             continue;
 
-        if (read(fd, ev, STORE_EVENT_SIZE) != (ssize_t)STORE_EVENT_SIZE)
+        if (cursor == STORE_INDEX_LAST)
         {
-            close(fd);
-            continue;
-        }
-        rt_memcpy(&number, ev, sizeof(number));
+            off_t end = lseek(fd, 0, SEEK_END);
+            off_t nrec;
 
-        /* number 连续递增：按 (cursor - 首条 number) 直接定位，不必逐条扫 */
-        if (cursor > number)
-        {
-            if (lseek(fd, (off_t)(cursor - number) * (off_t)STORE_EVENT_SIZE, SEEK_SET) < 0)
+            if (end < (off_t)STORE_EVENT_SIZE)
+            {
+                close(fd);
+                continue;
+            }
+            nrec = end / (off_t)STORE_EVENT_SIZE;
+            if (lseek(fd, (nrec - 1) * (off_t)STORE_EVENT_SIZE, SEEK_SET) < 0)
             {
                 close(fd);
                 continue;
@@ -539,15 +547,34 @@ static void store_copy_day(upload_store_obj_t obj, rt_uint32_t date, const char 
         }
         else
         {
-            if (*offset + STORE_EVENT_SIZE > size)
+            if (read(fd, ev, STORE_EVENT_SIZE) != (ssize_t)STORE_EVENT_SIZE)
             {
-                *remain = 0;
                 close(fd);
-                break;
+                continue;
             }
-            rt_memcpy(buffer + *offset, ev, STORE_EVENT_SIZE);
-            *offset += STORE_EVENT_SIZE;
-            (*remain)--;
+            rt_memcpy(&number, ev, sizeof(number));
+
+            /* number 连续递增：按 (cursor - 首条 number) 直接定位，不必逐条扫 */
+            if (cursor > number)
+            {
+                if (lseek(fd, (off_t)(cursor - number) * (off_t)STORE_EVENT_SIZE, SEEK_SET) < 0)
+                {
+                    close(fd);
+                    continue;
+                }
+            }
+            else
+            {
+                if (*offset + STORE_EVENT_SIZE > size)
+                {
+                    *remain = 0;
+                    close(fd);
+                    break;
+                }
+                rt_memcpy(buffer + *offset, ev, STORE_EVENT_SIZE);
+                *offset += STORE_EVENT_SIZE;
+                (*remain)--;
+            }
         }
 
         while (*remain > 0 && read(fd, ev, STORE_EVENT_SIZE) == (ssize_t)STORE_EVENT_SIZE)
@@ -568,7 +595,7 @@ static void store_copy_day(upload_store_obj_t obj, rt_uint32_t date, const char 
 /*
  * event_type 低4位：FILE_TYPE_*，0x0F 按 RESET→CTRL 读全部。
  * date：十进制整数，如 20260825 只读该日；0xFFFFFFFF 最近一天；0 不分日期。
- * *_index：该类型从 number=index 起（含）从小到大读。
+ * *_index：该类型从 number=index 起（含）从小到大读；0xFFFFFFFF 读最后一条。
  * 凑不满 count 时末尾补一条全 0xFF。
  */
 rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
