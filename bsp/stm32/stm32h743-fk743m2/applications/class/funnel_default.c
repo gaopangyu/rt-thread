@@ -99,26 +99,16 @@ static rt_uint32_t get_event_last_num(funnel_default_obj_t obj, enum event_file_
 {
     switch (type & 0x0F)
     {
-    case FILE_TYPE_RESET:
-        return obj->event_last_num.reset;
-    case FILE_TYPE_FIRE:
-        return obj->event_last_num.fire;
-    case FILE_TYPE_MONITOR:
-        return obj->event_last_num.monitor;
-    case FILE_TYPE_FAULT:
-        return obj->event_last_num.fault;
-    case FILE_TYPE_ACTION:
-        return obj->event_last_num.action;
-    case FILE_TYPE_LINKAGE:
-        return obj->event_last_num.linkage;
-    case FILE_TYPE_MASK:
-        return obj->event_last_num.mask;
-    case FILE_TYPE_OTHER:
-        return obj->event_last_num.other;
-    case FILE_TYPE_CTRL:
-        return obj->event_last_num.ctrl;
-    default:
-        return 0;
+    case FILE_TYPE_RESET:       return obj->event_last_num.reset;
+    case FILE_TYPE_FIRE:        return obj->event_last_num.fire;
+    case FILE_TYPE_MONITOR:     return obj->event_last_num.monitor;
+    case FILE_TYPE_FAULT:       return obj->event_last_num.fault;
+    case FILE_TYPE_ACTION:      return obj->event_last_num.action;
+    case FILE_TYPE_LINKAGE:     return obj->event_last_num.linkage;
+    case FILE_TYPE_MASK:        return obj->event_last_num.mask;
+    case FILE_TYPE_OTHER:       return obj->event_last_num.other;
+    case FILE_TYPE_CTRL:        return obj->event_last_num.ctrl;
+    default:                    return obj->event_last_num.other;
     }
 }
 
@@ -126,35 +116,16 @@ static void set_event_last_num(funnel_default_obj_t obj, enum event_file_type ty
 {
     switch (type & 0x0F)
     {
-    case FILE_TYPE_RESET:
-        obj->event_last_num.reset = number;
-        break;
-    case FILE_TYPE_FIRE:
-        obj->event_last_num.fire = number;
-        break;
-    case FILE_TYPE_MONITOR:
-        obj->event_last_num.monitor = number;
-        break;
-    case FILE_TYPE_FAULT:
-        obj->event_last_num.fault = number;
-        break;
-    case FILE_TYPE_ACTION:
-        obj->event_last_num.action = number;
-        break;
-    case FILE_TYPE_LINKAGE:
-        obj->event_last_num.linkage = number;
-        break;
-    case FILE_TYPE_MASK:
-        obj->event_last_num.mask = number;
-        break;
-    case FILE_TYPE_OTHER:
-        obj->event_last_num.other = number;
-        break;
-    case FILE_TYPE_CTRL:
-        obj->event_last_num.ctrl = number;
-        break;
-    default:
-        return;
+    case FILE_TYPE_RESET:       obj->event_last_num.reset = number;     break;
+    case FILE_TYPE_FIRE:        obj->event_last_num.fire = number;      break;
+    case FILE_TYPE_MONITOR:     obj->event_last_num.monitor = number;   break;
+    case FILE_TYPE_FAULT:       obj->event_last_num.fault = number;     break;
+    case FILE_TYPE_ACTION:      obj->event_last_num.action = number;    break;
+    case FILE_TYPE_LINKAGE:     obj->event_last_num.linkage = number;   break;
+    case FILE_TYPE_MASK:        obj->event_last_num.mask = number;      break;
+    case FILE_TYPE_OTHER:       obj->event_last_num.other = number;     break;
+    case FILE_TYPE_CTRL:        obj->event_last_num.ctrl = number;      break;
+    default:                    obj->event_last_num.other = number;     return;
     }
 }
 
