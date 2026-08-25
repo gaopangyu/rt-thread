@@ -90,19 +90,99 @@ static double_ret filter_default_set_param(filter_obj_t self, void *config){
     obj->config.func_id = cfg->func_id;
     result.succ++;
 
+    obj->event_last_num = cfg->event_last_num;
+
     return result;
 }
 
-static rt_err_t filter_default_handle_rx_bind_next( rt_object_t rt_obj,
-                                                 custom_obj_t custom_obj,
-                                                 rt_uint8_t *buffer,
-                                                 rt_size_t len)
+static rt_uint32_t get_event_last_num(filter_default_obj_t obj, enum event_file_type type)
+{
+    switch (type & 0x0F)
+    {
+    case FILE_TYPE_RESET:
+        return obj->event_last_num.reset;
+    case FILE_TYPE_FIRE:
+        return obj->event_last_num.fire;
+    case FILE_TYPE_MONITOR:
+        return obj->event_last_num.monitor;
+    case FILE_TYPE_FAULT:
+        return obj->event_last_num.fault;
+    case FILE_TYPE_ACTION:
+        return obj->event_last_num.action;
+    case FILE_TYPE_LINKAGE:
+        return obj->event_last_num.linkage;
+    case FILE_TYPE_MASK:
+        return obj->event_last_num.mask;
+    case FILE_TYPE_OTHER:
+        return obj->event_last_num.other;
+    case FILE_TYPE_CTRL:
+        return obj->event_last_num.ctrl;
+    default:
+        return 0;
+    }
+}
+
+static void set_event_last_num(filter_default_obj_t obj, enum event_file_type type, rt_uint32_t number)
+{
+    switch (type & 0x0F)
+    {
+    case FILE_TYPE_RESET:
+        obj->event_last_num.reset = number;
+        break;
+    case FILE_TYPE_FIRE:
+        obj->event_last_num.fire = number;
+        break;
+    case FILE_TYPE_MONITOR:
+        obj->event_last_num.monitor = number;
+        break;
+    case FILE_TYPE_FAULT:
+        obj->event_last_num.fault = number;
+        break;
+    case FILE_TYPE_ACTION:
+        obj->event_last_num.action = number;
+        break;
+    case FILE_TYPE_LINKAGE:
+        obj->event_last_num.linkage = number;
+        break;
+    case FILE_TYPE_MASK:
+        obj->event_last_num.mask = number;
+        break;
+    case FILE_TYPE_OTHER:
+        obj->event_last_num.other = number;
+        break;
+    case FILE_TYPE_CTRL:
+        obj->event_last_num.ctrl = number;
+        break;
+    default:
+        return;
+    }
+}
+
+static rt_err_t filter_default_handle_rx_bind_pre(filter_default_obj_t obj,
+                                                  rt_object_t rt_obj,
+                                                  custom_obj_t custom_obj,
+                                                  rt_uint8_t *buffer,
+                                                  rt_size_t len)
 {
     if (custom_obj->rxb.pub_event == RT_NULL || custom_obj->event_flag == 0 
-    || custom_obj->rxb.pub_succ_event == RT_NULL || custom_obj->rxb.next_event_mask == 0 )
+    || custom_obj->rxb.pub_succ_event == RT_NULL || custom_obj->rxb.next_event_mask == 0 
+    || buffer == RT_NULL || len == 0)
         return -RT_EINVAL;
 
-    custom_obj->rxb.buffer = buffer;
+    rt_size_t new_len  = len + 4;
+    rt_uint8_t * new_buffer = rt_malloc(new_len);
+    if (new_buffer == RT_NULL)
+    {
+        LOG_E("%s malloc %d bytes error", rt_obj->name, new_len);
+        return -RT_ENOMEM;
+    }
+
+    enum event_file_type file_type = (enum event_file_type)(((event_pack_t)buffer)->event_type);
+    rt_uint32_t last_num = get_event_last_num(obj, file_type);
+    rt_memcpy(new_buffer, &last_num, 4);
+    rt_memcpy(new_buffer + 4, buffer, len);
+
+    custom_obj->rxb.buffer = new_buffer;
     custom_obj->rxb.len = len;
 
     rt_thread_yield();
@@ -118,6 +198,8 @@ static rt_err_t filter_default_handle_rx_bind_next( rt_object_t rt_obj,
     {
         LOG_E("%s send rx_pub_event error: %d/%d\r\n", rt_obj->name, custom_obj->rxb.pub_event, custom_obj->rxb.next_event_mask);
     }
+
+    set_event_last_num(obj, file_type, last_num + 1);
 
     custom_obj->rxb.buffer = RT_NULL;
     custom_obj->rxb.len = 0;
@@ -174,7 +256,7 @@ static void filter_default_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            filter_default_handle_rx_bind_next(rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            filter_default_handle_rx_bind_pre(obj, rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )

@@ -14,6 +14,18 @@ struct event_pack
 }__attribute__((packed));
 typedef struct event_pack *event_pack_t;
 
+struct event_num_pack
+{
+    uint32_t number;
+    uint8_t event_ver;
+    uint8_t timestamp[6];
+    uint8_t sys_type;
+    uint8_t sys_addr;
+    uint8_t event_type;
+    uint8_t event_description[18];
+}__attribute__((packed));
+typedef struct event_num_pack *event_num_pack_t;
+
 enum event_file_type
 {
     FILE_TYPE_RESET = 0x01, //复位
@@ -30,10 +42,10 @@ enum event_file_type
 struct event_history
 {
     rt_uint8_t host_id;
-    rt_uint8_t event_type; //0xxF表示获取所有类型文件
+    rt_uint8_t event_type; // 低4位 FILE_TYPE_*，0x0F 表示所有类型
     rt_uint16_t count;
-    rt_uint32_t date; //0xFFFFFFFF表示从最近一天开始获取 0x00000000表示获取所有时间
-    rt_uint32_t reset_index; //表示已经获取到的reset索引号
+    rt_uint32_t date; // 十进制整数，如 20260825 只读该日；0xFFFFFFFF 只读最近一天；0 不分日期
+    rt_uint32_t reset_index; // 该类型从 number=index 起读（含）
     rt_uint32_t fire_index;
     rt_uint32_t monitor_index;
     rt_uint32_t fault_index;
@@ -45,6 +57,6 @@ struct event_history
 }__attribute__((packed));
 typedef struct event_history *event_history_t;
 
-extern const char* const event_file_name[];
+char * get_file_name(enum event_file_type type);
 
 #endif /* __EVENT_H__ */

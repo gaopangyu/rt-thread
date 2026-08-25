@@ -173,23 +173,21 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
 
             /* 布局: [0]=0x03 [1]=host_id [2]=event_type
              *       [3..6]=start_time(u32 LE) [7..10]=end_time(u32 LE) [11]=count */
-            if (len < 12)
+            if (len < sizeof(struct event_history) + 1)
             {
-                LOG_E("protocol cmd parse: 0x03 frame len: %d < 12\r\n", (int)len);
+                LOG_E("protocol cmd parse: 0x03 frame len: %d < sizeof(struct event_history)\r\n", (int)len);
                 break;
             }
 
-            struct event_history event_history = {0};
-            event_history.host_id = buffer[1];
-            event_history.fire_index = buffer[2];
-            event_history.count = buffer[3];
+            struct event_history event_history;
+            rt_memcpy(&event_history, buffer + 1, sizeof(struct event_history));
 
-            if (event_history.host_id >= HOST_MAX || event_history.fire_index < 1 || event_history.count == 0
+            if (event_history.host_id >= HOST_MAX || event_history.count == 0
                 || g_host[event_history.host_id] == RT_NULL || g_host[event_history.host_id]->ops == RT_NULL
                 || g_host[event_history.host_id]->ops->get_history == RT_NULL)
             {
-                LOG_E("protocol cmd parse: 0x03 invalid args host=%d fire_index=%lld count=%d \r\n",
-                        event_history.host_id, (long long)event_history.fire_index, event_history.count);
+                LOG_E("protocol cmd parse: 0x03 invalid args host=%d count=%d \r\n", 
+                                               event_history.host_id, event_history.count);
                 break;
             }
 

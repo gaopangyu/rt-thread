@@ -15,10 +15,9 @@
 void store_run(void);
 void store_run_now(void);
 
-/* 按事件编号或日期偏移读取 {YYYYMMDD}.event，每条事件 32 字节，返回写入字节数。 */
+/* 按 event_history 读历史：{base}/{YYYYMMDD}/{type}.event，每条 event_num_pack，返回写入字节数。 */
 rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history);
 
 int ensure_dir(const char *path);
-void get_last_date_file(char *dir, char *date, rt_size_t len);
 
 #endif /* __STORE_H__ */
