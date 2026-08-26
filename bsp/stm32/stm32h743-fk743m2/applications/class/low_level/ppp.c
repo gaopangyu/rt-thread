@@ -516,7 +516,8 @@ static rt_bool_t ppp_adapter_send_one(struct ppp_adapter *adp, struct ppp_link *
         {
             if (ack == PPP_PKT_ACK_SKIP)
                 LOG_W("ppp id=%d ack skip", link->id);
-            break;
+            link->seq = (rt_uint8_t)((link->seq + 1) & PPP_PKT_SEQ_MASK);
+            return RT_TRUE;
         }
 
         LOG_W("ppp id=%d ack %s, retry %d",
