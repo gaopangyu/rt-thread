@@ -569,11 +569,11 @@ static int upload_muart_init(void)
     serial_cfg.stop_bits = STOP_BITS_1;
     serial_cfg.parity = PARITY_NONE;
     serial_cfg.bit_order = BIT_ORDER_LSB;
-    serial_cfg.rx_bufsz = PPP_PKT_WIRE_MAX * 2;
+    serial_cfg.rx_bufsz = RT_ALIGN(PPP_PKT_WIRE_MAX, RT_ALIGN_SIZE) * 2;
     #ifdef RT_SERIAL_USING_DMA
         serial_cfg.dma_ping_bufsz = serial_cfg.rx_bufsz / 2;
     #endif
-    serial_cfg.tx_bufsz = PPP_PKT_WIRE_MAX;
+    serial_cfg.tx_bufsz = RT_ALIGN(PPP_PKT_WIRE_MAX, RT_ALIGN_SIZE);
 
     rt_err_t err = rt_device_control(muart_dev, RT_DEVICE_CTRL_CONFIG, &serial_cfg);
     if (err != RT_EOK) {
@@ -601,7 +601,7 @@ static int upload_muart_init(void)
     rt_thread_t tid = rt_thread_create("upload_muart_parent_recv",
                                      upload_muart_parent_recv,
                                      obj,
-                                     1024,
+                                     2048,
                                      CUSTOM_THREAD_PRIORITY,
                                      20);
     if (tid == RT_NULL)

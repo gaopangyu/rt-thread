@@ -135,16 +135,19 @@ static double_ret interface_rs232_set_param(interface_obj_t self, void *config)
 
     if (obj->uart->ref_count == 0)
     {
-        serial_cfg.rx_bufsz = cfg->rx_bufsz;
+        serial_cfg.rx_bufsz = RT_ALIGN(cfg->rx_bufsz, RT_ALIGN_SIZE);
     #ifdef RT_SERIAL_USING_DMA
-        serial_cfg.dma_ping_bufsz = cfg->dma_ping_bufsz;
+        serial_cfg.dma_ping_bufsz = RT_ALIGN(cfg->dma_ping_bufsz, RT_ALIGN_SIZE);
     #endif
-        serial_cfg.tx_bufsz = cfg->tx_bufsz;
+        serial_cfg.tx_bufsz = RT_ALIGN(cfg->tx_bufsz, RT_ALIGN_SIZE);
 
-        obj_cfg->rx_bufsz = cfg->rx_bufsz;
+        obj_cfg->rx_bufsz = RT_ALIGN(cfg->rx_bufsz, RT_ALIGN_SIZE);
         result.succ++;
 
-        obj_cfg->tx_bufsz = cfg->tx_bufsz;
+        obj_cfg->dma_ping_bufsz = RT_ALIGN(cfg->dma_ping_bufsz, RT_ALIGN_SIZE);
+        result.succ++;
+
+        obj_cfg->tx_bufsz = RT_ALIGN(cfg->tx_bufsz, RT_ALIGN_SIZE);
         result.succ++;
     }
 
