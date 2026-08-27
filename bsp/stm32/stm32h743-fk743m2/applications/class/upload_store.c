@@ -120,6 +120,8 @@ static void upload_store_handle_rx_bind_pre(upload_store_obj_t obj, rt_object_t 
     close(fd);
 
     rt_mutex_release(obj->ramfs_fd_mutex);
+
+    store_check_ramfs();
 }
 
 static void upload_store_recv(void *parameter)

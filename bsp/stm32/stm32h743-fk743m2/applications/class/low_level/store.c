@@ -399,6 +399,42 @@ void store_run_now(void)
     rt_sem_release(&store_run_now_sem);
 }
 
+void store_check_ramfs(void)
+{
+    struct statfs st;
+    static rt_uint8_t ramfs_water; /* 0:<25%  1:25%~75%  2:>75% */
+    rt_uint32_t used_pct = 0;
+
+    if (dfs_statfs(RAMFS_ROOT, &st) != 0 || st.f_blocks == 0)
+        return;
+
+    if (st.f_bfree < st.f_blocks)
+        used_pct = (rt_uint32_t)(((rt_uint64_t)(st.f_blocks - st.f_bfree) * 100U) / st.f_blocks);
+
+    if (used_pct > 75U)
+    {
+        if (ramfs_water < 2U)
+        {
+            ramfs_water = 2U;
+            LOG_W("ramfs used %u%%, store_run_now", used_pct);
+            store_run_now();
+        }
+    }
+    else if (used_pct > 25U)
+    {
+        if (ramfs_water < 1U)
+        {
+            ramfs_water = 1U;
+            LOG_I("ramfs used %u%%, store_run", used_pct);
+            store_run();
+        }
+    }
+    else
+    {
+        ramfs_water = 0U;
+    }
+}
+
 static int cmd_store_run(int argc, char **argv)
 {
     RT_UNUSED(argc);
