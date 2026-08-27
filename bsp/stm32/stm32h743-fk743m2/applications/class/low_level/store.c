@@ -11,10 +11,361 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define STORE_COPY_CHUNK            512
+#define STORE_OBJ_MAX   CUSTOM_PER_LAYER_OBJ_MAX
+struct store_collect_ctx
+{
+    upload_obj_t parent;
+    upload_store_obj_t objs[STORE_OBJ_MAX];
+    int count;
+};
 
 static struct rt_semaphore store_run_sem;
 static struct rt_semaphore store_run_now_sem;
+
+/////////////////////////////////////////////prune diskfs/////////////////////////////////////////////
+/*
+ * 注意：当多个版本的事件时需要更大的disk，
+ * 因为相同主机可能在/diskfs/ev1/ /diskfs/ev2/ /diskfs/ev3/... 下存储STORE_HOST_KEEP_BYTES字节的文件
+*/
+#define STORE_DISKFS_WATER_PCT      80U
+#define STORE_HOST_KEEP_BYTES       (2U * 1024U * 1024U)
+#define STORE_PRUNE_MAX_ROUNDS      64
+
+static int store_name_is_dot(const char *name)
+{
+    return name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'));
+}
+
+/* ev 后跟纯数字，如 ev1 / ev12 */
+static int store_is_ev_dir(const char *name)
+{
+    const char *p;
+
+    if (name == RT_NULL || name[0] != 'e' || name[1] != 'v' || name[2] == '\0')
+        return 0;
+    p = name + 2;
+    if (*p < '0' || *p > '9')
+        return 0;
+    for (; *p != '\0'; p++)
+    {
+        if (*p < '0' || *p > '9')
+            return 0;
+    }
+    return 1;
+}
+
+static int store_ev_num(const char *name)
+{
+    int n = 0;
+    const char *p = name + 2;
+
+    while (*p >= '0' && *p <= '9')
+    {
+        n = n * 10 + (*p - '0');
+        p++;
+    }
+    return n;
+}
+
+static int store_is_date_dir(const char *name)
+{
+    rt_size_t i;
+
+    if (rt_strlen(name) != 8)
+        return 0;
+    for (i = 0; i < 8; i++)
+    {
+        if (name[i] < '0' || name[i] > '9')
+            return 0;
+    }
+    return 1;
+}
+
+static rt_int32_t store_diskfs_used_pct(void)
+{
+    struct statfs st;
+
+    if (dfs_statfs(DISKFS_ROOT, &st) != 0 || st.f_blocks == 0)
+        return -1;
+    if (st.f_bfree >= st.f_blocks)
+        return 0;
+    return (rt_int32_t)(((rt_uint64_t)(st.f_blocks - st.f_bfree) * 100U) / st.f_blocks);
+}
+
+/* 目录树下普通文件总大小；边 readdir 边 stat，不缓存文件名 */
+static rt_uint32_t store_dir_size(const char *path)
+{
+    DIR *dir;
+    struct dirent *dent;
+    rt_uint32_t total = 0;
+
+    dir = opendir(path);
+    if (dir == RT_NULL)
+        return 0;
+
+    while ((dent = readdir(dir)) != RT_NULL)
+    {
+        char child[RT_NAME_MAX];
+        struct stat st;
+
+        if (store_name_is_dot(dent->d_name))
+            continue;
+        if (rt_snprintf(child, sizeof(child), "%s/%s", path, dent->d_name) >= (int)sizeof(child))
+            continue;
+        if (stat(child, &st) != 0)
+            continue;
+        if (S_ISDIR(st.st_mode))
+            total += store_dir_size(child);
+        else
+            total += (rt_uint32_t)st.st_size;
+    }
+    closedir(dir);
+    return total;
+}
+
+/* 每次只处理一个子项再重新 opendir，避免边 readdir 边 unlink 跳过 */
+static int store_rm_tree(const char *path)
+{
+    for (;;)
+    {
+        DIR *dir;
+        struct dirent *dent;
+        char name[RT_NAME_MAX];
+        char child[RT_NAME_MAX];
+        struct stat st;
+        int found = 0;
+
+        dir = opendir(path);
+        if (dir == RT_NULL)
+            return -1;
+
+        while ((dent = readdir(dir)) != RT_NULL)
+        {
+            if (store_name_is_dot(dent->d_name))
+                continue;
+            rt_strncpy(name, dent->d_name, sizeof(name) - 1);
+            name[sizeof(name) - 1] = '\0';
+            found = 1;
+            break;
+        }
+        closedir(dir);
+
+        if (!found)
+            break;
+
+        if (rt_snprintf(child, sizeof(child), "%s/%s", path, name) >= (int)sizeof(child))
+            return -1;
+
+        if (stat(child, &st) == 0 && S_ISDIR(st.st_mode))
+        {
+            if (store_rm_tree(child) != 0)
+                return -1;
+        }
+        else if (unlink(child) != 0)
+        {
+            LOG_E("unlink %s failed", child);
+            return -1;
+        }
+    }
+
+    if (rmdir(path) != 0)
+    {
+        LOG_E("rmdir %s failed", path);
+        return -1;
+    }
+    return 0;
+}
+
+static int store_find_oldest_date(const char *host_path, char *date_name, rt_size_t name_sz)
+{
+    DIR *dir;
+    struct dirent *dent;
+    char oldest[9];
+    int found = 0;
+
+    dir = opendir(host_path);
+    if (dir == RT_NULL)
+        return -1;
+
+    oldest[0] = '\0';
+    while ((dent = readdir(dir)) != RT_NULL)
+    {
+        char child[RT_NAME_MAX];
+        struct stat st;
+
+        if (store_name_is_dot(dent->d_name) || !store_is_date_dir(dent->d_name))
+            continue;
+        if (rt_snprintf(child, sizeof(child), "%s/%s", host_path, dent->d_name) >= (int)sizeof(child))
+            continue;
+        if (stat(child, &st) != 0 || !S_ISDIR(st.st_mode))
+            continue;
+        if (!found || rt_strcmp(dent->d_name, oldest) < 0)
+        {
+            rt_memcpy(oldest, dent->d_name, 8);
+            oldest[8] = '\0';
+            found = 1;
+        }
+    }
+    closedir(dir);
+
+    if (!found || name_sz < 9)
+        return -1;
+    rt_memcpy(date_name, oldest, 9);
+    return 0;
+}
+
+/* 先 ev 编号小的（ev1），同 ev 下取容量最大的主机目录，且必须 >= 2MB */
+static int store_pick_largest_host(char *out_path, rt_size_t out_sz)
+{
+    DIR *ev_root;
+    struct dirent *ev_dent;
+    char best_path[RT_NAME_MAX];
+    rt_uint32_t best_size = 0;
+    int best_ev = 0;
+    int found = 0;
+
+    ev_root = opendir(DISKFS_ROOT);
+    if (ev_root == RT_NULL)
+        return -1;
+
+    best_path[0] = '\0';
+    while ((ev_dent = readdir(ev_root)) != RT_NULL)
+    {
+        DIR *host_dir;
+        struct dirent *host_dent;
+        char ev_path[RT_NAME_MAX];
+        int ev_num;
+
+        if (store_name_is_dot(ev_dent->d_name) || !store_is_ev_dir(ev_dent->d_name))
+            continue;
+
+        ev_num = store_ev_num(ev_dent->d_name);
+        if (rt_snprintf(ev_path, sizeof(ev_path), "%s/%s", DISKFS_ROOT, ev_dent->d_name) >= (int)sizeof(ev_path))
+            continue;
+
+        host_dir = opendir(ev_path);
+        if (host_dir == RT_NULL)
+            continue;
+
+        while ((host_dent = readdir(host_dir)) != RT_NULL)
+        {
+            char host_path[RT_NAME_MAX];
+            struct stat st;
+            rt_uint32_t sz;
+
+            if (store_name_is_dot(host_dent->d_name))
+                continue;
+            if (rt_snprintf(host_path, sizeof(host_path), "%s/%s", ev_path, host_dent->d_name) >= (int)sizeof(host_path))
+                continue;
+            if (stat(host_path, &st) != 0 || !S_ISDIR(st.st_mode))
+                continue;
+
+            sz = store_dir_size(host_path);
+            if (sz < STORE_HOST_KEEP_BYTES)
+                continue;
+
+            if (!found || ev_num < best_ev || (ev_num == best_ev && sz > best_size))
+            {
+                rt_strncpy(best_path, host_path, sizeof(best_path) - 1);
+                best_path[sizeof(best_path) - 1] = '\0';
+                best_size = sz;
+                best_ev = ev_num;
+                found = 1;
+            }
+        }
+        closedir(host_dir);
+    }
+    closedir(ev_root);
+
+    if (!found)
+        return -1;
+    if (rt_snprintf(out_path, out_sz, "%s", best_path) >= (int)out_sz)
+        return -1;
+    return 0;
+}
+
+static rt_mutex_t store_find_host_mutex(struct store_collect_ctx *ctx, const char *host_path)
+{
+    int i;
+
+    if (ctx == RT_NULL || host_path == RT_NULL)
+        return RT_NULL;
+
+    for (i = 0; i < ctx->count; i++)
+    {
+        if (ctx->objs[i] == RT_NULL || ctx->objs[i]->diskfs_fd_mutex == RT_NULL)
+            continue;
+        if (rt_strcmp(ctx->objs[i]->diskfs_path, host_path) == 0)
+            return ctx->objs[i]->diskfs_fd_mutex;
+    }
+    return RT_NULL;
+}
+
+static int store_shrink_host(const char *host_path)
+{
+    while (store_dir_size(host_path) >= STORE_HOST_KEEP_BYTES)
+    {
+        char date[9];
+        char date_path[RT_NAME_MAX];
+
+        if (store_find_oldest_date(host_path, date, sizeof(date)) != 0)
+        {
+            LOG_W("no date dir under %s but size still >= 3MB", host_path);
+            return -1;
+        }
+        if (rt_snprintf(date_path, sizeof(date_path), "%s/%s", host_path, date) >= (int)sizeof(date_path))
+            return -1;
+
+        LOG_W("prune oldest %s", date_path);
+        if (store_rm_tree(date_path) != 0)
+            return -1;
+    }
+    return 0;
+}
+
+static void store_prune_diskfs(struct store_collect_ctx *ctx)
+{
+    int round;
+
+    for (round = 0; round < STORE_PRUNE_MAX_ROUNDS; round++)
+    {
+        rt_int32_t used_pct = store_diskfs_used_pct();
+        char host_path[RT_NAME_MAX];
+        rt_mutex_t mtx;
+        int ret;
+
+        if (used_pct < 0)
+        {
+            LOG_E("statfs %s failed", DISKFS_ROOT);
+            return;
+        }
+        if (used_pct <= (rt_int32_t)STORE_DISKFS_WATER_PCT)
+            return;
+
+        if (store_pick_largest_host(host_path, sizeof(host_path)) != 0)
+        {
+            LOG_W("diskfs used %d%%, all /diskfs/ev*/*/ < 2MB, stop prune", used_pct);
+            return;
+        }
+
+        LOG_W("diskfs used %d%%, shrink %s", used_pct, host_path);
+
+        mtx = store_find_host_mutex(ctx, host_path);
+        if (mtx != RT_NULL && rt_mutex_take(mtx, RT_WAITING_FOREVER) != RT_EOK)
+            mtx = RT_NULL;
+
+        ret = store_shrink_host(host_path);
+
+        if (mtx != RT_NULL)
+            rt_mutex_release(mtx);
+
+        if (ret != 0)
+            return;
+    }
+}
+
+/////////////////////////////////////////////store migrate/////////////////////////////////////////////
+#define STORE_COPY_CHUNK            512
 
 int ensure_dir(const char *path)
 {
@@ -248,16 +599,6 @@ static void store_migrate_one(upload_store_obj_t obj)
     rt_mutex_release(obj->ramfs_fd_mutex);
 }
 
-
-#define STORE_OBJ_MAX   CUSTOM_PER_LAYER_OBJ_MAX
-
-struct store_collect_ctx
-{
-    upload_obj_t parent;
-    upload_store_obj_t objs[STORE_OBJ_MAX];
-    int count;
-};
-
 static rt_err_t store_upload_store_collect(struct rt_object *object, void *data)
 {
     struct store_collect_ctx *ctx = (struct store_collect_ctx *)data;
@@ -315,6 +656,8 @@ static void store_ramfs_to_diskfs(void)
 
     for (i = 0; i < ctx.count; i++)
         store_migrate_one(ctx.objs[i]);
+
+    store_prune_diskfs(&ctx);
 
     //存错误日志log
 }
