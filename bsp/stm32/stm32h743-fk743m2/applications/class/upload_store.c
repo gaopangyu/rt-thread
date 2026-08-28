@@ -326,7 +326,7 @@ static upload_obj_t  upload_store_create(upload_obj_t self, char *name, void *co
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx");
-    obj->rx_tid = rt_thread_create(name_buf, upload_store_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
+    obj->rx_tid = rt_thread_create(name_buf, upload_store_recv, obj, 2048, CUSTOM_THREAD_PRIORITY, 20);
     if (obj->rx_tid == RT_NULL) {
         LOG_E("create error: rx thread create");
         goto exit;

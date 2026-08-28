@@ -11,8 +11,8 @@ enum custom_object_class_type
     Custom_Object_Class_Null          = 0x00,      
     Custom_Object_Class_Interface     = 0x01,      
     Custom_Object_Class_Protocol      = 0x02,
-    Custom_Object_Class_Upload        = 0x03,
-    Custom_Object_Class_Filter        = 0x04,
+    Custom_Object_Class_Filter        = 0x03,
+    Custom_Object_Class_Upload        = 0x04,
 };
 
 typedef struct

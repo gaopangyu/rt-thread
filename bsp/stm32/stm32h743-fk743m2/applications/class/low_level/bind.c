@@ -16,13 +16,13 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
 
         if(rt_mutex_take(pre_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
-            LOG_E("Failed to take rx_bind_mutex");
+            LOG_E("Failed to take cpre rx_bind_mutex");
             return -RT_ERROR;
         }
 
         if(rt_mutex_take(next_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
-            LOG_E("Failed to take rx_bind_mutex");
+            LOG_E("Failed to take cnext rx_bind_mutex");
             rt_mutex_release(pre_obj->rxb.bind_mutex);
             return -RT_ERROR;
         }
@@ -41,16 +41,15 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
             next_obj->rxb.sub_event = pre_obj->rxb.pub_event;
             next_obj->rxb.pre_obj_list = pre_obj->obj_list;
             rt_event_control(next_obj->rxb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
+            LOG_I("Bind rx create: %s ---> %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
         }
         else
-            LOG_E("One of the objects does not apply for event flag: %s %d, %s %d", pre_obj->parent.name, pre_obj->event_flag, next_obj->parent.name, next_obj->event_flag);
+            LOG_W("Bind rx create does not apply for event flag: %s %d ---> %s %d", pre_obj->parent.name, pre_obj->event_flag, next_obj->parent.name, next_obj->event_flag);
 
         rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
 
         rt_mutex_release(next_obj->rxb.bind_mutex);
         rt_mutex_release(pre_obj->rxb.bind_mutex);
-        
-        LOG_I("Bind rx created: %s ---> %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
     }
     else
     {
@@ -59,13 +58,13 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
 
         if(rt_mutex_take(next_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
-            LOG_E("Failed to take tx_bind_mutex");
+            LOG_E("Failed to take cnext tx_bind_mutex");
             return -RT_ERROR;
         }
 
         if(rt_mutex_take(pre_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
         {
-            LOG_E("Failed to take tx_bind_mutex");
+            LOG_E("Failed to take cpre tx_bind_mutex");
             rt_mutex_release(next_obj->txb.bind_mutex);
             return -RT_ERROR;
         }
@@ -84,16 +83,100 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
             pre_obj->txb.sub_event = next_obj->txb.pub_event;
             pre_obj->txb.next_obj_list = next_obj->obj_list;
             rt_event_control(pre_obj->txb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
+            LOG_I("Bind tx create: %s <--- %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
         }
         else
-            LOG_E("One of the objects does not apply for event flag: %s %d, %s %d", pre_obj->parent.name, pre_obj->event_flag, next_obj->parent.name, next_obj->event_flag);
+            LOG_W("Bind tx create does not apply for event flag: %s %d <--- %s %d", pre_obj->parent.name, pre_obj->event_flag, next_obj->parent.name, next_obj->event_flag);
 
         rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
 
         rt_mutex_release(pre_obj->txb.bind_mutex);
         rt_mutex_release(next_obj->txb.bind_mutex);
+    }
+
+    return RT_EOK;
+}
+
+rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_rx)
+{
+    if (pre_obj == RT_NULL || next_obj == RT_NULL || pre_obj == next_obj)
+        return -RT_EINVAL;
+
+    if (is_rx)
+    {
+        if(rt_mutex_take(pre_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        {
+            LOG_E("Failed to take dpre rx_bind_mutex");
+            return -RT_ERROR;
+        }
+
+        if(rt_mutex_take(next_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        {
+            LOG_E("Failed to take dnext rx_bind_mutex");
+            rt_mutex_release(pre_obj->rxb.bind_mutex);
+            return -RT_ERROR;
+        }
+
+        if (pre_obj->event_flag != 0 && next_obj->event_flag != 0)
+        {
+            pre_obj->rxb.next_event_mask &= ~next_obj->event_flag;
+            next_obj->rxb.pre_event_mask &= ~pre_obj->event_flag;
+            if (next_obj->rxb.sub_event != RT_NULL)
+                rt_event_control(next_obj->rxb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
+            if (pre_obj->rxb.pub_succ_event != RT_NULL)
+                rt_event_control(pre_obj->rxb.pub_succ_event, RT_IPC_CMD_RESET, RT_NULL);
+            LOG_I("Bind rx delete: %s ---> %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
+        }
+        else if ((next_obj->event_flag != 0 && (pre_obj->rxb.next_event_mask & next_obj->event_flag) != 0)
+              || (pre_obj->event_flag != 0 && (next_obj->rxb.pre_event_mask & pre_obj->event_flag) != 0))
+        {
+            LOG_E("Bind rx delete not event flag: %s %d ---> %s %d",
+                  pre_obj->parent.name, pre_obj->event_flag,
+                  next_obj->parent.name, next_obj->event_flag);
+        }
+
+        rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
+
+        rt_mutex_release(next_obj->rxb.bind_mutex);
+        rt_mutex_release(pre_obj->rxb.bind_mutex);
+    }
+    else
+    {
+        if(rt_mutex_take(next_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        {
+            LOG_E("Failed to take dnext tx_bind_mutex");
+            return -RT_ERROR;
+        }
+
+        if(rt_mutex_take(pre_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        {
+            LOG_E("Failed to take dpre tx_bind_mutex");
+            rt_mutex_release(next_obj->txb.bind_mutex);
+            return -RT_ERROR;
+        }
+
+        if (pre_obj->event_flag != 0 && next_obj->event_flag != 0)
+        {
+            next_obj->txb.pre_event_mask &= ~pre_obj->event_flag;
+            pre_obj->txb.next_event_mask &= ~next_obj->event_flag;
+            if (pre_obj->txb.sub_event != RT_NULL)
+                rt_event_control(pre_obj->txb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
+            if (next_obj->txb.pub_succ_event != RT_NULL)
+                rt_event_control(next_obj->txb.pub_succ_event, RT_IPC_CMD_RESET, RT_NULL);
+            LOG_I("Bind tx delete: %s <--- %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
+        }
+        else if ((next_obj->event_flag != 0 && (pre_obj->txb.next_event_mask & next_obj->event_flag) != 0)
+              || (pre_obj->event_flag != 0 && (next_obj->txb.pre_event_mask & pre_obj->event_flag) != 0))
+        {
+            LOG_E("Bind tx delete not event flag: %s %d <--- %s %d",
+                  pre_obj->parent.name, pre_obj->event_flag,
+                  next_obj->parent.name, next_obj->event_flag);
+        }
         
-        LOG_I("Bind tx created: %s <--- %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
+        rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
+
+        rt_mutex_release(pre_obj->txb.bind_mutex);
+        rt_mutex_release(next_obj->txb.bind_mutex);
     }
 
     return RT_EOK;
@@ -117,93 +200,6 @@ static void bind_try_release_obj(custom_obj_t obj)
 
     if (obj->event_flag != 0)
         unapply_for_event_flag(obj);
-}
-
-rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_rx)
-{
-    if (pre_obj == RT_NULL || next_obj == RT_NULL || pre_obj == next_obj)
-        return -RT_EINVAL;
-
-    if (is_rx)
-    {
-        if(rt_mutex_take(pre_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        {
-            LOG_E("Failed to take rx_bind_mutex");
-            return -RT_ERROR;
-        }
-
-        if(rt_mutex_take(next_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        {
-            LOG_E("Failed to take rx_bind_mutex");
-            rt_mutex_release(pre_obj->rxb.bind_mutex);
-            return -RT_ERROR;
-        }
-
-        if (pre_obj->event_flag != 0 && next_obj->event_flag != 0)
-        {
-            pre_obj->rxb.next_event_mask &= ~next_obj->event_flag;
-            next_obj->rxb.pre_event_mask &= ~pre_obj->event_flag;
-            if (next_obj->rxb.sub_event != RT_NULL)
-                rt_event_control(next_obj->rxb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
-            if (pre_obj->rxb.pub_succ_event != RT_NULL)
-                rt_event_control(pre_obj->rxb.pub_succ_event, RT_IPC_CMD_RESET, RT_NULL);
-        }
-        else if ((next_obj->event_flag != 0 && (pre_obj->rxb.next_event_mask & next_obj->event_flag) != 0)
-              || (pre_obj->event_flag != 0 && (next_obj->rxb.pre_event_mask & pre_obj->event_flag) != 0))
-        {
-            LOG_E("One of the objects does not apply for event flag: %s %d, %s %d",
-                  pre_obj->parent.name, pre_obj->event_flag,
-                  next_obj->parent.name, next_obj->event_flag);
-        }
-
-        rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
-
-        rt_mutex_release(next_obj->rxb.bind_mutex);
-        rt_mutex_release(pre_obj->rxb.bind_mutex);
-
-        LOG_I("Bind rx deleted: %s ---> %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
-    }
-    else
-    {
-        if(rt_mutex_take(next_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        {
-            LOG_E("Failed to take tx_bind_mutex");
-            return -RT_ERROR;
-        }
-
-        if(rt_mutex_take(pre_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        {
-            LOG_E("Failed to take tx_bind_mutex");
-            rt_mutex_release(next_obj->txb.bind_mutex);
-            return -RT_ERROR;
-        }
-
-        if (pre_obj->event_flag != 0 && next_obj->event_flag != 0)
-        {
-            next_obj->txb.pre_event_mask &= ~pre_obj->event_flag;
-            pre_obj->txb.next_event_mask &= ~next_obj->event_flag;
-            if (pre_obj->txb.sub_event != RT_NULL)
-                rt_event_control(pre_obj->txb.sub_event, RT_IPC_CMD_RESET, RT_NULL);
-            if (next_obj->txb.pub_succ_event != RT_NULL)
-                rt_event_control(next_obj->txb.pub_succ_event, RT_IPC_CMD_RESET, RT_NULL);
-        }
-        else if ((next_obj->event_flag != 0 && (pre_obj->txb.next_event_mask & next_obj->event_flag) != 0)
-              || (pre_obj->event_flag != 0 && (next_obj->txb.pre_event_mask & pre_obj->event_flag) != 0))
-        {
-            LOG_E("One of the objects does not apply for event flag: %s %d, %s %d",
-                  pre_obj->parent.name, pre_obj->event_flag,
-                  next_obj->parent.name, next_obj->event_flag);
-        }
-        
-        rt_thread_mdelay(110); //等待接收事件rt_event_recv准备好
-
-        rt_mutex_release(pre_obj->txb.bind_mutex);
-        rt_mutex_release(next_obj->txb.bind_mutex);
-
-        LOG_I("Bind tx deleted: %s <--- %s", ((rt_object_t)pre_obj)->name, ((rt_object_t)next_obj)->name);
-    }
-
-    return RT_EOK;
 }
 
 static void bind_try_release_peers(custom_obj_t pre_obj, custom_obj_t next_obj)
@@ -261,8 +257,6 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
         bind_delete_pair(peer, self);
     }
-
-
 }
 
 static void bind_msh_parse_rt_flags(int argc, char *argv[], rt_bool_t *do_rx, rt_bool_t *do_tx)
@@ -652,6 +646,7 @@ static rt_err_t bind_path_parse_type_keyword(const char *name,
     {
         { "interface", Custom_Object_Class_Interface },
         { "protocol",  Custom_Object_Class_Protocol },
+        { "filter",    Custom_Object_Class_Filter },
         { "upload",    Custom_Object_Class_Upload },
     };
 
