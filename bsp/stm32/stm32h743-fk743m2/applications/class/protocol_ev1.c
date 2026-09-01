@@ -133,26 +133,26 @@ static double_ret protocol_ev1_set_param(protocol_obj_t self, void *config){
     return result;
 }
 
-static rt_err_t protocol_ev1_handle_bind_next( rt_object_t rt_obj,
+static rt_err_t protocol_ev1_handle_rx_bind_next( rt_object_t rt_obj,
                                                  custom_obj_t custom_obj,
-                                                //  EventEntry* eventi,
+                                                 EventEntry* eventi/*,
                                                  rt_uint8_t *buffer,
-                                                 rt_size_t len)
+                                                 rt_size_t len*/)
 {
     if (custom_obj->rxb.pub_event == RT_NULL || custom_obj->event_flag == 0 
     || custom_obj->rxb.pub_succ_event == RT_NULL || custom_obj->rxb.next_event_mask == 0 )
         return -RT_EINVAL;
 
-    // rt_size_t len = 11 + eventi->event_len;
-    // rt_uint8_t * buffer = rt_calloc(1, len);
-    // if (buffer == RT_NULL)
-    // {
-    //     LOG_E("Failed to allocate buffer");
-    //     return -RT_ENOMEM;
-    // }
+    rt_size_t len = 11 + eventi->event_len;
+    rt_uint8_t * buffer = rt_calloc(1, len);
+    if (buffer == RT_NULL)
+    {
+        LOG_E("Failed to allocate buffer");
+        return -RT_ENOMEM;
+    }
 
-    // rt_memcpy(buffer, eventi, 11);
-    // rt_memcpy(buffer + 11, eventi->event_detail, eventi->event_len);
+    rt_memcpy(buffer, eventi, 11);
+    rt_memcpy(buffer + 11, eventi->event_detail, eventi->event_len);
 
     custom_obj->rxb.buffer = buffer;
     custom_obj->rxb.len = len;
@@ -174,12 +174,12 @@ static rt_err_t protocol_ev1_handle_bind_next( rt_object_t rt_obj,
     custom_obj->rxb.buffer = RT_NULL;
     custom_obj->rxb.len = 0;
 
-    // rt_free(buffer);
+    rt_free(buffer);
 
     return RT_EOK;
 }
 
-static Event * protocol_ev1_handle_bind_pre(protocol_ev1_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
+static Event * protocol_ev1_handle_rx_bind_pre(protocol_ev1_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
 {
     if (obj->lib_process_data == RT_NULL || obj->lib_destroy_event == RT_NULL || buffer == RT_NULL || len == 0)
         return RT_NULL;
@@ -262,16 +262,16 @@ static void protocol_ev1_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            // Event *event = protocol_ev1_handle_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            Event *event = protocol_ev1_handle_rx_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
-            // if (event != RT_NULL && obj->lib_destroy_event != RT_NULL)
-            // {
-            //     for (int i=0; i< event->event_size; i++) 
-            //         protocol_ev1_handle_bind_next(rt_obj, custom_obj, &(event->events[i]));
-            //     obj->lib_destroy_event(event);
-            // }
+            if (event != RT_NULL && obj->lib_destroy_event != RT_NULL)
+            {
+                for (int i=0; i< event->event_size; i++) 
+                    protocol_ev1_handle_rx_bind_next(rt_obj, custom_obj, &(event->events[i]));
+                obj->lib_destroy_event(event);
+            }
 
-            protocol_ev1_handle_bind_next(rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            // protocol_ev1_handle_rx_bind_next(rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
@@ -498,7 +498,7 @@ static protocol_obj_t  protocol_ev1_create(protocol_obj_t self, char *name, void
     char name_buf[RT_NAME_MAX] = {0};
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx");
-    obj->rx_tid = rt_thread_create(name_buf, protocol_ev1_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
+    obj->rx_tid = rt_thread_create(name_buf, protocol_ev1_recv, obj, 2048, CUSTOM_THREAD_PRIORITY, 20);
     if (obj->rx_tid == RT_NULL) {
         LOG_E("create error: rx thread create");
         goto exit;

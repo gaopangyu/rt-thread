@@ -470,7 +470,7 @@ static interface_obj_t  interface_rs232_create(interface_obj_t self, char *name,
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx");
-    if((obj->rx_tid = rt_thread_create(name_buf, interface_rs232_recv, obj, 1024, CUSTOM_THREAD_PRIORITY, 20)) == RT_NULL) {
+    if((obj->rx_tid = rt_thread_create(name_buf, interface_rs232_recv, obj, 2048, CUSTOM_THREAD_PRIORITY, 20)) == RT_NULL) {
         LOG_E("create error: rx thread create");
         goto exit;
     }

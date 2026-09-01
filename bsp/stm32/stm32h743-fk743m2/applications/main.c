@@ -96,7 +96,7 @@ int main(void)
 
     struct protocol_ev1_config bus_protocol_cfg =
     {
-        .lib_name = "libtx3016a.so"
+        .lib_name = "lib010101_tx3016a_crt.so"
     };
 
     struct funnel_default_config default_funnel_cfg =
