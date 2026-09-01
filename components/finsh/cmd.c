@@ -953,8 +953,7 @@ long list_device(void)
 }
 #endif /* RT_USING_DEVICE */
 
-#ifdef RT_USING_CUSTOM
-#if defined(RT_USING_HEAP)
+#ifdef RT_USING_HEAP
 long list_custom(void)
 {
     rt_base_t level;
@@ -1004,14 +1003,7 @@ long list_custom(void)
 
     return 0;
 }
-#else /* !RT_USING_HEAP */
-long list_custom(void)
-{
-    rt_kprintf("(RT_USING_HEAP off, no custom object container)\n");
-    return 0;
-}
 #endif /* RT_USING_HEAP */
-#endif /* RT_USING_CUSTOM */
 
 #ifndef FINSH_USING_OPTION_COMPLETION
 static int cmd_list(int argc, char **argv)
@@ -1081,12 +1073,12 @@ static int cmd_list(int argc, char **argv)
             list_fd();
         }
 #endif /* RT_USING_DFS */
-#ifdef RT_USING_CUSTOM
+#ifdef RT_USING_HEAP
         else if(strcmp(argv[1], "custom") == 0)
         {
             list_custom();
         }
-#endif /* RT_USING_CUSTOM */
+#endif /* RT_USING_HEAP */
         else
         {
             goto _usage;
@@ -1127,9 +1119,9 @@ _usage:
 #ifdef RT_USING_DFS
     rt_kprintf("    %-12s - list file descriptors\n", "fd");
 #endif /* RT_USING_DFS */
-#ifdef RT_USING_CUSTOM
-    rt_kprintf("    %-12s - list custom objects\n", "custom_obj");
-#endif /* RT_USING_CUSTOM */
+#ifdef RT_USING_HEAP
+    rt_kprintf("    %-12s - list custom objects\n", "custom");
+#endif /* RT_USING_HEAP */
     return 0;
 }
 
@@ -1175,9 +1167,9 @@ static int cmd_list(int argc, char **argv)
             break;
         }
 #endif /* RT_USING_DFS */
-#ifdef RT_USING_CUSTOM
+#ifdef RT_USING_HEAP
         case RT_Object_Class_Custom: list_custom(); break;
-#endif /* RT_USING_CUSTOM */
+#endif /* RT_USING_HEAP */
 
         default:
             goto _usage;
@@ -1222,9 +1214,9 @@ CMD_OPTIONS_NODE(RT_Object_Class_Device,       device,   list devices)
 #ifdef RT_USING_DFS
 CMD_OPTIONS_NODE(LIST_DFS_OPT_ID,              fd,       list file descriptors)
 #endif /* RT_USING_DFS */
-#ifdef RT_USING_CUSTOM
-CMD_OPTIONS_NODE(RT_Object_Class_Custom,       custom_obj,       list custom objects)
-#endif /* RT_USING_CUSTOM */
+#ifdef RT_USING_HEAP
+CMD_OPTIONS_NODE(RT_Object_Class_Custom,       custom,   list custom objects)
+#endif /* RT_USING_HEAP */
 CMD_OPTIONS_NODE_END
 #endif /* FINSH_USING_OPTION_COMPLETION */
 MSH_CMD_EXPORT_ALIAS(cmd_list, list, list objects, optenable);

@@ -27,6 +27,15 @@
 #define USB0_FINSH_CDC_NAME "usb-acm0"
 #endif
 
+//打印heap信息
+static void print_heap_info(void)
+{
+    rt_size_t total = 0, used = 0, max_used = 0;
+    rt_memory_info(&total, &used, &max_used);
+    rt_kprintf("heap:\r\ntotal=%u\r\nused=%u\r\nmax=%u\r\nfree=%u\r\n",
+                (unsigned)total, (unsigned)used, (unsigned)max_used,
+                (unsigned)(total - used));
+}
 
 int main(void)
 {
@@ -76,6 +85,8 @@ int main(void)
     struct timeval now;
     gettimeofday(&now, RT_NULL);
     LOG_I("time: %lld.%03ld", (long long)now.tv_sec, (long)now.tv_usec / 1000);
+
+    print_heap_info();
 
     rt_uint8_t host_id = 0;
     rt_uint8_t platform_id = 0;
@@ -129,6 +140,8 @@ int main(void)
     host_std_cfg.muart_upload_cfg[platform_id] = &muart_upload_cfg;
     
     host_std_create(&host_std_cfg);
+
+    print_heap_info();
 
     while (1) {
 
