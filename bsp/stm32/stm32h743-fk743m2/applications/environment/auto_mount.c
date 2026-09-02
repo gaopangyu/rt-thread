@@ -1,6 +1,8 @@
 #include <fal.h>
 #include <dfs_fs.h>
 #include <unistd.h>
+#include <string.h>
+#include <sys/stat.h>
 
 #define DBG_TAG "auto_mount"
 #define DBG_LVL DBG_LOG
@@ -11,6 +13,8 @@
 #define INIT_DIR_PATH       "/init"
 #define INIT_PART_LIST_PATH "/init/part_table.txt"
 #define INIT_TXT_LINE_MAX   256
+
+#define DISKFS_PARTITION_NAME "diskfs"
 
 /* part_table.txt 行末 reserved：0=littlefs，1=FAT32（DFS 类型名 elm），其它值暂不支持 */
 #define PART_FS_RESERVED_LITTLEFS 0u
@@ -107,7 +111,7 @@ static rt_size_t load_partitions_from_init_txt(struct fal_partition *part_table,
     fd = open(INIT_PART_LIST_PATH, O_RDONLY);
     if (fd < 0)
     {
-        LOG_W("open %s failed, try mkdir %s", INIT_PART_LIST_PATH, INIT_DIR_PATH);
+        LOG_I("%s not found", INIT_PART_LIST_PATH);
         ensure_dir(INIT_DIR_PATH);
         return 0;
     }
@@ -175,6 +179,61 @@ static rt_size_t load_partitions_from_init_txt(struct fal_partition *part_table,
     close(fd);
 
     return idx;
+}
+
+/**
+ * 把 init 之后直到 Flash 末尾的空间做成 diskfs 分区（littlefs）。
+ * @return 写入的分区数（0 或 1）
+ */
+static rt_size_t add_default_diskfs_partition(struct fal_partition *part,
+                                              const struct fal_partition *init_part)
+{
+    const struct fal_flash_dev *flash;
+    rt_uint32_t disk_off;
+    rt_size_t disk_len;
+
+    if (part == RT_NULL || init_part == RT_NULL)
+        return 0;
+
+    flash = fal_flash_device_find(init_part->flash_name);
+    if (flash == RT_NULL)
+    {
+        LOG_E("flash '%s' not found, cannot create diskfs", init_part->flash_name);
+        return 0;
+    }
+
+    if (init_part->offset < 0)
+        return 0;
+
+    disk_off = (rt_uint32_t)init_part->offset + init_part->len;
+    if (disk_off >= flash->len)
+    {
+        LOG_E("no leftover flash after init (off=0x%x flash_len=0x%x)",
+              (unsigned)disk_off, (unsigned)flash->len);
+        return 0;
+    }
+
+    disk_len = flash->len - disk_off;
+    if (flash->blk_size && (disk_len % flash->blk_size) != 0)
+        disk_len -= disk_len % flash->blk_size;
+    if (disk_len == 0)
+        return 0;
+
+    if (init_part->offset != 0)
+        LOG_W("init offset=0x%lx, space before init is unused", (long)init_part->offset);
+
+    rt_memset(part, 0, sizeof(*part));
+    part->magic_word = FAL_PART_MAGIC_WORD;
+    strncpy(part->name, DISKFS_PARTITION_NAME, FAL_DEV_NAME_MAX - 1);
+    strncpy(part->flash_name, init_part->flash_name, FAL_DEV_NAME_MAX - 1);
+    part->offset = (long)disk_off;
+    part->len = disk_len;
+    part->reserved = PART_FS_RESERVED_LITTLEFS;
+
+    LOG_I("default diskfs: flash='%s' offset=0x%x len=0x%x",
+          part->flash_name, (unsigned)disk_off, (unsigned)disk_len);
+
+    return 1;
 }
 
 static const char *part_reserved_to_fs_type(rt_uint32_t reserved)
@@ -293,7 +352,17 @@ static int auto_mount(void)
 
     static struct fal_partition part_table[10] = FAL_PART_TABLE;
     rt_size_t part_count = 1;
-    part_count += load_partitions_from_init_txt(part_table + 1, sizeof(part_table) / sizeof(part_table[0]) - 1);
+    rt_size_t extra;
+
+    extra = load_partitions_from_init_txt(part_table + 1, sizeof(part_table) / sizeof(part_table[0]) - 1);
+    if (extra == 0)
+    {
+        struct stat st;
+
+        if (stat(INIT_PART_LIST_PATH, &st) != 0)
+            extra = add_default_diskfs_partition(&part_table[1], &part_table[0]);
+    }
+    part_count += extra;
 
     /* 卸载并销毁 MTD，再切换临时分区表，避免 MTD 内缓存的 fal_partition 指针与全局表不一致 */
     if (dfs_unmount(INIT_MOUNT_POINT) != 0)
