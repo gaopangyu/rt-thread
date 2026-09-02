@@ -309,6 +309,22 @@ menu "On-chip Peripheral Drivers"
                         default 64    
                 endif
 
+            menuconfig BSP_USING_LPUART1
+                bool "Enable LPUART1"
+                default n
+                if BSP_USING_LPUART1
+                    config BSP_LPUART1_RX_BUFSIZE
+                        int "Set LPUART1 RX buffer size"
+                        range 64 65535
+                        depends on RT_USING_SERIAL_V2
+                        default 256
+
+                    config BSP_LPUART1_TX_BUFSIZE
+                        int "Set LPUART1 TX buffer size"
+                        range 0 65535
+                        depends on RT_USING_SERIAL_V2
+                        default 0
+                endif
 
         endif
 

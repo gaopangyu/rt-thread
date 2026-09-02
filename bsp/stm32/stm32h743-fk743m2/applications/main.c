@@ -172,9 +172,9 @@ int main(void)
 // 测试示例:
 // 步骤一：
 // create_interface_rs232 interface_rs232_1 -u uart8 -p 80
-// create_protocol_ev1 protocol_ev1_1 -l libtx3016a.so
-// create_protocol_ev1 protocol_ev1_2 -l libtx3016a.so
-// create_protocol_ev1 protocol_ev1_3 -l libtx3016a.so
+// create_protocol_ev1 protocol_ev1_1 -l lib010101_tx3016a_crt.so
+// create_protocol_ev1 protocol_ev1_2 -l lib010101_tx3016a_crt.so
+// create_protocol_ev1 protocol_ev1_3 -l lib010101_tx3016a_crt.so
 // create_upload_muart upload_muart_1 -n 1
 // create_upload_muart upload_muart_2 -n 2
 // create_upload_muart upload_muart_3 -n 3

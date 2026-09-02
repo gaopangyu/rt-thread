@@ -3,7 +3,10 @@
 Breakpoint=F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/class/upload_muart.c:103, State=BP_STATE_DISABLED
 Breakpoint=F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/class/low_level/ppp.c:702, State=BP_STATE_DISABLED
 Breakpoint=F:/job_hyjx/udtd_v2/rt-thread/components/drivers/serial/dev_serial_v2.c:2023, State=BP_STATE_DISABLED
-OpenDocument="main.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/main.c", Line=21
+OpenDocument="dlmodule.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/libc/posix/libdl/dlmodule.c", Line=877
+OpenDocument="dlopen.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/libc/posix/libdl/dlopen.c", Line=37
+OpenDocument="protocol_ev1.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/class/protocol_ev1.c", Line=84
+OpenDocument="startup_stm32h743xx.s", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_cmsis_driver-latest/Source/Templates/gcc/startup_stm32h743xx.s", Line=50
 OpenDocument="scheduler_up.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/src/scheduler_up.c", Line=675
 OpenDocument="cpu_up.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/src/cpu_up.c", Line=86
 OpenDocument="dev_serial_v2.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/drivers/serial/dev_serial_v2.c", Line=2012
@@ -14,35 +17,35 @@ OpenDocument="ppp.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h74
 OpenDocument="device.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/drivers/core/device.c", Line=326
 OpenDocument="atomic_arm.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/libcpu/arm/common/atomic_arm.c", Line=27
 OpenDocument="irq.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/src/irq.c", Line=117
-OpenDocument="startup_stm32h743xx.s", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_cmsis_driver-latest/Source/Templates/gcc/startup_stm32h743xx.s", Line=50
+OpenDocument="main.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/main.c", Line=30
 OpenDocument="defunct.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/src/defunct.c", Line=61
 OpenDocument="ringbuffer.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/components/drivers/ipc/ringbuffer.c", Line=218
 OpenDocument="stm32h7xx_hal_dma.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/packages/stm32h7_hal_driver-latest/Src/stm32h7xx_hal_dma.c", Line=1058
 OpenDocument="upload_muart.c", FilePath="F:/job_hyjx/udtd_v2/rt-thread/bsp/stm32/stm32h743-fk743m2/applications/class/upload_muart.c", Line=88
 OpenToolbar="Debug", Floating=0, x=0, y=0
-OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=1, w=1278, h=244, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Registers 1", DockArea=RIGHT, x=0, y=4, w=1278, h=200, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, FilteredItems=[], RefreshRate=1
-OpenWindow="Source Files", DockArea=LEFT, x=0, y=3, w=804, h=346, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=0, w=1278, h=209, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Break & Tracepoints", DockArea=LEFT, x=0, y=1, w=804, h=361, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VectorCatchIndexMask=254
+OpenWindow="Call Stack", DockArea=RIGHT, x=0, y=1, w=1078, h=241, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Registers 1", DockArea=RIGHT, x=0, y=4, w=1078, h=202, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, FilteredItems=[], RefreshRate=1
+OpenWindow="Source Files", DockArea=LEFT, x=0, y=3, w=804, h=339, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Disassembly", DockArea=RIGHT, x=0, y=0, w=1078, h=210, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Break & Tracepoints", DockArea=LEFT, x=0, y=1, w=804, h=354, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VectorCatchIndexMask=254
 OpenWindow="Memory 1", DockArea=BOTTOM, x=3, y=0, w=732, h=696, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, EditorAddress=0x24007498
-OpenWindow="Global Data", DockArea=RIGHT, x=0, y=2, w=1278, h=197, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Local Data", DockArea=RIGHT, x=0, y=3, w=1278, h=226, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=804, h=184, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Functions", DockArea=LEFT, x=0, y=2, w=804, h=186, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Global Data", DockArea=RIGHT, x=0, y=2, w=1078, h=199, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Local Data", DockArea=RIGHT, x=0, y=3, w=1078, h=224, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=804, h=191, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Functions", DockArea=LEFT, x=0, y=2, w=804, h=193, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=1065, h=696, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 OpenWindow="Memory 2", DockArea=BOTTOM, x=2, y=0, w=666, h=696, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, EditorAddress=0x24012E6C
-OpenWindow="Memory 3", DockArea=BOTTOM, x=1, y=0, w=734, h=696, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, EditorAddress=0x2401302E
+OpenWindow="Memory 3", DockArea=BOTTOM, x=1, y=0, w=734, h=696, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, EditorAddress=0x2401D250
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
 TableHeader="Global Data", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[350;355;138;100;195;498]
 TableHeader="Vector Catches", SortCol="", SortOrder="ASCENDING", VisibleCols=["";"Vector Catch";"Description"], ColWidths=[50;300;500]
 TableHeader="Break & Tracepoints", SortCol="", SortOrder="ASCENDING", VisibleCols=["";"Type";"Location";"Extras"], ColWidths=[100;100;223;707]
-TableHeader="Local Data", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[339;429;138;100;100;172]
+TableHeader="Local Data", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Location";"Size";"Type";"Scope"], ColWidths=[339;787;138;100;100;190]
 TableHeader="Functions", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Address";"Size";"#Insts";"Source"], ColWidths=[1483;131;100;116;344]
 TableHeader="Call Stack", SortCol="Function", SortOrder="ASCENDING", VisibleCols=["Function";"Stack Frame";"Source";"PC";"Return Address";"Stack Used"], ColWidths=[442;196;168;131;300;134]
 TableHeader="Source Files", SortCol="File", SortOrder="ASCENDING", VisibleCols=["File";"Status";"Size";"#Insts";"Path"], ColWidths=[295;116;100;116;1521]
 TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
-TableHeader="Registers 1", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Description"], ColWidths=[223;183;838]
+TableHeader="Registers 1", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Description"], ColWidths=[223;183;638]
 TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[198;136;112;358]
 TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
 TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[200;273;191;959]

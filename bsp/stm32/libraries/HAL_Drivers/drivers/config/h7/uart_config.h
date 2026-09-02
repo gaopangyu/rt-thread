@@ -298,6 +298,17 @@ extern "C" {
 #endif /* UART8_DMA_TX_CONFIG */
 #endif /* BSP_UART8_TX_USING_DMA */
 
+#if defined(BSP_USING_LPUART1)
+#ifndef LPUART1_CONFIG
+#define LPUART1_CONFIG                                              \
+    {                                                               \
+        .name = "lpuart1",                                          \
+        .Instance = LPUART1,                                        \
+        .irq_type = LPUART1_IRQn,                                   \
+    }
+#endif /* LPUART1_CONFIG */
+#endif /* BSP_USING_LPUART1 */
+
 #ifdef __cplusplus
 }
 #endif
