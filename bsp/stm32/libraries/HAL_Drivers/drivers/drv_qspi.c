@@ -199,14 +199,14 @@ static int stm32_qspi_init(struct rt_qspi_device *device, struct rt_qspi_configu
     __HAL_RCC_MDMA_CLK_ENABLE();
 
     rt_memset(&qspi_bus->hmdma_quadspi, 0, sizeof(qspi_bus->hmdma_quadspi));
-    /* 初始按 TX 方向配置，Receive_DMA 运行时会改 CTCR */
+    /* 本驱动接收走 MDMA：FIFO 不递增 → 内存递增（HAL_QSPI_Receive_DMA 会再写 CTCR） */
     qspi_bus->hmdma_quadspi.Instance                 = MDMA_Channel1;
     qspi_bus->hmdma_quadspi.Init.Request             = MDMA_REQUEST_QUADSPI_FIFO_TH;
     qspi_bus->hmdma_quadspi.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
     qspi_bus->hmdma_quadspi.Init.Priority            = MDMA_PRIORITY_HIGH;
     qspi_bus->hmdma_quadspi.Init.Endianness          = MDMA_LITTLE_ENDIANNESS_PRESERVE;
-    qspi_bus->hmdma_quadspi.Init.SourceInc           = MDMA_SRC_INC_BYTE;
-    qspi_bus->hmdma_quadspi.Init.DestinationInc      = MDMA_DEST_INC_DISABLE;
+    qspi_bus->hmdma_quadspi.Init.SourceInc           = MDMA_SRC_INC_DISABLE;
+    qspi_bus->hmdma_quadspi.Init.DestinationInc      = MDMA_DEST_INC_BYTE;
     qspi_bus->hmdma_quadspi.Init.SourceDataSize      = MDMA_SRC_DATASIZE_BYTE;
     qspi_bus->hmdma_quadspi.Init.DestDataSize        = MDMA_DEST_DATASIZE_BYTE;
     qspi_bus->hmdma_quadspi.Init.DataAlignment       = MDMA_DATAALIGN_PACKENABLE;
@@ -394,6 +394,14 @@ static rt_ssize_t qspixfer(struct rt_spi_device *device, struct rt_spi_message *
             if (HAL_QSPI_Receive_DMA(&qspi_bus->QSPI_Handler, rcvb) == HAL_OK &&
                 qspi_dma_wait_ready(&qspi_bus->QSPI_Handler) == RT_EOK)
             {
+#if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+                {
+                    rt_uint32_t a = (rt_uint32_t)rcvb & ~31u;
+                    rt_int32_t n = (rt_int32_t)((rt_uint32_t)rcvb + (rt_uint32_t)length - a);
+                    n = (n + 31) & ~31;
+                    SCB_InvalidateDCache_by_Addr((uint32_t *)a, n);
+                }
+#endif
                 result = length;
             }
             else
