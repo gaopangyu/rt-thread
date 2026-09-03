@@ -1,8 +1,10 @@
 cd /cygdrive/f/job_hyjx/udtd_v2/tool/littlefs-fuse
 cat /proc/partitions
-./lfs.exe --format --block_size=4096 --block_count=40 /dev/sdb
 ./lfs.exe --block_size=4096 --block_count=3584 /dev/sdb H:
 ls /cygdrive/
+cp /cygdrive/f/job_hyjx/udtd_v2/lib/zcloud/output/arm/drivers/01_tandatech/lib010101_tx3016a_crt.so /cygdrive/h/lib/
+
+./lfs.exe --format --block_size=4096 --block_count=40 /dev/sdb
 
 ./lfs.exe --block_size=4096 --block_count=40 /dev/sdb "D:\lfs_mnt"
 
