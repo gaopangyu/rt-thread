@@ -97,11 +97,10 @@ static void upload_store_handle_rx_bind_pre(upload_store_obj_t obj, rt_object_t 
     localtime_r(&now, &tm_now);
 
     char date_str[9];
-    rt_snprintf(date_str, sizeof(date_str), "%04d%02d%02d",
-                tm_now.tm_year + 1900, tm_now.tm_mon + 1, tm_now.tm_mday);
+    rt_snprintf(date_str, sizeof(date_str), "%04d%02d%02d", tm_now.tm_year + 1900, tm_now.tm_mon + 1, tm_now.tm_mday);
 
     char path[RT_NAME_MAX];
-    rt_snprintf(path, sizeof(path), "%s/%s/%s", obj->ramfs_path, date_str, get_file_name(((event_num_pack_t)buffer)->event_type));
+    rt_snprintf(path, sizeof(path), "%s/%s/%s", obj->ramfs_path, date_str, get_file_name(((event_num_pack_t)buffer)->event.event_type));
 
     if (rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
         return;

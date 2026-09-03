@@ -1,5 +1,7 @@
+#include <time.h>
 #include "protocol_ev1.h"
 #include "bind.h"
+#include "event.h"
 
 #define DBG_TAG "protocol_ev1"
 #define DBG_LVL DBG_LOG
@@ -135,7 +137,7 @@ static double_ret protocol_ev1_set_param(protocol_obj_t self, void *config){
 
 static rt_err_t protocol_ev1_handle_rx_bind_next( rt_object_t rt_obj,
                                                  custom_obj_t custom_obj,
-                                                 EventEntry* eventi/*,
+                                                 event_ack_pack_t event_ack/*,
                                                  rt_uint8_t *buffer,
                                                  rt_size_t len*/)
 {
@@ -143,19 +145,8 @@ static rt_err_t protocol_ev1_handle_rx_bind_next( rt_object_t rt_obj,
     || custom_obj->rxb.pub_succ_event == RT_NULL || custom_obj->rxb.next_event_mask == 0 )
         return -RT_EINVAL;
 
-    rt_size_t len = 11 + eventi->event_len;
-    rt_uint8_t * buffer = rt_calloc(1, len);
-    if (buffer == RT_NULL)
-    {
-        LOG_E("Failed to allocate buffer");
-        return -RT_ENOMEM;
-    }
-
-    rt_memcpy(buffer, eventi, 11);
-    rt_memcpy(buffer + 11, eventi->event_detail, eventi->event_len);
-
-    custom_obj->rxb.buffer = buffer;
-    custom_obj->rxb.len = len;
+    custom_obj->rxb.buffer = (rt_uint8_t *)event_ack;
+    custom_obj->rxb.len = sizeof(struct event_pack);
 
     rt_thread_yield();
     LOG_I("%s send rxb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);
@@ -174,43 +165,28 @@ static rt_err_t protocol_ev1_handle_rx_bind_next( rt_object_t rt_obj,
     custom_obj->rxb.buffer = RT_NULL;
     custom_obj->rxb.len = 0;
 
-    rt_free(buffer);
-
     return RT_EOK;
 }
 
-static Event * protocol_ev1_handle_rx_bind_pre(protocol_ev1_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
+static event_ack_pack_list_t protocol_ev1_handle_rx_bind_pre(protocol_ev1_obj_t obj, rt_object_t rt_obj, rt_uint8_t *buffer, rt_size_t len)
 {
     if (obj->lib_process_data == RT_NULL || obj->lib_destroy_event == RT_NULL || buffer == RT_NULL || len == 0)
         return RT_NULL;
 
-	const uint8_t timestamp[] = {0, 0, 0, 1, 1, 20};
-	Event * event = obj->lib_process_data(buffer, len, timestamp, sizeof(timestamp)/sizeof(uint8_t));
-	if (NULL == event)
+    time_t now = time(RT_NULL);
+    struct tm tm_now;
+    localtime_r(&now, &tm_now);
+
+	const uint8_t timestamp[] = {tm_now.tm_sec, tm_now.tm_min, tm_now.tm_hour, tm_now.tm_mday, tm_now.tm_mon + 1, tm_now.tm_year + 1900 - 2000};
+	
+    event_ack_pack_list_t event_ack_list = obj->lib_process_data(buffer, len, timestamp, sizeof(timestamp)/sizeof(uint8_t));
+	if (event_ack_list == RT_NULL || event_ack_list->count == 0 || event_ack_list->event_ack == RT_NULL)
     {
         LOG_D("%s process data return 0, use lib: %s\r\n", rt_obj->name, obj->config.lib_name);
         return RT_NULL;
     }
 
-    // LOG_D("%d --- %p\n", event->event_size, event->events);
-    // for (int i=0;i< event->event_size;i++) {
-    //     LOG_D("---- eventype %02X ---- logver %02X ---- systype %02X ---- sysaddr %02X ---- event_len %02X ---- ack_len %02X\n",
-    //             event->events[i].eventype, event->events[i].logver,
-    //             event->events[i].systype, event->events[i].sysaddr,
-    //             event->events[i].event_len, event->events[i].ack_len);
-    //     LOG_D("event detail package are ");
-    //     for(int j=0;j<event->events[i].event_len;j++) {
-    //         rt_kprintf("%02X ", event->events[i].event_detail[j]);
-    //     }
-    //     rt_kprintf("\n");
-    //     LOG_D("ack package are ");
-    //     for(int j=0;j<event->events[i].ack_len;j++) {
-    //         rt_kprintf("%02X ", event->events[i].ack[j]);
-    //     }
-    //     rt_kprintf("\n");
-    // }
-
-    return event;
+    return event_ack_list;
 }
 
 static void protocol_ev1_recv(void *parameter)
@@ -262,13 +238,13 @@ static void protocol_ev1_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            Event *event = protocol_ev1_handle_rx_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            event_ack_pack_list_t event_ack_list = protocol_ev1_handle_rx_bind_pre(obj, rt_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
-            if (event != RT_NULL && obj->lib_destroy_event != RT_NULL)
+            if (event_ack_list != RT_NULL && obj->lib_destroy_event != RT_NULL)
             {
-                for (int i=0; i< event->event_size; i++) 
-                    protocol_ev1_handle_rx_bind_next(rt_obj, custom_obj, &(event->events[i]));
-                obj->lib_destroy_event(event);
+                for (int i=0; i< event_ack_list->count; i++) 
+                    protocol_ev1_handle_rx_bind_next(rt_obj, custom_obj, &(event_ack_list->event_ack[i]));
+                obj->lib_destroy_event(event_ack_list);
             }
 
             // protocol_ev1_handle_rx_bind_next(rt_obj, custom_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);

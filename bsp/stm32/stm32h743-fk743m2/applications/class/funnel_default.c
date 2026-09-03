@@ -140,24 +140,24 @@ static rt_err_t funnel_default_handle_rx_bind_pre(funnel_default_obj_t obj,
     || buffer == RT_NULL || len == 0)
         return -RT_EINVAL;
 
-    // rt_size_t new_len  = len + 4;
-    // rt_uint8_t * new_buffer = rt_malloc(new_len);
-    // if (new_buffer == RT_NULL)
-    // {
-    //     LOG_E("%s malloc %d bytes error", rt_obj->name, new_len);
-    //     return -RT_ENOMEM;
-    // }
+    rt_size_t new_len  = len + 4;
+    rt_uint8_t * new_buffer = rt_malloc(new_len);
+    if (new_buffer == RT_NULL)
+    {
+        LOG_E("%s malloc %d bytes error", rt_obj->name, new_len);
+        return -RT_ENOMEM;
+    }
 
-    // enum event_file_type file_type = (enum event_file_type)(((event_pack_t)buffer)->event_type);
-    // rt_uint32_t last_num = get_event_last_num(obj, file_type);
-    // rt_memcpy(new_buffer, &last_num, 4);
-    // rt_memcpy(new_buffer + 4, buffer, len);
+    enum event_file_type file_type = (enum event_file_type)(((event_pack_t)buffer)->event_type);
+    rt_uint32_t last_num = get_event_last_num(obj, file_type);
+    rt_memcpy(new_buffer, &last_num, 4);
+    rt_memcpy(new_buffer + 4, buffer, len);
 
-    // custom_obj->rxb.buffer = new_buffer;
-    // custom_obj->rxb.len = new_len;
+    custom_obj->rxb.buffer = new_buffer;
+    custom_obj->rxb.len = new_len;
 
-    custom_obj->rxb.buffer = buffer;
-    custom_obj->rxb.len = len;
+    // custom_obj->rxb.buffer = buffer;
+    // custom_obj->rxb.len = len;
 
     rt_thread_yield();
     LOG_I("%s send rxb.pub_event: 0x%X\r\n", rt_obj->name, custom_obj->event_flag);
@@ -173,7 +173,7 @@ static rt_err_t funnel_default_handle_rx_bind_pre(funnel_default_obj_t obj,
         LOG_E("%s send rx_pub_event error: %d/%d\r\n", rt_obj->name, custom_obj->rxb.pub_event, custom_obj->rxb.next_event_mask);
     }
 
-    // set_event_last_num(obj, file_type, last_num + 1);
+    set_event_last_num(obj, file_type, last_num + 1);
 
     custom_obj->rxb.buffer = RT_NULL;
     custom_obj->rxb.len = 0;
