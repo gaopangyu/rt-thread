@@ -4,6 +4,8 @@
 #include "funnel_obj.h"
 #include "event.h"
 
+#define EVENT_LAST_NUM_DEFAULT {1, 1, 1, 1, 1, 1, 1, 1, 1}
+
 struct event_last_num
 {
     rt_uint32_t reset;
@@ -16,6 +18,7 @@ struct event_last_num
     rt_uint32_t other;
     rt_uint32_t ctrl;
 };
+typedef struct event_last_num *event_last_num_t;
 
 struct funnel_default_config
 {
@@ -38,6 +41,7 @@ struct funnel_default_obj
 };
 typedef struct funnel_default_obj *funnel_default_obj_t;
 
-// rt_uint32_t get_event_last_num(funnel_default_obj_t obj, enum event_file_type type);
+rt_uint32_t get_event_last_num(event_last_num_t event_last_num, enum event_file_type type);
+void set_event_last_num(event_last_num_t event_last_num, enum event_file_type type, rt_uint32_t number);
 
 #endif /* __FUNNEL_DEFAULT_H__ */

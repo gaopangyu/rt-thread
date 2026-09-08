@@ -13,6 +13,7 @@
 #include "usbd_core.h"
 #include "interface_rs232.h"
 #include "host_std.h"
+#include "store.h"
 
 #define DBG_TAG "main"
 #define DBG_LVL DBG_LOG
@@ -110,16 +111,19 @@ int main(void)
         .lib_name = "lib010101_tx3016a_crt.so"
     };
 
-    struct funnel_default_config default_funnel_cfg =
-    {
-        .func_id = 0,
-    };
-
     struct upload_store_config store_upload_cfg =
     {
         .dir = "ev1",
         .path = "tx3016a"
     };
+
+    struct funnel_default_config default_funnel_cfg =
+    {
+        .func_id = 0,
+        .event_last_num = EVENT_LAST_NUM_DEFAULT
+    };
+    store_get_event_last_num(store_upload_cfg.dir, store_upload_cfg.path,
+                              &default_funnel_cfg.event_last_num);
 
     struct upload_muart_config muart_upload_cfg =
     {

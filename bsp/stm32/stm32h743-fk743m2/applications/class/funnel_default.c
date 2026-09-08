@@ -95,37 +95,37 @@ static double_ret funnel_default_set_param(funnel_obj_t self, void *config){
     return result;
 }
 
-static rt_uint32_t get_event_last_num(funnel_default_obj_t obj, enum event_file_type type)
+rt_uint32_t get_event_last_num(event_last_num_t event_last_num, enum event_file_type type)
 {
     switch (type & 0x0F)
     {
-    case FILE_TYPE_RESET:       return obj->event_last_num.reset;
-    case FILE_TYPE_FIRE:        return obj->event_last_num.fire;
-    case FILE_TYPE_MONITOR:     return obj->event_last_num.monitor;
-    case FILE_TYPE_FAULT:       return obj->event_last_num.fault;
-    case FILE_TYPE_ACTION:      return obj->event_last_num.action;
-    case FILE_TYPE_LINKAGE:     return obj->event_last_num.linkage;
-    case FILE_TYPE_MASK:        return obj->event_last_num.mask;
-    case FILE_TYPE_OTHER:       return obj->event_last_num.other;
-    case FILE_TYPE_CTRL:        return obj->event_last_num.ctrl;
-    default:                    return obj->event_last_num.other;
+    case FILE_TYPE_RESET:       return event_last_num->reset;
+    case FILE_TYPE_FIRE:        return event_last_num->fire;
+    case FILE_TYPE_MONITOR:     return event_last_num->monitor;
+    case FILE_TYPE_FAULT:       return event_last_num->fault;
+    case FILE_TYPE_ACTION:      return event_last_num->action;
+    case FILE_TYPE_LINKAGE:     return event_last_num->linkage;
+    case FILE_TYPE_MASK:        return event_last_num->mask;
+    case FILE_TYPE_OTHER:       return event_last_num->other;
+    case FILE_TYPE_CTRL:        return event_last_num->ctrl;
+    default:                    return event_last_num->other;
     }
 }
 
-static void set_event_last_num(funnel_default_obj_t obj, enum event_file_type type, rt_uint32_t number)
+void set_event_last_num(event_last_num_t event_last_num, enum event_file_type type, rt_uint32_t number)
 {
     switch (type & 0x0F)
     {
-    case FILE_TYPE_RESET:       obj->event_last_num.reset = number;     break;
-    case FILE_TYPE_FIRE:        obj->event_last_num.fire = number;      break;
-    case FILE_TYPE_MONITOR:     obj->event_last_num.monitor = number;   break;
-    case FILE_TYPE_FAULT:       obj->event_last_num.fault = number;     break;
-    case FILE_TYPE_ACTION:      obj->event_last_num.action = number;    break;
-    case FILE_TYPE_LINKAGE:     obj->event_last_num.linkage = number;   break;
-    case FILE_TYPE_MASK:        obj->event_last_num.mask = number;      break;
-    case FILE_TYPE_OTHER:       obj->event_last_num.other = number;     break;
-    case FILE_TYPE_CTRL:        obj->event_last_num.ctrl = number;      break;
-    default:                    obj->event_last_num.other = number;     return;
+    case FILE_TYPE_RESET:       event_last_num->reset = number;     break;
+    case FILE_TYPE_FIRE:        event_last_num->fire = number;      break;
+    case FILE_TYPE_MONITOR:     event_last_num->monitor = number;   break;
+    case FILE_TYPE_FAULT:       event_last_num->fault = number;     break;
+    case FILE_TYPE_ACTION:      event_last_num->action = number;    break;
+    case FILE_TYPE_LINKAGE:     event_last_num->linkage = number;   break;
+    case FILE_TYPE_MASK:        event_last_num->mask = number;      break;
+    case FILE_TYPE_OTHER:       event_last_num->other = number;     break;
+    case FILE_TYPE_CTRL:        event_last_num->ctrl = number;      break;
+    default:                    event_last_num->other = number;     return;
     }
 }
 
@@ -149,7 +149,7 @@ static rt_err_t funnel_default_handle_rx_bind_pre(funnel_default_obj_t obj,
     }
 
     enum event_file_type file_type = (enum event_file_type)(((event_pack_t)buffer)->event_type);
-    rt_uint32_t last_num = get_event_last_num(obj, file_type);
+    rt_uint32_t last_num = get_event_last_num(&obj->event_last_num, file_type);
     rt_memcpy(new_buffer, &last_num, 4);
     rt_memcpy(new_buffer + 4, buffer, len);
 
@@ -173,7 +173,7 @@ static rt_err_t funnel_default_handle_rx_bind_pre(funnel_default_obj_t obj,
         LOG_E("%s send rx_pub_event error: %d/%d\r\n", rt_obj->name, custom_obj->rxb.pub_event, custom_obj->rxb.next_event_mask);
     }
 
-    set_event_last_num(obj, file_type, last_num + 1);
+    set_event_last_num(&obj->event_last_num, file_type, last_num + 1);
 
     custom_obj->rxb.buffer = RT_NULL;
     custom_obj->rxb.len = 0;

@@ -814,7 +814,7 @@ static const enum event_file_type store_history_types[] =
 #define STORE_HISTORY_TYPE_CNT     (sizeof(store_history_types) / sizeof(store_history_types[0]))
 
 /* 在 ramfs_path / diskfs_path 下找有 fname 的日期，开区间 (lower, ceiling)。pick_max 取最大，否则取最小。没有则 0 */
-static rt_uint32_t store_find_date(upload_store_obj_t obj, const char *fname,
+static rt_uint32_t store_find_date(const char *ramfs_path, const char *diskfs_path, const char *fname,
                                    rt_uint32_t lower, rt_uint32_t ceiling, rt_bool_t pick_max)
 {
     DIR *dir;
@@ -823,8 +823,8 @@ static rt_uint32_t store_find_date(upload_store_obj_t obj, const char *fname,
     const char *roots[2];
     rt_size_t r;
 
-    roots[0] = obj->ramfs_path;
-    roots[1] = obj->diskfs_path;
+    roots[0] = ramfs_path;
+    roots[1] = diskfs_path;
     for (r = 0; r < 2; r++)
     {
         if (roots[r] == RT_NULL || roots[r][0] == '\0')
@@ -1043,7 +1043,7 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
 
         if (date == STORE_DATE_LATEST)
         {
-            day = store_find_date(obj, fname, 0, STORE_DATE_CEIL, RT_TRUE);
+            day = store_find_date(obj->ramfs_path, obj->diskfs_path, fname, 0, STORE_DATE_CEIL, RT_TRUE);
             if (day != 0)
                 store_copy_day(obj, day, fname, cursor, &remain, buffer, size, &offset);
         }
@@ -1056,7 +1056,7 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
             day = 0;
             while (remain > 0)
             {
-                day = store_find_date(obj, fname, day, STORE_DATE_CEIL, RT_FALSE);
+                day = store_find_date(obj->ramfs_path, obj->diskfs_path, fname, day, STORE_DATE_CEIL, RT_FALSE);
                 if (day == 0)
                     break;
                 store_copy_day(obj, day, fname, cursor, &remain, buffer, size, &offset);
@@ -1073,4 +1073,98 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
     rt_mutex_release(obj->diskfs_fd_mutex);
     rt_mutex_release(obj->ramfs_fd_mutex);
     return offset;
+}
+
+static int store_read_last_number(const char *ramfs_path, const char *diskfs_path, rt_uint32_t date,
+                                  const char *fname, rt_uint32_t *number)
+{
+    const char *roots[2];
+    rt_size_t r;
+
+    if (fname == RT_NULL || number == RT_NULL)
+        return -1;
+
+    /* ramfs 更新，没有再落到 diskfs */
+    roots[0] = ramfs_path;
+    roots[1] = diskfs_path;
+    for (r = 0; r < 2; r++)
+    {
+        char path[RT_NAME_MAX];
+        int fd;
+        off_t end;
+        off_t nrec;
+        struct event_num_pack ev;
+
+        if (roots[r] == RT_NULL || roots[r][0] == '\0')
+            continue;
+        if (rt_snprintf(path, sizeof(path), "%s/%08u/%s",
+                        roots[r], (unsigned)date, fname) >= (int)sizeof(path))
+            continue;
+
+        fd = open(path, O_RDONLY | O_BINARY, 0);
+        if (fd < 0)
+            continue;
+
+        end = lseek(fd, 0, SEEK_END);
+        if (end < (off_t)STORE_EVENT_SIZE)
+        {
+            close(fd);
+            continue;
+        }
+        nrec = end / (off_t)STORE_EVENT_SIZE;
+        if (lseek(fd, (nrec - 1) * (off_t)STORE_EVENT_SIZE, SEEK_SET) < 0)
+        {
+            close(fd);
+            continue;
+        }
+        if (read(fd, &ev, STORE_EVENT_SIZE) != (ssize_t)STORE_EVENT_SIZE)
+        {
+            close(fd);
+            continue;
+        }
+        close(fd);
+        *number = ev.number;
+        return 0;
+    }
+    return -1;
+}
+
+rt_err_t store_get_event_last_num(const char *dir, const char *path, event_last_num_t out)
+{
+    char ramfs_path[RT_NAME_MAX];
+    char diskfs_path[RT_NAME_MAX];
+    rt_size_t i;
+
+    if (dir == RT_NULL || path == RT_NULL || out == RT_NULL)
+        return -RT_EINVAL;
+    if (dir[0] == '\0' || path[0] == '\0')
+        return -RT_EINVAL;
+
+    if (rt_snprintf(ramfs_path, sizeof(ramfs_path), "%s/%s/%s",
+                    RAMFS_ROOT, dir, path) >= (int)sizeof(ramfs_path))
+        return -RT_ERROR;
+    if (rt_snprintf(diskfs_path, sizeof(diskfs_path), "%s/%s/%s",
+                    DISKFS_ROOT, dir, path) >= (int)sizeof(diskfs_path))
+        return -RT_ERROR;
+
+    for (i = 0; i < STORE_HISTORY_TYPE_CNT; i++)
+    {
+        const char *fname = get_file_name(store_history_types[i]);
+        rt_uint32_t date;
+        rt_uint32_t number;
+
+        date = store_find_date(ramfs_path, diskfs_path, fname, 0, STORE_DATE_CEIL, RT_TRUE);
+        if (date == 0)
+            continue;
+        if (store_read_last_number(ramfs_path, diskfs_path, date, fname, &number) != 0)
+            continue;
+
+        set_event_last_num(out, store_history_types[i], number + 1);
+    }
+
+    LOG_I("next event num: reset=%u fire=%u monitor=%u fault=%u action=%u linkage=%u mask=%u other=%u ctrl=%u",
+          out->reset, out->fire, out->monitor, out->fault, out->action,
+          out->linkage, out->mask, out->other, out->ctrl);
+
+    return RT_EOK;
 }
