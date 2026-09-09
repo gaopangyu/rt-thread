@@ -191,7 +191,7 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
                 break;
             }
 
-            reply_len = cmd_reply_len = g_host[event_history.host_id]->ops->get_history(g_host[event_history.host_id],
+            reply_len = g_host[event_history.host_id]->ops->get_history(g_host[event_history.host_id],
                                                                 cmd_reply_buffer,
                                                                 sizeof(cmd_reply_buffer),
                                                                 &event_history);
@@ -295,7 +295,7 @@ static int protocol_cmd_init(void)
         goto exit;
     }
 
-    obj->parse_tid = rt_thread_create("protocol_cmd_parse", protocol_cmd_parse, obj, 1024, CUSTOM_THREAD_PRIORITY, 20);
+    obj->parse_tid = rt_thread_create("protocol_cmd_parse", protocol_cmd_parse, obj, 6144, CUSTOM_THREAD_PRIORITY, 20);
     if (obj->parse_tid == RT_NULL) {
         LOG_E("create error: parse thread create");
         goto exit;
