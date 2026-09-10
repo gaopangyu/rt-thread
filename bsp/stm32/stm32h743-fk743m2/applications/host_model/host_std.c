@@ -29,7 +29,6 @@ static rt_err_t host_std_muart_rx_bind_delete(host_t self)
     host_std_t host_std = (host_std_t)host;
 
     bind_delete((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload, RT_TRUE);
-    bind_delete((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload, RT_TRUE);
 
     return RT_EOK;
 }
@@ -42,7 +41,6 @@ static rt_err_t host_std_muart_rx_bind_create(host_t self)
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
 
-    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload, RT_TRUE);
     bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload, RT_TRUE);
 
     return RT_EOK;
@@ -230,17 +228,15 @@ rt_err_t host_std_create(host_std_config_t config)
 
     bind_create((custom_obj_t)host_std->crt_interface, (custom_obj_t)host_std->crt_protocol, RT_TRUE);
     bind_create((custom_obj_t)host_std->crt_protocol, (custom_obj_t)host_std->default_funnel, RT_TRUE);
-    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->store_upload, RT_TRUE);
-    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload , RT_TRUE);
 
     bind_create((custom_obj_t)host_std->bus_interface, (custom_obj_t)host_std->bus_protocol, RT_TRUE);
     bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->default_funnel, RT_TRUE);
+
     bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->store_upload, RT_TRUE);
-    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload , RT_TRUE);
+
 
     bind_create((custom_obj_t)host_std->bus_interface, (custom_obj_t)host_std->bus_protocol, RT_FALSE);
     bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->default_funnel, RT_FALSE);
-    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->store_upload, RT_FALSE);
     bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload , RT_FALSE);
 
     host->ops = (struct host_ops *)&host_std_ops;
