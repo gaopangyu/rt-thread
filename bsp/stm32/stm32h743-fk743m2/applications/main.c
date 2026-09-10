@@ -90,7 +90,6 @@ int main(void)
     print_heap_info();
 
     rt_uint8_t host_id = 0;
-    rt_uint8_t platform_id = 0;
 
     struct interface_rs232_config bus_interface_cfg = 
     {
@@ -127,11 +126,11 @@ int main(void)
 
     struct upload_muart_config muart_upload_cfg =
     {
-        .number = host_id * 10 + platform_id
+        .number = host_id
     };
 
     struct host_std_config host_std_cfg = {0};
-    host_std_cfg.host_id = 0;
+    host_std_cfg.host_id = host_id;
     host_std_cfg.host_type = HOST_TYPE_STD;
     host_std_cfg.crt_com_id = 1;
     host_std_cfg.crt_interface_cfg = RT_NULL;
@@ -141,7 +140,7 @@ int main(void)
     host_std_cfg.bus_protocol_cfg = &bus_protocol_cfg;
     host_std_cfg.default_funnel_cfg = &default_funnel_cfg;
     host_std_cfg.store_upload_cfg = &store_upload_cfg;
-    host_std_cfg.muart_upload_cfg[platform_id] = &muart_upload_cfg;
+    host_std_cfg.muart_upload_cfg = &muart_upload_cfg;
     
     host_std_create(&host_std_cfg);
 

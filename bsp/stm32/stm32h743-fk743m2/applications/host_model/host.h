@@ -6,7 +6,6 @@
 #include "class/upload_obj.h"
 
 #define COM_MAX         7
-#define PLATFORM_MAX    6
 #define HOST_MAX        6
 
 enum host_type
@@ -27,11 +26,11 @@ typedef struct host *host_t;
 
 struct host_ops
 {
-    rt_err_t    (*create_muart_rx_bind)   (host_t self, rt_uint8_t platform_id);
-    rt_err_t    (*delete_muart_rx_bind)   (host_t self, rt_uint8_t platform_id);
-    rt_err_t    (*delete_host)            (host_t self);
+    rt_bool_t   (*muart_rx_bind_status)   (host_t self);
+    rt_err_t    (*muart_rx_bind_create)   (host_t self);
+    rt_err_t    (*muart_rx_bind_delete)   (host_t self);
     rt_size_t   (*get_history)            (host_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history);
-    rt_bool_t   (*get_bind_status)        (host_t self, rt_uint8_t platform_id);
+    rt_err_t    (*host_delete)            (host_t self);
 };
 
 extern host_t g_host[HOST_MAX];
