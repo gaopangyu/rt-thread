@@ -586,12 +586,14 @@ exit:
     return RT_NULL;
 }
 
-static rt_size_t upload_screen_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
+static rt_size_t upload_screen_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end)
 {
     RT_UNUSED(self);
     RT_UNUSED(buffer);
     RT_UNUSED(size);
     RT_UNUSED(event_history);
+    if (is_end != RT_NULL)
+        *is_end = RT_TRUE;
     return 0;
 }
 

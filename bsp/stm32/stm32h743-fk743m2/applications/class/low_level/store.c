@@ -975,10 +975,13 @@ static void store_copy_day(upload_store_obj_t obj, rt_uint32_t date, const char 
  * event_type 低4位：FILE_TYPE_*，0x0F 按 RESET→CTRL 读全部。
  * date：十进制整数，如 20260825 只读该日；0xFFFFFFFF 最近一天；0 不分日期。
  * *_index：该类型从 number=index 起（含）从小到大读；0xFFFFFFFF 读最后一条。
- * 凑不满 count 时末尾补一条全 0xFF。
+ * 凑不满 count 时末尾补一条全 0xFF，*is_end 为 RT_TRUE。
  */
-rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
+rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end)
 {
+    if (is_end != RT_NULL)
+        *is_end = RT_FALSE;
+
     if (obj == RT_NULL || buffer == RT_NULL || size < STORE_EVENT_SIZE || event_history == RT_NULL)
         return 0;
     if (event_history->count == 0)
@@ -1069,6 +1072,8 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
         rt_memset(buffer + offset, 0xFF, STORE_EVENT_SIZE);
         offset += STORE_EVENT_SIZE;
     }
+    if (is_end != RT_NULL)
+        *is_end = (remain > 0) ? RT_TRUE : RT_FALSE;
 
     rt_mutex_release(obj->diskfs_fd_mutex);
     rt_mutex_release(obj->ramfs_fd_mutex);

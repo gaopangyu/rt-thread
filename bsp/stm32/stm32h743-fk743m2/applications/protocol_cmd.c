@@ -191,10 +191,17 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
                 break;
             }
 
-            reply_len = g_host[event_history.host_id]->ops->get_history(g_host[event_history.host_id],
-                                                                cmd_reply_buffer,
-                                                                sizeof(cmd_reply_buffer),
-                                                                &event_history);
+            rt_bool_t is_end = RT_FALSE;
+            host_t host = g_host[event_history.host_id];
+
+            reply_len = host->ops->get_history(host,
+                                                cmd_reply_buffer,
+                                                sizeof(cmd_reply_buffer),
+                                                &event_history,
+                                                &is_end);
+            if (is_end && host->ops->muart_rx_bind_create != RT_NULL)
+                host->ops->muart_rx_bind_create(host);
+
             break;
         case 0x04://删除绑定
             LOG_I("protocol cmd parse: 0x04 delete bind\r\n");

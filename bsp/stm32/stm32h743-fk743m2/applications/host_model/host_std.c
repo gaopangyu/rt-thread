@@ -47,7 +47,7 @@ static rt_err_t host_std_muart_rx_bind_create(host_t self)
 
     return RT_EOK;
 }
-static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
+static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end)
 {
     if (self == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
         return 0;
@@ -58,7 +58,7 @@ static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t
         host_std->store_upload->ops->get_history == RT_NULL)
         return 0;
 
-    return host_std->store_upload->ops->get_history(host_std->store_upload, buffer, size, event_history);
+    return host_std->store_upload->ops->get_history(host_std->store_upload, buffer, size, event_history, is_end);
 }
 
 static rt_err_t host_std_delete(host_t self)

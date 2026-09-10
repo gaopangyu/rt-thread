@@ -385,12 +385,12 @@ exit:
     return RT_NULL;
 }
 
-static rt_size_t upload_store_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history)
+static rt_size_t upload_store_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end)
 {
     if (self == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
         return 0;
 
-    return store_get_history((upload_store_obj_t)self, buffer, size, event_history);
+    return store_get_history((upload_store_obj_t)self, buffer, size, event_history, is_end);
 }
 
 static const struct upload_obj_ops upload_store_ops =
