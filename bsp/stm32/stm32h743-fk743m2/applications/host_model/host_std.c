@@ -47,6 +47,21 @@ static rt_err_t host_std_create_muart_rx_bind(host_t self, rt_uint8_t platform_i
     return RT_EOK;
 }
 
+static rt_bool_t host_std_get_bind_status(host_t self, rt_uint8_t platform_id)
+{
+    if (self == RT_NULL || platform_id >= PLATFORM_MAX)
+        return RT_FALSE;
+
+    host_std_t host_std = (host_std_t)self;
+
+    if (host_std->default_funnel == RT_NULL || host_std->muart_upload[platform_id] == RT_NULL)
+        return RT_FALSE;
+
+    return get_bind_status((custom_obj_t)host_std->default_funnel,
+                           (custom_obj_t)host_std->muart_upload[platform_id],
+                           RT_TRUE);
+}
+
 static rt_err_t host_std_delete(host_t self)
 {
     if (self == RT_NULL || self->id >= HOST_MAX)
@@ -119,6 +134,7 @@ static const struct host_ops host_std_ops =
     .delete_muart_rx_bind = host_std_delete_muart_rx_bind,
     .delete_host = host_std_delete,
     .get_history = host_std_get_history,
+    .get_bind_status = host_std_get_bind_status,
 };
 
 rt_err_t host_std_create(host_std_config_t config)

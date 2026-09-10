@@ -182,6 +182,60 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
     return RT_EOK;
 }
 
+rt_bool_t get_bind_status(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_rx)
+{
+    rt_bool_t bound = RT_FALSE;
+
+    if (pre_obj == RT_NULL || next_obj == RT_NULL || pre_obj == next_obj)
+        return RT_FALSE;
+
+    if (pre_obj->event_flag == 0 || next_obj->event_flag == 0)
+        return RT_FALSE;
+
+    if (is_rx)
+    {
+        if (pre_obj->rxb.bind_mutex == RT_NULL || next_obj->rxb.bind_mutex == RT_NULL)
+            return RT_FALSE;
+
+        if (rt_mutex_take(pre_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+            return RT_FALSE;
+
+        if (rt_mutex_take(next_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        {
+            rt_mutex_release(pre_obj->rxb.bind_mutex);
+            return RT_FALSE;
+        }
+
+        bound = ((pre_obj->rxb.next_event_mask & next_obj->event_flag) != 0)
+             && ((next_obj->rxb.pre_event_mask & pre_obj->event_flag) != 0);
+
+        rt_mutex_release(next_obj->rxb.bind_mutex);
+        rt_mutex_release(pre_obj->rxb.bind_mutex);
+    }
+    else
+    {
+        if (next_obj->txb.bind_mutex == RT_NULL || pre_obj->txb.bind_mutex == RT_NULL)
+            return RT_FALSE;
+
+        if (rt_mutex_take(next_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+            return RT_FALSE;
+
+        if (rt_mutex_take(pre_obj->txb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
+        {
+            rt_mutex_release(next_obj->txb.bind_mutex);
+            return RT_FALSE;
+        }
+
+        bound = ((pre_obj->txb.next_event_mask & next_obj->event_flag) != 0)
+             && ((next_obj->txb.pre_event_mask & pre_obj->event_flag) != 0);
+
+        rt_mutex_release(pre_obj->txb.bind_mutex);
+        rt_mutex_release(next_obj->txb.bind_mutex);
+    }
+
+    return bound;
+}
+
 static void bind_try_release_obj(custom_obj_t obj)
 {
     if (obj == RT_NULL)

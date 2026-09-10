@@ -204,6 +204,32 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             break;  
         case 0x06://获取绑定
             LOG_I("protocol cmd parse: 0x06 get bind\r\n");
+
+            /* 布局: [0]=0x06 [1]=host_id [2]=platform_id */
+            if (len < 3)
+            {
+                LOG_E("protocol cmd parse: 0x06 frame len: %d < 3\r\n", (int)len);
+                break;
+            }
+
+            {
+                rt_uint8_t host_id = buffer[1];
+                rt_uint8_t platform_id = buffer[2];
+
+                if (host_id >= HOST_MAX || platform_id >= PLATFORM_MAX
+                    || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL
+                    || g_host[host_id]->ops->get_bind_status == RT_NULL)
+                {
+                    LOG_E("protocol cmd parse: 0x06 invalid args host=%d platform=%d\r\n",
+                          host_id, platform_id);
+                    break;
+                }
+
+                cmd_reply_buffer[0] = g_host[host_id]->ops->get_bind_status(g_host[host_id], platform_id)
+                                      ? 1 : 0;
+                reply_len = 1;
+                LOG_I("protocol cmd return: 0x06 get bind: %d\r\n", cmd_reply_buffer[0]);
+            }
             break;
         default:
             LOG_E("protocol cmd parse: unknown command: 0x%02X\r\n", buffer[0]);
