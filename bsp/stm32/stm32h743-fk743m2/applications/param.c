@@ -34,6 +34,7 @@ static const char param_default_json[] =
 "        \"tx_bufsz\": 1024,\n"
 "        \"rx_en_pin\": 80\n"
 "      },\n"
+"      \"protocol_ver\": \"ev1\",\n"
 "      \"bus_protocol\": {\n"
 "        \"lib_name\": \"lib010101_tx3016a_crt.so\"\n"
 "      },\n"
@@ -41,7 +42,6 @@ static const char param_default_json[] =
 "        \"func_id\": 0\n"
 "      },\n"
 "      \"store\": {\n"
-"        \"dir\": \"ev1\",\n"
 "        \"path\": \"tx3016a\"\n"
 "      },\n"
 "      \"muart\": {\n"
@@ -123,7 +123,6 @@ static void param_parse_store(cJSON *obj, struct upload_store_config *cfg)
     if (obj == RT_NULL || cfg == RT_NULL)
         return;
 
-    json_copy_str(cfg->dir, sizeof(cfg->dir), obj, "dir");
     json_copy_str(cfg->path, sizeof(cfg->path), obj, "path");
 }
 
@@ -180,6 +179,9 @@ static rt_err_t param_create_host_std(cJSON *host_json)
 
     host_std_cfg.host_type = HOST_TYPE_STD;
     host_std_cfg.host_id = (rt_uint8_t)v;
+    json_copy_str(host_std_cfg.protocol_ver, sizeof(host_std_cfg.protocol_ver), host_json, "protocol_ver");
+    if (host_std_cfg.protocol_ver[0] == '\0')
+        rt_strncpy(host_std_cfg.protocol_ver, "ev1", sizeof(host_std_cfg.protocol_ver) - 1);
 
     if (json_get_u32(host_json, "crt_com_id", &v))
         host_std_cfg.crt_com_id = (rt_uint8_t)v;
@@ -226,6 +228,9 @@ static rt_err_t param_create_host_std(cJSON *host_json)
     if (cJSON_IsObject(item))
     {
         param_parse_store(item, &store_upload_cfg);
+        rt_strncpy(store_upload_cfg.dir, host_std_cfg.protocol_ver,
+                   sizeof(store_upload_cfg.dir) - 1);
+        store_upload_cfg.dir[sizeof(store_upload_cfg.dir) - 1] = '\0';
         store_get_event_last_num(store_upload_cfg.dir, store_upload_cfg.path,
                                  &default_funnel_cfg.event_last_num);
         host_std_cfg.store_upload_cfg = &store_upload_cfg;

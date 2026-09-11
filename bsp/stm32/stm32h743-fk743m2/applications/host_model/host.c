@@ -34,3 +34,14 @@ rt_err_t generate_name_from_parent(char *out, rt_size_t out_size, const char *pa
 
     return RT_EOK;
 }
+
+const char *host_protocol_parent_name(const char *protocol_ver)
+{
+    if (protocol_ver == RT_NULL || protocol_ver[0] == '\0')
+        return RT_NULL;
+
+    if (rt_strcmp(protocol_ver, "ev1") == 0)
+        return PROTOCOL_EV1_PARENT_NAME;
+
+    return RT_NULL;
+}

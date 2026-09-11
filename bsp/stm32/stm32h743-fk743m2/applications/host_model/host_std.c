@@ -152,14 +152,20 @@ rt_err_t host_std_create(host_std_config_t config)
     host->id = config->host_id;
     host->type = HOST_TYPE_STD;
 
+    const char *protocol_parent_name = host_protocol_parent_name(config->protocol_ver);
     interface_obj_t crt_interface_parent = (interface_obj_t)rt_object_find(g_com[config->crt_com_id], RT_Object_Class_Custom);
     interface_obj_t bus_interface_parent = (interface_obj_t)rt_object_find(g_com[config->bus_com_id], RT_Object_Class_Custom);
-    protocol_obj_t protocol_parent = (protocol_obj_t)rt_object_find(PROTOCOL_EV1_PARENT_NAME, RT_Object_Class_Custom);
+    protocol_obj_t protocol_parent = RT_NULL;
     funnel_obj_t funnel_parent = (funnel_obj_t)rt_object_find(FUNNEL_DEFAULT_PARENT_NAME, RT_Object_Class_Custom);
     upload_obj_t store_parent = (upload_obj_t)rt_object_find(UPLOAD_STORE_PARENT_NAME, RT_Object_Class_Custom);
     upload_obj_t muart_parent = (upload_obj_t)rt_object_find(UPLOAD_MUART_PARENT_NAME, RT_Object_Class_Custom);
 
     char name[RT_NAME_MAX];
+
+    if (protocol_parent_name != RT_NULL)
+        protocol_parent = (protocol_obj_t)rt_object_find(protocol_parent_name, RT_Object_Class_Custom);
+    else
+        LOG_W("host_std %d unsupported protocol_ver: %s", config->host_id, config->protocol_ver);
 
     if (config->crt_interface_cfg != RT_NULL && crt_interface_parent != RT_NULL
      && crt_interface_parent->ops != RT_NULL && crt_interface_parent->ops->create != RT_NULL)
@@ -182,7 +188,7 @@ rt_err_t host_std_create(host_std_config_t config)
     if (config->crt_protocol_cfg != RT_NULL && protocol_parent != RT_NULL
      && protocol_parent->ops != RT_NULL && protocol_parent->ops->create != RT_NULL)
     {
-        if (generate_name_from_parent(name, sizeof(name), PROTOCOL_EV1_PARENT_NAME, config->host_id, config->crt_com_id) == RT_EOK)
+        if (generate_name_from_parent(name, sizeof(name), protocol_parent_name, config->host_id, config->crt_com_id) == RT_EOK)
         {
             host_std->crt_protocol = protocol_parent->ops->create(protocol_parent, name, config->crt_protocol_cfg);
         }
@@ -191,7 +197,7 @@ rt_err_t host_std_create(host_std_config_t config)
     if (config->bus_protocol_cfg != RT_NULL && protocol_parent != RT_NULL
      && protocol_parent->ops != RT_NULL && protocol_parent->ops->create != RT_NULL)
     {
-        if (generate_name_from_parent(name, sizeof(name), PROTOCOL_EV1_PARENT_NAME, config->host_id, config->bus_com_id) == RT_EOK)
+        if (generate_name_from_parent(name, sizeof(name), protocol_parent_name, config->host_id, config->bus_com_id) == RT_EOK)
         {
             host_std->bus_protocol = protocol_parent->ops->create(protocol_parent, name, config->bus_protocol_cfg);
         }
@@ -209,6 +215,11 @@ rt_err_t host_std_create(host_std_config_t config)
     if (config->store_upload_cfg != RT_NULL && store_parent != RT_NULL
      && store_parent->ops != RT_NULL && store_parent->ops->create != RT_NULL)
     {
+        upload_store_config_t store_cfg = (upload_store_config_t)config->store_upload_cfg;
+
+        rt_strncpy(store_cfg->dir, config->protocol_ver, sizeof(store_cfg->dir) - 1);
+        store_cfg->dir[sizeof(store_cfg->dir) - 1] = '\0';
+
         if (generate_name_from_parent(name, sizeof(name), UPLOAD_STORE_PARENT_NAME, config->host_id, 'x' - 0x30) == RT_EOK)
         {
             host_std->store_upload = store_parent->ops->create(store_parent, name, config->store_upload_cfg);

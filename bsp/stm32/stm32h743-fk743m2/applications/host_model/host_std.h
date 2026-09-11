@@ -12,7 +12,8 @@ struct host_std_config
 {
     enum host_type host_type;
     rt_uint8_t host_id;
-    
+    char protocol_ver[RT_NAME_MAX];
+
     rt_uint8_t crt_com_id;
     void *crt_interface_cfg;
     void *crt_protocol_cfg;

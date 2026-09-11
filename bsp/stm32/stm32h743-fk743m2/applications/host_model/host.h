@@ -37,5 +37,6 @@ extern host_t g_host[HOST_MAX];
 extern char  *g_com[COM_MAX];
 
 rt_err_t generate_name_from_parent(char *out, rt_size_t out_size, const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id);
+const char *host_protocol_parent_name(const char *protocol_ver);
 
 #endif /* __HOST_H__ */
