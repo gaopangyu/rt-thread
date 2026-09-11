@@ -814,62 +814,125 @@ static const enum event_file_type store_history_types[] =
 };
 #define STORE_HISTORY_TYPE_CNT     (sizeof(store_history_types) / sizeof(store_history_types[0]))
 
+static void store_date_pick(rt_uint32_t date, rt_uint32_t lower, rt_uint32_t ceiling,
+                            rt_bool_t pick_max, rt_uint32_t *best)
+{
+    if (date == 0 || date <= lower || date >= ceiling || best == RT_NULL)
+        return;
+
+    if (pick_max)
+    {
+        if (date > *best)
+            *best = date;
+    }
+    else if (*best == 0 || date < *best)
+    {
+        *best = date;
+    }
+}
+
+/* ramfs 是扁平文件：dirent 名为 ev1/tx3016a/YYYYMMDD/fname，只能 opendir("/ramfs") */
+static void store_find_date_ramfs(const char *ramfs_path, const char *fname,
+                                  rt_uint32_t lower, rt_uint32_t ceiling, rt_bool_t pick_max,
+                                  rt_uint32_t *best)
+{
+    DIR *dir;
+    struct dirent *dent;
+    const char *prefix;
+    rt_size_t prefix_len;
+
+    if (ramfs_path == RT_NULL || ramfs_path[0] == '\0' || fname == RT_NULL || best == RT_NULL)
+        return;
+    if (rt_strncmp(ramfs_path, RAMFS_ROOT, sizeof(RAMFS_ROOT) - 1) != 0)
+        return;
+
+    prefix = ramfs_path + (sizeof(RAMFS_ROOT) - 1);
+    if (*prefix == '/')
+        prefix++;
+    prefix_len = rt_strlen(prefix);
+    if (prefix_len == 0)
+        return;
+
+    dir = opendir(RAMFS_ROOT);
+    if (dir == RT_NULL)
+        return;
+
+    while ((dent = readdir(dir)) != RT_NULL)
+    {
+        const char *name = dent->d_name;
+        const char *p;
+        rt_uint32_t date = 0;
+        rt_size_t i;
+
+        if (rt_strncmp(name, prefix, prefix_len) != 0 || name[prefix_len] != '/')
+            continue;
+
+        p = name + prefix_len + 1;
+        for (i = 0; i < 8; i++)
+        {
+            if (p[i] < '0' || p[i] > '9')
+                break;
+            date = date * 10 + (rt_uint32_t)(p[i] - '0');
+        }
+        if (i != 8 || p[8] != '/' || rt_strcmp(p + 9, fname) != 0)
+            continue;
+
+        store_date_pick(date, lower, ceiling, pick_max, best);
+    }
+    closedir(dir);
+}
+
+/* diskfs 是真实目录：/diskfs/ev1/tx3016a/YYYYMMDD/fname */
+static void store_find_date_diskfs(const char *diskfs_path, const char *fname,
+                                   rt_uint32_t lower, rt_uint32_t ceiling, rt_bool_t pick_max,
+                                   rt_uint32_t *best)
+{
+    DIR *dir;
+    struct dirent *dent;
+
+    if (diskfs_path == RT_NULL || diskfs_path[0] == '\0' || fname == RT_NULL || best == RT_NULL)
+        return;
+
+    dir = opendir(diskfs_path);
+    if (dir == RT_NULL)
+        return;
+
+    while ((dent = readdir(dir)) != RT_NULL)
+    {
+        char path[RT_NAME_MAX];
+        struct stat st;
+        rt_uint32_t date = 0;
+        rt_size_t i;
+
+        if (rt_strlen(dent->d_name) != 8)
+            continue;
+        for (i = 0; i < 8; i++)
+        {
+            if (dent->d_name[i] < '0' || dent->d_name[i] > '9')
+                break;
+            date = date * 10 + (rt_uint32_t)(dent->d_name[i] - '0');
+        }
+        if (i != 8)
+            continue;
+        if (rt_snprintf(path, sizeof(path), "%s/%s/%s",
+                        diskfs_path, dent->d_name, fname) >= (int)sizeof(path))
+            continue;
+        if (stat(path, &st) != 0 || !S_ISREG(st.st_mode))
+            continue;
+
+        store_date_pick(date, lower, ceiling, pick_max, best);
+    }
+    closedir(dir);
+}
+
 /* 在 ramfs_path / diskfs_path 下找有 fname 的日期，开区间 (lower, ceiling)。pick_max 取最大，否则取最小。没有则 0 */
 static rt_uint32_t store_find_date(const char *ramfs_path, const char *diskfs_path, const char *fname,
                                    rt_uint32_t lower, rt_uint32_t ceiling, rt_bool_t pick_max)
 {
-    DIR *dir;
-    struct dirent *dent;
     rt_uint32_t best = 0;
-    const char *roots[2];
-    rt_size_t r;
 
-    roots[0] = ramfs_path;
-    roots[1] = diskfs_path;
-    for (r = 0; r < 2; r++)
-    {
-        if (roots[r] == RT_NULL || roots[r][0] == '\0')
-            continue;
-        dir = opendir(roots[r]);
-        if (dir == RT_NULL)
-            continue;
-
-        while ((dent = readdir(dir)) != RT_NULL)
-        {
-            char path[RT_NAME_MAX];
-            struct stat st;
-            rt_uint32_t date = 0;
-            rt_size_t i;
-
-            if (rt_strlen(dent->d_name) != 8)
-                continue;
-            for (i = 0; i < 8; i++)
-            {
-                if (dent->d_name[i] < '0' || dent->d_name[i] > '9')
-                    break;
-                date = date * 10 + (rt_uint32_t)(dent->d_name[i] - '0');
-            }
-            if (i != 8 || date <= lower || date >= ceiling)
-                continue;
-            if (rt_snprintf(path, sizeof(path), "%s/%s/%s",
-                            roots[r], dent->d_name, fname) >= (int)sizeof(path))
-                continue;
-            if (stat(path, &st) != 0 || !S_ISREG(st.st_mode))
-                continue;
-
-            if (pick_max)
-            {
-                if (date > best)
-                    best = date;
-            }
-            else if (best == 0 || date < best)
-            {
-                best = date;
-            }
-        }
-        closedir(dir);
-    }
-
+    store_find_date_ramfs(ramfs_path, fname, lower, ceiling, pick_max, &best);
+    store_find_date_diskfs(diskfs_path, fname, lower, ceiling, pick_max, &best);
     return best;
 }
 
