@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define DBG_TAG "store"
@@ -1173,3 +1174,231 @@ rt_err_t store_get_event_last_num(const char *dir, const char *path, event_last_
 
     return RT_EOK;
 }
+
+///////////////////////////////////////////// msh cmd /////////////////////////////////////////////
+#define STORE_MSH_HISTORY_MAX   16
+
+static int store_msh_parse_u32(const char *s, rt_uint32_t *out)
+{
+    char *end = RT_NULL;
+    unsigned long v;
+
+    if (s == RT_NULL || s[0] == '\0' || out == RT_NULL)
+        return -1;
+
+    v = strtoul(s, &end, 0);
+    if (end == s || *end != '\0')
+        return -1;
+
+    *out = (rt_uint32_t)v;
+    return 0;
+}
+
+static int store_msh_parse_type(const char *s, rt_uint8_t *out)
+{
+    static const struct
+    {
+        const char *name;
+        rt_uint8_t type;
+    } map[] =
+    {
+        { "all",     STORE_TYPE_ALL },
+        { "reset",   FILE_TYPE_RESET },
+        { "fire",    FILE_TYPE_FIRE },
+        { "monitor", FILE_TYPE_MONITOR },
+        { "fault",   FILE_TYPE_FAULT },
+        { "action",  FILE_TYPE_ACTION },
+        { "linkage", FILE_TYPE_LINKAGE },
+        { "mask",    FILE_TYPE_MASK },
+        { "other",   FILE_TYPE_OTHER },
+        { "ctrl",    FILE_TYPE_CTRL },
+    };
+    rt_uint32_t v;
+    rt_size_t i;
+
+    if (s == RT_NULL || s[0] == '\0')
+    {
+        *out = STORE_TYPE_ALL;
+        return 0;
+    }
+
+    for (i = 0; i < sizeof(map) / sizeof(map[0]); i++)
+    {
+        if (rt_strcmp(s, map[i].name) == 0)
+        {
+            *out = map[i].type;
+            return 0;
+        }
+    }
+
+    if (store_msh_parse_u32(s, &v) != 0 || v > 0x0Fu)
+        return -1;
+    *out = (rt_uint8_t)v;
+    return 0;
+}
+
+static upload_store_obj_t store_msh_find_obj(const char *name)
+{
+    struct store_collect_ctx ctx;
+    upload_obj_t obj;
+
+    if (name != RT_NULL && name[0] != '\0')
+    {
+        obj = (upload_obj_t)rt_object_find(name, RT_Object_Class_Custom);
+        if (obj == RT_NULL)
+            return RT_NULL;
+        if (((custom_obj_t)obj)->type != Custom_Object_Class_Upload)
+            return RT_NULL;
+        return (upload_store_obj_t)obj;
+    }
+
+    ctx.parent = (upload_obj_t)rt_object_find(UPLOAD_STORE_PARENT_NAME, RT_Object_Class_Custom);
+    ctx.count = 0;
+    if (ctx.parent == RT_NULL || rt_object_get_information(RT_Object_Class_Custom) == RT_NULL)
+        return RT_NULL;
+
+    rt_object_for_each(RT_Object_Class_Custom, store_upload_store_collect, &ctx);
+    if (ctx.count == 0)
+        return RT_NULL;
+    return ctx.objs[0];
+}
+
+static void store_msh_print_history_header(void)
+{
+    rt_kprintf("%-4s%-14s%-11s%-14s%-12s%-12s%-14s%s\n",
+               "", "number", "version", "timestamp", "sys_type", "sys_addr",
+               "event_type", "event_description");
+}
+
+static void store_msh_print_event(rt_size_t idx, const rt_uint8_t *raw)
+{
+    event_num_pack_t pack = (event_num_pack_t)raw;
+    char idx_s[8];
+    char num_s[16];
+    char ver_s[8];
+    char ts_s[16];
+    char sys_type_s[8];
+    char sys_addr_s[8];
+    char event_type_s[8];
+    char desc_s[40];
+    rt_size_t i;
+
+    rt_snprintf(idx_s, sizeof(idx_s), "[%d]", (int)idx);
+    rt_snprintf(num_s, sizeof(num_s), "%010u", (unsigned)pack->number);
+    rt_snprintf(ver_s, sizeof(ver_s), "0x%02X", pack->event.version);
+    rt_snprintf(ts_s, sizeof(ts_s), "%02X%02X%02X%02X%02X%02X",
+                pack->event.timestamp[0], pack->event.timestamp[1],
+                pack->event.timestamp[2], pack->event.timestamp[3],
+                pack->event.timestamp[4], pack->event.timestamp[5]);
+    rt_snprintf(sys_type_s, sizeof(sys_type_s), "0x%02X", pack->event.sys_type);
+    rt_snprintf(sys_addr_s, sizeof(sys_addr_s), "0x%02X", pack->event.sys_addr);
+    rt_snprintf(event_type_s, sizeof(event_type_s), "0x%02X", pack->event.event_type);
+    for (i = 0; i < sizeof(pack->event.event_description); i++)
+        rt_snprintf(desc_s + i * 2, 3, "%02X", pack->event.event_description[i]);
+
+    rt_kprintf("%-4s%-14s%-11s%-14s%-12s%-12s%-14s0x%s\n",
+               idx_s, num_s, ver_s, ts_s, sys_type_s, sys_addr_s, event_type_s, desc_s);
+}
+
+static int cmd_store_get_history(int argc, char **argv)
+{
+    const char *name;
+    const char *type_s;
+    const char *count_s;
+    const char *date_s;
+    const char *index_s;
+    upload_store_obj_t obj;
+    struct event_history hist;
+    rt_uint8_t buf[STORE_MSH_HISTORY_MAX * STORE_EVENT_SIZE];
+    rt_uint8_t type = STORE_TYPE_ALL;
+    rt_uint32_t count = 8;
+    rt_uint32_t date = STORE_DATE_LATEST;
+    rt_uint32_t index = STORE_INDEX_LAST;
+    rt_size_t n;
+    rt_size_t i;
+
+    if (custom_obj_msh_has_opt(argc, argv, "h"))
+    {
+        rt_kprintf("Usage: store_get_history [-n <obj>] [-t <type>] [-c <count>] [-d <date>] [-i <index>]\n");
+        rt_kprintf("  -n  upload_store name (omit: first upload_store)\n");
+        rt_kprintf("  -t  all|reset|fire|monitor|fault|action|linkage|mask|other|ctrl|0x0F (default all)\n");
+        rt_kprintf("  -c  max records 1..%d (default 8)\n", STORE_MSH_HISTORY_MAX);
+        rt_kprintf("  -d  YYYYMMDD | latest | all (default latest)\n");
+        rt_kprintf("  -i  start number | last (default last)\n");
+        rt_kprintf("Example: store_get_history -t fire -c 4 -d latest -i last\n");
+        return RT_EOK;
+    }
+
+    name = custom_obj_msh_get_opt(argc, argv, "n");
+    type_s = custom_obj_msh_get_opt(argc, argv, "t");
+    count_s = custom_obj_msh_get_opt(argc, argv, "c");
+    date_s = custom_obj_msh_get_opt(argc, argv, "d");
+    index_s = custom_obj_msh_get_opt(argc, argv, "i");
+
+    if (store_msh_parse_type(type_s, &type) != 0)
+    {
+        rt_kprintf("Invalid type: %s\n", type_s);
+        return -RT_ERROR;
+    }
+    if (count_s != RT_NULL && (store_msh_parse_u32(count_s, &count) != 0 || count == 0))
+    {
+        rt_kprintf("Invalid count: %s\n", count_s);
+        return -RT_ERROR;
+    }
+    if (count > STORE_MSH_HISTORY_MAX)
+        count = STORE_MSH_HISTORY_MAX;
+
+    if (date_s != RT_NULL)
+    {
+        if (rt_strcmp(date_s, "latest") == 0)
+            date = STORE_DATE_LATEST;
+        else if (rt_strcmp(date_s, "all") == 0)
+            date = STORE_DATE_ALL;
+        else if (store_msh_parse_u32(date_s, &date) != 0)
+        {
+            rt_kprintf("Invalid date: %s\n", date_s);
+            return -RT_ERROR;
+        }
+    }
+
+    if (index_s != RT_NULL)
+    {
+        if (rt_strcmp(index_s, "last") == 0)
+            index = STORE_INDEX_LAST;
+        else if (store_msh_parse_u32(index_s, &index) != 0)
+        {
+            rt_kprintf("Invalid index: %s\n", index_s);
+            return -RT_ERROR;
+        }
+    }
+
+    obj = store_msh_find_obj(name);
+    if (obj == RT_NULL)
+    {
+        rt_kprintf("upload_store not found%s%s\n", name ? ": " : "", name ? name : "");
+        return -RT_ERROR;
+    }
+
+    rt_memset(&hist, 0, sizeof(hist));
+    hist.event_type = type;
+    hist.count = (rt_uint16_t)count;
+    hist.date = date;
+    hist.reset_index = index;
+    hist.fire_index = index;
+    hist.monitor_index = index;
+    hist.fault_index = index;
+    hist.action_index = index;
+    hist.linkage_index = index;
+    hist.mask_index = index;
+    hist.other_index = index;
+    hist.ctrl_index = index;
+
+    n = store_get_history(obj, buf, sizeof(buf), &hist, RT_NULL);
+
+    store_msh_print_history_header();
+    for (i = 0; i + STORE_EVENT_SIZE <= n; i += STORE_EVENT_SIZE)
+        store_msh_print_event(i / STORE_EVENT_SIZE, buf + i);
+
+    return RT_EOK;
+}
+MSH_CMD_EXPORT_ALIAS(cmd_store_get_history, store_get_history, Read stored events: store_get_history -h);
