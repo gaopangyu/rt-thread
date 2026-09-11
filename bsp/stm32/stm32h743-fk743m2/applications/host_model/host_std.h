@@ -10,8 +10,8 @@
 
 struct host_std_config
 {
-    rt_uint8_t host_id;
     enum host_type host_type;
+    rt_uint8_t host_id;
     
     rt_uint8_t crt_com_id;
     void *crt_interface_cfg;

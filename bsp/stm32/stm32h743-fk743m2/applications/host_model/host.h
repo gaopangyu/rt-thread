@@ -11,14 +11,14 @@
 enum host_type
 {
     HOST_TYPE_NONE = 0,
-    HOST_TYPE_STD,
+    HOST_TYPE_STD = 1,
     HOST_TYPE_MAX,
 };
 
 struct host
 {
-    rt_uint8_t id;
     enum host_type type;
+    rt_uint8_t id;
 
     struct host_ops *ops;
 };

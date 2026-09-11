@@ -89,6 +89,7 @@ int main(void)
 
     print_heap_info();
 
+{
     rt_uint8_t host_id = 0;
 
     struct interface_rs232_config bus_interface_cfg = 
@@ -130,8 +131,8 @@ int main(void)
     };
 
     struct host_std_config host_std_cfg = {0};
-    host_std_cfg.host_id = host_id;
     host_std_cfg.host_type = HOST_TYPE_STD;
+    host_std_cfg.host_id = host_id;
     host_std_cfg.crt_com_id = 1;
     host_std_cfg.crt_interface_cfg = RT_NULL;
     host_std_cfg.crt_protocol_cfg = RT_NULL;
@@ -143,6 +144,7 @@ int main(void)
     host_std_cfg.muart_upload_cfg = &muart_upload_cfg;
     
     host_std_create(&host_std_cfg);
+}
 
     print_heap_info();
 
