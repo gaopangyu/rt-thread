@@ -945,6 +945,7 @@ static void store_copy_day(upload_store_obj_t obj, rt_uint32_t date, const char 
     rt_size_t r;
     char path[RT_NAME_MAX];
     rt_uint8_t ev[STORE_EVENT_SIZE];
+    rt_size_t copied;
 
     roots[0] = obj->diskfs_path;
     roots[1] = obj->ramfs_path;
@@ -970,6 +971,8 @@ static void store_copy_day(upload_store_obj_t obj, rt_uint32_t date, const char 
         fd = open(path, O_RDONLY | O_BINARY, 0);
         if (fd < 0)
             continue;
+
+        copied = *offset;
 
         if (cursor == STORE_INDEX_LAST)
         {
@@ -1032,6 +1035,10 @@ static void store_copy_day(upload_store_obj_t obj, rt_uint32_t date, const char 
             (*remain)--;
         }
         close(fd);
+
+        /* last 只取 ramfs（或 ramfs 没有时的 diskfs）最新一条，不要两个盘各读一条 */
+        if (cursor == STORE_INDEX_LAST && *offset > copied)
+            break;
     }
 }
 
