@@ -11,9 +11,7 @@
 #include <rtdevice.h>
 #include <board.h>
 #include "usbd_core.h"
-#include "interface_rs232.h"
-#include "host_std.h"
-#include "store.h"
+#include "param.h"
 
 #define DBG_TAG "main"
 #define DBG_LVL DBG_LOG
@@ -89,62 +87,7 @@ int main(void)
 
     print_heap_info();
 
-{
-    rt_uint8_t host_id = 0;
-
-    struct interface_rs232_config bus_interface_cfg = 
-    {
-        .uart_name = "uart8",
-        .baud_rate = 115200,
-        .data_bits = 8,
-        .stop_bits = 1,
-        .parity = 0,
-        .bit_order = 0,
-        .rx_bufsz = 10240,
-        .dma_ping_bufsz = 1024,
-        .tx_bufsz = 1024,
-        .rx_en_pin = 80
-    };
-
-    struct protocol_ev1_config bus_protocol_cfg =
-    {
-        .lib_name = "lib010101_tx3016a_crt.so"
-    };
-
-    struct upload_store_config store_upload_cfg =
-    {
-        .dir = "ev1",
-        .path = "tx3016a"
-    };
-
-    struct funnel_default_config default_funnel_cfg =
-    {
-        .func_id = 0,
-        .event_last_num = EVENT_LAST_NUM_DEFAULT
-    };
-    store_get_event_last_num(store_upload_cfg.dir, store_upload_cfg.path,
-                              &default_funnel_cfg.event_last_num);
-
-    struct upload_muart_config muart_upload_cfg =
-    {
-        .number = host_id
-    };
-
-    struct host_std_config host_std_cfg = {0};
-    host_std_cfg.host_type = HOST_TYPE_STD;
-    host_std_cfg.host_id = host_id;
-    host_std_cfg.crt_com_id = 1;
-    host_std_cfg.crt_interface_cfg = RT_NULL;
-    host_std_cfg.crt_protocol_cfg = RT_NULL;
-    host_std_cfg.bus_com_id = 2;
-    host_std_cfg.bus_interface_cfg = &bus_interface_cfg;
-    host_std_cfg.bus_protocol_cfg = &bus_protocol_cfg;
-    host_std_cfg.default_funnel_cfg = &default_funnel_cfg;
-    host_std_cfg.store_upload_cfg = &store_upload_cfg;
-    host_std_cfg.muart_upload_cfg = &muart_upload_cfg;
-    
-    host_std_create(&host_std_cfg);
-}
+    param_apply();
 
     print_heap_info();
 
