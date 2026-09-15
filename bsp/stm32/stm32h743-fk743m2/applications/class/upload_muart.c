@@ -222,6 +222,8 @@ static void upload_muart_recv(void *parameter)
             continue;
         }
 
+        rt_err_t err = RT_EOK;
+        custom_obj_t fail_pre = RT_NULL;
         while(recv_event_flag != 0)
         {
             custom_obj_t rx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->rxb.pre_obj_list, &recv_event_flag, RT_TRUE);
@@ -234,14 +236,26 @@ static void upload_muart_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            upload_muart_handle_rx_bind_pre(upload_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            err = upload_muart_handle_rx_bind_pre(upload_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
                 LOG_E("%s send rx_pub_succ_event error: %d/%d\r\n", rt_obj->name, custom_obj->event_flag, rx_custom_obj->rxb.next_event_mask);
+
+            if (err != RT_EOK)
+            {
+                fail_pre = rx_custom_obj;
+                break;
+            }
         }
 
         rt_mutex_release(custom_obj->rxb.bind_mutex);
+
+        if (fail_pre != RT_NULL)
+        {
+            LOG_E("%s send to muart failed, unbind %s", rt_obj->name, fail_pre->parent.name);
+            bind_delete(fail_pre, custom_obj, RT_TRUE);
+        }
     }
 }
 
