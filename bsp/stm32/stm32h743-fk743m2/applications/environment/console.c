@@ -37,14 +37,19 @@ void set_console_device(enum console_device_type device)
                 finsh_set_device(RT_CONSOLE_DEVICE_NAME);
             #endif
 
-            LOG_I("set console device: uart\r\n");
-
             break;
         }
         case CONSOLE_DEVICE_USB_CDC:
         {
-            for (int i = 0; i < 500; i++) 
+            int i;
+            for (i = 0; i <= 500; i++) 
             {
+                if (i == 500)
+                {
+                    rt_kprintf("set console device: error: usb_cdc not configured\r\n");
+                    return;
+                }
+
                 if (usb_device_is_configured(USB0_BUSID)) 
                 {
                     #if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
@@ -61,8 +66,6 @@ void set_console_device(enum console_device_type device)
                 }
                 rt_thread_mdelay(20);
             }
-
-            LOG_I("set console device: usb_cdc\r\n");
 
             break;
         }
@@ -89,8 +92,6 @@ void set_console_device(enum console_device_type device)
                 rt_kprintf("set finsh device: upload\r\n");
                 finsh_set_device(CONSOLE_DEVICE_UPLOAD_NAME);
             #endif
-
-            LOG_I("set console device: upload\r\n");
 
             break;
         }
