@@ -12,6 +12,7 @@
 
 #include "usbd_cdc_acm.h"
 #include "usbd_msc.h"
+#include "console.h"
 
 extern void usbd_cdc_acm_serial_init(uint8_t busid, uint8_t in_ep, uint8_t out_ep);
 extern void usbd_cdc_acm_serial_detach(uint8_t busid);
@@ -168,10 +169,23 @@ static const struct usb_descriptor descriptor_cdc_acm = {
     #error "CONFIG_USBDEV_ADVANCE_DESC is not defined"
 #endif
 
+static volatile uint8_t dtr_enable = 0;
+
 static void usbd_event_handler(uint8_t busid, uint8_t event)
 {
     (void)busid;
-    (void)event;
+
+    switch (event)
+    {
+    case USBD_EVENT_RESET:
+    case USBD_EVENT_DISCONNECTED:
+    case USBD_EVENT_SUSPEND:
+        dtr_enable = 0;
+        console_usb_state_notify(RT_FALSE);
+        break;
+    default:
+        break;
+    }
 }
 
 static struct usbd_interface intf2;
@@ -273,14 +287,14 @@ MSH_CMD_EXPORT_ALIAS(cmd_usb0_cdc_acm_msc, usb0_cdc_acm_msc, Re-enumerate USB as
 
 
 /* CDC bulk 由 usbd_serial.c 中 usbd_cdc_acm_serial_init 注册。 */
-static volatile uint8_t dtr_enable = 0;
 void usbd_cdc_acm_set_dtr(uint8_t busid, uint8_t intf, bool dtr)
 {
-    if (dtr) {
-        dtr_enable = 1;
-    } else {
-        dtr_enable = 0;
-    }
+    (void)busid;
+    (void)intf;
+
+    dtr_enable = dtr ? 1 : 0;
+    /* 主机打开 COM 才切 USB console；关 COM / 拔线 DTR=0 切回上一个设备 */
+    console_usb_state_notify(dtr ? RT_TRUE : RT_FALSE);
 }
 
 #if 1

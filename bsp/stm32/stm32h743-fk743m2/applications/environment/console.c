@@ -8,11 +8,15 @@
 
 #ifdef RT_USING_FINSH
 #include <finsh.h>
+#include <shell.h>
 #endif
 
 #include "usbd_core.h"
 #include "usbd_cdc_acm.h"
 #include "usbd_msc.h"
+#include <string.h>
+
+extern void usbd_cdc_acm_serial_flush(uint8_t busid);
 #define USB0_BUSID 0
 #ifndef USB0_FINSH_CDC_NAME
 #define USB0_FINSH_CDC_NAME "usb-acm0"
@@ -21,28 +25,91 @@
 #define CONSOLE_DEVICE_UPLOAD_NAME "uart1"
 
 static enum console_device_type console_device = CONSOLE_DEVICE_UART;
+static enum console_device_type console_device_prev = CONSOLE_DEVICE_UART;
+static struct rt_semaphore console_usb_sem;
+static volatile rt_bool_t console_usb_sem_ready = RT_FALSE;
+static volatile rt_uint8_t console_usb_pend; /* 0 none, 1 off, 2 on */
+static rt_bool_t console_usb_auto_ok = RT_TRUE;   /* 手动切走后插着 USB 不再抢控制台 */
+static rt_bool_t console_set_by_monitor = RT_FALSE;
+
+#define CONSOLE_USB_PEND_NONE   0
+#define CONSOLE_USB_PEND_OFF    1
+#define CONSOLE_USB_PEND_ON     2
+
+static const char *console_device_name(enum console_device_type device)
+{
+    switch (device)
+    {
+    case CONSOLE_DEVICE_UART:    return "uart";
+    case CONSOLE_DEVICE_USB_CDC: return "usb";
+    case CONSOLE_DEVICE_UPLOAD:  return "upload";
+    default:                     return "none";
+    }
+}
+
+void console_usb_state_notify(rt_bool_t configured)
+{
+    console_usb_pend = configured ? CONSOLE_USB_PEND_ON : CONSOLE_USB_PEND_OFF;
+    if (console_usb_sem_ready)
+        rt_sem_release(&console_usb_sem);
+}
+
+static rt_bool_t console_is_usb_cdc_bound(void)
+{
+#if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
+    rt_device_t cons = rt_console_get_device();
+    if (cons != RT_NULL && rt_strcmp(cons->parent.name, USB0_FINSH_CDC_NAME) == 0)
+        return RT_TRUE;
+#endif
+#ifdef RT_USING_FINSH
+    {
+        const char *n = finsh_get_device();
+        if (n != RT_NULL && rt_strcmp(n, USB0_FINSH_CDC_NAME) == 0)
+            return RT_TRUE;
+    }
+#endif
+    return RT_FALSE;
+}
+
+static void console_unbind_usb_cdc(void)
+{
+    if (!console_is_usb_cdc_bound())
+        return;
+
+#if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
+    rt_console_set_device(RT_CONSOLE_DEVICE_NAME);
+#endif
+#ifdef RT_USING_FINSH
+    finsh_set_device(RT_CONSOLE_DEVICE_NAME);
+#endif
+}
 
 void set_console_device(enum console_device_type device)
 {
     switch (device) {
         case CONSOLE_DEVICE_UART:
         {
+            rt_kprintf("set console device to: uart\r\n");
+
             #if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
-                rt_kprintf("set console device: uart\r\n");
                 rt_console_set_device(RT_CONSOLE_DEVICE_NAME);
             #endif
 
             #ifdef RT_USING_FINSH
-                rt_kprintf("set finsh device: uart\r\n");
                 finsh_set_device(RT_CONSOLE_DEVICE_NAME);
             #endif
 
+            rt_kprintf("set console device from: %s\r\n", console_device_name(console_device));
             break;
         }
         case CONSOLE_DEVICE_USB_CDC:
         {
             int i;
-            for (i = 0; i <= 500; i++) 
+
+            /* 重枚举后仍是同一个 usb-acm0，set_device 会直接返回，必须先卸再挂才能 reopen */
+            console_unbind_usb_cdc();
+
+            for (i = 0; i <= 500; i++)
             {
                 if (i == 500)
                 {
@@ -50,18 +117,20 @@ void set_console_device(enum console_device_type device)
                     return;
                 }
 
-                if (usb_device_is_configured(USB0_BUSID)) 
+                if (usb_device_is_configured(USB0_BUSID))
                 {
+                    rt_kprintf("set console device to: usb_cdc \r\n");
+                    usbd_cdc_acm_serial_flush(USB0_BUSID);
+
                     #if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
-                        rt_kprintf("set console device: usb_cdc\r\n");
                         rt_console_set_device(USB0_FINSH_CDC_NAME);
                     #endif
 
                     #ifdef RT_USING_FINSH
-                        rt_kprintf("set finsh device: usb_cdc\r\n");
                         finsh_set_device(USB0_FINSH_CDC_NAME);
                     #endif
 
+                    rt_kprintf("set console device from: %s\r\n", console_device_name(console_device));
                     break;
                 }
                 rt_thread_mdelay(20);
@@ -83,23 +152,28 @@ void set_console_device(enum console_device_type device)
             serial_cfg.baud_rate = BAUD_RATE_2000000;
             rt_device_control(uart, RT_DEVICE_CTRL_CONFIG, &serial_cfg);
 
+            rt_kprintf("set console device to: upload\r\n");
+
             #if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
-                rt_kprintf("set console device: upload\r\n");
                 rt_console_set_device(CONSOLE_DEVICE_UPLOAD_NAME);
             #endif
 
             #ifdef RT_USING_FINSH
-                rt_kprintf("set finsh device: upload\r\n");
                 finsh_set_device(CONSOLE_DEVICE_UPLOAD_NAME);
             #endif
 
+            rt_kprintf("set console device from: %s\r\n", console_device_name(console_device));
             break;
         }
         default:
             return;
     }
 
+    if (device != CONSOLE_DEVICE_USB_CDC)
+        console_device_prev = device;
     console_device = device;
+    if (!console_set_by_monitor)
+        console_usb_auto_ok = (device == CONSOLE_DEVICE_USB_CDC) ? RT_TRUE : RT_FALSE;
 }
 
 enum console_device_type get_console_device(void)
@@ -107,20 +181,82 @@ enum console_device_type get_console_device(void)
     return console_device;
 }
 
+static void console_usb_monitor(void *parameter)
+{
+    RT_UNUSED(parameter);
+
+    while (1)
+    {
+        rt_uint8_t pend;
+        rt_bool_t cfg;
+
+        rt_sem_take(&console_usb_sem, rt_tick_from_millisecond(200));
+
+        pend = console_usb_pend;
+        console_usb_pend = CONSOLE_USB_PEND_NONE;
+        cfg = usb_device_is_configured(USB0_BUSID) ? RT_TRUE : RT_FALSE;
+
+        /* 拔线：DTR 掉 / RESET / SUSPEND / configured=0 */
+        if (pend == CONSOLE_USB_PEND_OFF || (!cfg && console_device == CONSOLE_DEVICE_USB_CDC))
+        {
+            if (console_device == CONSOLE_DEVICE_USB_CDC)
+            {
+                enum console_device_type prev = console_device_prev;
+
+                if (prev == CONSOLE_DEVICE_NONE || prev == CONSOLE_DEVICE_USB_CDC)
+                    prev = CONSOLE_DEVICE_UART;
+                LOG_I("usb disconnected, console -> prev");
+                console_set_by_monitor = RT_TRUE;
+                set_console_device(prev);
+                console_set_by_monitor = RT_FALSE;
+            }
+            console_usb_auto_ok = RT_TRUE;
+        }
+
+        /* 主机打开 COM（DTR）后再切 USB，避免枚举未完成就发数据导致回显错位 */
+        if (pend == CONSOLE_USB_PEND_ON && console_usb_auto_ok)
+        {
+            if (!cfg)
+            {
+                rt_thread_mdelay(50);
+                cfg = usb_device_is_configured(USB0_BUSID) ? RT_TRUE : RT_FALSE;
+            }
+            if (!cfg || !console_usb_auto_ok)
+                continue;
+            if (console_device != CONSOLE_DEVICE_USB_CDC && console_device != CONSOLE_DEVICE_NONE)
+                console_device_prev = console_device;
+            rt_thread_mdelay(50);
+            if (!usb_device_is_configured(USB0_BUSID) || !console_usb_auto_ok)
+                continue;
+            LOG_I("usb dtr, console -> usb_cdc");
+            console_set_by_monitor = RT_TRUE;
+            set_console_device(CONSOLE_DEVICE_USB_CDC);
+            console_set_by_monitor = RT_FALSE;
+        }
+    }
+}
+
+static int console_init(void)
+{
+    rt_thread_t tid;
+
+    rt_sem_init(&console_usb_sem, "cons_usb", 0, RT_IPC_FLAG_PRIO);
+    console_usb_sem_ready = RT_TRUE;
+
+    tid = rt_thread_create("cons_usb", console_usb_monitor, RT_NULL, 2048, 25, 10);
+    if (tid == RT_NULL)
+    {
+        LOG_E("create cons_usb thread failed");
+        return -RT_ERROR;
+    }
+    rt_thread_startup(tid);
+    return RT_EOK;
+}
+INIT_ENV_EXPORT(console_init);
+
 #ifdef RT_USING_FINSH
 #include <finsh.h>
 #include <stdlib.h>
-
-static const char *console_device_name(enum console_device_type device)
-{
-    switch (device)
-    {
-    case CONSOLE_DEVICE_UART:    return "uart";
-    case CONSOLE_DEVICE_USB_CDC: return "usb";
-    case CONSOLE_DEVICE_UPLOAD:  return "upload";
-    default:                     return "none";
-    }
-}
 
 static int console_device_from_str(const char *s, enum console_device_type *out)
 {
