@@ -12,6 +12,7 @@
 #include <board.h>
 #include "usbd_core.h"
 #include "param.h"
+#include "console.h"
 
 #define DBG_TAG "main"
 #define DBG_LVL DBG_LOG
@@ -19,11 +20,6 @@
 
 #ifdef RT_USING_FINSH
 #include <finsh.h>
-#endif
-
-#define USB0_BUSID 0
-#ifndef USB0_FINSH_CDC_NAME
-#define USB0_FINSH_CDC_NAME "usb-acm0"
 #endif
 
 //打印heap信息
@@ -38,23 +34,10 @@ static void print_heap_info(void)
 
 int main(void)
 {
+    // 按照日期获取历史事件不恢复绑定
     #ifdef ULOG_USING_FILTER
         ulog_global_filter_lvl_set(LOG_LVL_DBG);
     #endif
-
-
-    // for (int i = 0; i < 500; i++) {
-    //     if (usb_device_is_configured(USB0_BUSID)) {
-    //         #if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
-    //             rt_console_set_device(USB0_FINSH_CDC_NAME);
-    //         #endif
-    //         #ifdef RT_USING_FINSH
-    //             finsh_set_device(USB0_FINSH_CDC_NAME);
-    //         #endif
-    //         break;
-    //     }
-    //     rt_thread_mdelay(20);
-    // }
 
     // rt_thread_mdelay(500);
 

@@ -235,6 +235,10 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             LOG_I("protocol cmd return: 0x06 get bind: %d\r\n", cmd_reply_buffer[0]);
 
             break;
+        case 0x07://切换控制台
+            LOG_I("protocol cmd parse: 0x07 switch console\r\n");
+            
+            break;  
         default:
             LOG_E("protocol cmd parse: unknown command: 0x%02X\r\n", buffer[0]);
             break;
