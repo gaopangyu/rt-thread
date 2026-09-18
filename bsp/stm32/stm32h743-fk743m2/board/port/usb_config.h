@@ -258,7 +258,7 @@
 #define CONFIG_USBDEV_MAX_BUS 1
 #endif
 
-// #define CONFIG_USBDEV_SOF_ENABLE
+#define CONFIG_USBDEV_SOF_ENABLE
 
 /* ---------------- FSDEV Configuration ---------------- */
 //#define CONFIG_USBDEV_FSDEV_PMA_ACCESS 2 // maybe 1 or 2, many chips may have a difference

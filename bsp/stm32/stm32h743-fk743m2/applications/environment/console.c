@@ -29,12 +29,14 @@ static enum console_device_type console_device_prev = CONSOLE_DEVICE_UART;
 static struct rt_semaphore console_usb_sem;
 static volatile rt_bool_t console_usb_sem_ready = RT_FALSE;
 static volatile rt_uint8_t console_usb_pend; /* 0 none, 1 off, 2 on */
+static volatile rt_tick_t console_usb_last_sof;
 static rt_bool_t console_usb_auto_ok = RT_TRUE;   /* 手动切走后插着 USB 不再抢控制台 */
 static rt_bool_t console_set_by_monitor = RT_FALSE;
 
 #define CONSOLE_USB_PEND_NONE   0
 #define CONSOLE_USB_PEND_OFF    1
 #define CONSOLE_USB_PEND_ON     2
+#define CONSOLE_USB_SOF_LOST_MS 300
 
 static const char *console_device_name(enum console_device_type device)
 {
@@ -52,6 +54,11 @@ void console_usb_state_notify(rt_bool_t configured)
     console_usb_pend = configured ? CONSOLE_USB_PEND_ON : CONSOLE_USB_PEND_OFF;
     if (console_usb_sem_ready)
         rt_sem_release(&console_usb_sem);
+}
+
+void console_usb_sof_notify(void)
+{
+    console_usb_last_sof = rt_tick_get();
 }
 
 static rt_bool_t console_is_usb_cdc_bound(void)
@@ -189,6 +196,7 @@ static void console_usb_monitor(void *parameter)
     {
         rt_uint8_t pend;
         rt_bool_t cfg;
+        rt_bool_t sof_lost;
 
         rt_sem_take(&console_usb_sem, rt_tick_from_millisecond(200));
 
@@ -196,8 +204,15 @@ static void console_usb_monitor(void *parameter)
         console_usb_pend = CONSOLE_USB_PEND_NONE;
         cfg = usb_device_is_configured(USB0_BUSID) ? RT_TRUE : RT_FALSE;
 
-        /* 拔线：DTR 掉 / RESET / SUSPEND / configured=0 */
-        if (pend == CONSOLE_USB_PEND_OFF || (!cfg && console_device == CONSOLE_DEVICE_USB_CDC))
+        sof_lost = RT_FALSE;
+        if (console_device == CONSOLE_DEVICE_USB_CDC && console_usb_last_sof != 0)
+        {
+            if ((rt_tick_get() - console_usb_last_sof) > rt_tick_from_millisecond(CONSOLE_USB_SOF_LOST_MS))
+                sof_lost = RT_TRUE;
+        }
+
+        /* 拔线：DTR=0 / disconnect / 连续无 SOF。不要用 RESET/configured=0（下次插入也会发生） */
+        if (pend == CONSOLE_USB_PEND_OFF || sof_lost)
         {
             if (console_device == CONSOLE_DEVICE_USB_CDC)
             {
@@ -211,6 +226,7 @@ static void console_usb_monitor(void *parameter)
                 console_set_by_monitor = RT_FALSE;
             }
             console_usb_auto_ok = RT_TRUE;
+            console_usb_last_sof = 0;
         }
 
         /* 主机打开 COM（DTR）后再切 USB，避免枚举未完成就发数据导致回显错位 */
@@ -232,6 +248,7 @@ static void console_usb_monitor(void *parameter)
             console_set_by_monitor = RT_TRUE;
             set_console_device(CONSOLE_DEVICE_USB_CDC);
             console_set_by_monitor = RT_FALSE;
+            console_usb_last_sof = rt_tick_get();
         }
     }
 }

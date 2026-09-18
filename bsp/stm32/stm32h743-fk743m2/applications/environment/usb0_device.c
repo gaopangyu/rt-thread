@@ -177,11 +177,16 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
 
     switch (event)
     {
-    case USBD_EVENT_RESET:
+    case USBD_EVENT_SOF:
+        console_usb_sof_notify();
+        break;
     case USBD_EVENT_DISCONNECTED:
-    case USBD_EVENT_SUSPEND:
         dtr_enable = 0;
         console_usb_state_notify(RT_FALSE);
+        break;
+    case USBD_EVENT_RESET:
+        /* 下次插入也会 RESET，不能当拔线，否则会先切回 uart 再被 DTR 切回 usb */
+        dtr_enable = 0;
         break;
     default:
         break;
