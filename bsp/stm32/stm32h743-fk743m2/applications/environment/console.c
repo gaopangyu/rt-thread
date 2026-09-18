@@ -260,10 +260,10 @@ static int console_init(void)
     rt_sem_init(&console_usb_sem, "cons_usb", 0, RT_IPC_FLAG_PRIO);
     console_usb_sem_ready = RT_TRUE;
 
-    tid = rt_thread_create("cons_usb", console_usb_monitor, RT_NULL, 2048, 25, 10);
+    tid = rt_thread_create("console_usb_monitor", console_usb_monitor, RT_NULL, 2048, 25, 10);
     if (tid == RT_NULL)
     {
-        LOG_E("create cons_usb thread failed");
+        LOG_E("create console_usb_monitor thread failed");
         return -RT_ERROR;
     }
     rt_thread_startup(tid);
