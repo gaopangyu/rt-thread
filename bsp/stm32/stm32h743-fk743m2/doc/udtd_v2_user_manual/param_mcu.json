@@ -1,0 +1,288 @@
+{
+    "hosts": [
+        {
+            "switch": false,
+            "id": 0,
+            "type": "std",
+            "protocol_ver": "ev1",
+            "host_type": "xxx",
+            "central_num": 0,
+            "regional_num": 0,
+            "local_num": 0,
+            "keyboard_addr": 0,
+            "key_addr": 0,
+            "crt_interface": {
+                "id": 0,
+                "uart_name": "uartx",
+                "baud_rate": 115200,
+                "data_bits": 8,
+                "stop_bits": 1,
+                "parity": 0,
+                "bit_order": 0,
+                "rx_bufsz": 10240,
+                "dma_ping_bufsz": 1024,
+                "tx_bufsz": 1024,
+                "rx_en_pin": 80,
+                "term_switch": false
+            },
+            "crt_protocol": {
+                "lib_name": "xxx_crt.so"
+            },
+            "bus_interface": {
+                "id": 0,
+                "uart_name": "uartx",
+                "baud_rate": 115200,
+                "data_bits": 8,
+                "stop_bits": 1,
+                "parity": 0,
+                "bit_order": 0,
+                "rx_bufsz": 10240,
+                "dma_ping_bufsz": 1024,
+                "tx_bufsz": 1024,
+                "rx_en_pin": 80,
+                "term_switch": false
+            },
+            "bus_protocol": {
+                "lib_name": "xxx_bus.so"
+            },
+            "funnel": {
+                "func_id": 0
+            },
+            "store": {
+                "path": "xxx"
+            },
+            "muart": {
+                "number": 0
+            }
+        },
+        {
+            "switch": false,
+            "id": 1,
+            "type": "std",
+            "protocol_ver": "ev1",
+            "host_type": "xxx",
+            "central_num": 0,
+            "regional_num": 0,
+            "local_num": 0,
+            "keyboard_addr": 0,
+            "key_addr": 0,
+            "crt_interface": {
+                "id": 0,
+                "uart_name": "uartx",
+                "baud_rate": 115200,
+                "data_bits": 8,
+                "stop_bits": 1,
+                "parity": 0,
+                "bit_order": 0,
+                "rx_bufsz": 10240,
+                "dma_ping_bufsz": 1024,
+                "tx_bufsz": 1024,
+                "rx_en_pin": 80,
+                "term_switch": false
+            },
+            "crt_protocol": {
+                "lib_name": "xxx_crt.so"
+            },
+            "bus_interface": {
+                "id": 0,
+                "uart_name": "uartx",
+                "baud_rate": 115200,
+                "data_bits": 8,
+                "stop_bits": 1,
+                "parity": 0,
+                "bit_order": 0,
+                "rx_bufsz": 10240,
+                "dma_ping_bufsz": 1024,
+                "tx_bufsz": 1024,
+                "rx_en_pin": 80,
+                "term_switch": false
+            },
+            "bus_protocol": {
+                "lib_name": "xxx_bus.so"
+            },
+            "funnel": {
+                "func_id": 0
+            },
+            "store": {
+                "path": "xxx"
+            },
+            "muart": {
+                "number": 0
+            }
+        },
+        {
+            "switch": false,
+            "id": 2,
+            "type": "std",
+            "protocol_ver": "ev1",
+            "host_type": "xxx",
+            "central_num": 0,
+            "regional_num": 0,
+            "local_num": 0,
+            "keyboard_addr": 0,
+            "key_addr": 0,
+            "crt_interface": {
+                "id": 0,
+                "uart_name": "uartx",
+                "baud_rate": 115200,
+                "data_bits": 8,
+                "stop_bits": 1,
+                "parity": 0,
+                "bit_order": 0,
+                "rx_bufsz": 10240,
+                "dma_ping_bufsz": 1024,
+                "tx_bufsz": 1024,
+                "rx_en_pin": 80,
+                "term_switch": false
+            },
+            "crt_protocol": {
+                "lib_name": "xxx_crt.so"
+            },
+            "bus_interface": {
+                "id": 0,
+                "uart_name": "uartx",
+                "baud_rate": 115200,
+                "data_bits": 8,
+                "stop_bits": 1,
+                "parity": 0,
+                "bit_order": 0,
+                "rx_bufsz": 10240,
+                "dma_ping_bufsz": 1024,
+                "tx_bufsz": 1024,
+                "rx_en_pin": 80,
+                "term_switch": false
+            },
+            "bus_protocol": {
+                "lib_name": "xxx_bus.so"
+            },
+            "funnel": {
+                "func_id": 0
+            },
+            "store": {
+                "path": "xxx"
+            },
+            "muart": {
+                "number": 0
+            }
+        },
+        {
+            "switch": false,
+            "id": 3,
+            "type": "std",
+            "protocol_ver": "ev1",
+            "host_type": "xxx",
+            "central_num": 0,
+            "regional_num": 0,
+            "local_num": 0,
+            "keyboard_addr": 0,
+            "key_addr": 0,
+            "crt_interface": {
+                "id": 0,
+                "uart_name": "uartx",
+                "baud_rate": 115200,
+                "data_bits": 8,
+                "stop_bits": 1,
+                "parity": 0,
+                "bit_order": 0,
+                "rx_bufsz": 10240,
+                "dma_ping_bufsz": 1024,
+                "tx_bufsz": 1024,
+                "rx_en_pin": 80,
+                "term_switch": false
+            },
+            "crt_protocol": {
+                "lib_name": "xxx_crt.so"
+            },
+            "bus_interface": {
+                "id": 0,
+                "uart_name": "uartx",
+                "baud_rate": 115200,
+                "data_bits": 8,
+                "stop_bits": 1,
+                "parity": 0,
+                "bit_order": 0,
+                "rx_bufsz": 10240,
+                "dma_ping_bufsz": 1024,
+                "tx_bufsz": 1024,
+                "rx_en_pin": 80,
+                "term_switch": false
+            },
+            "bus_protocol": {
+                "lib_name": "xxx_bus.so"
+            },
+            "funnel": {
+                "func_id": 0
+            },
+            "store": {
+                "path": "xxx"
+            },
+            "muart": {
+                "number": 0
+            }
+        }
+    ],
+    "platforms": [
+        {
+            "switch": false,
+            "id": 0,
+            "name": "海云平台",
+            "ip": "127.0.0.1",
+            "port": 18088,
+            "protocol": 1,
+            "data_source": [
+                true,
+                false,
+                false,
+                false
+            ]
+        },
+        {
+            "switch": false,
+            "id": 1,
+            "name": "海云平台",
+            "ip": "127.0.0.1",
+            "port": 18088,
+            "protocol": 1,
+            "data_source": [
+                false,
+                true,
+                false,
+                false
+            ]
+        },
+        {
+            "switch": false,
+            "id": 2,
+            "name": "海云平台",
+            "ip": "127.0.0.1",
+            "port": 18088,
+            "protocol": 1,
+            "data_source": [
+                false,
+                false,
+                true,
+                false
+            ]
+        },
+        {
+            "switch": false,
+            "id": 3,
+            "name": "海云平台",
+            "ip": "127.0.0.1",
+            "port": 18088,
+            "protocol": 1,
+            "data_source": [
+                false,
+                false,
+                false,
+                true
+            ]
+        }
+    ],
+    "eth": {
+        "dhcp": true,
+        "ip": "127.0.0.1",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1"
+    }
+}

@@ -70,7 +70,7 @@ int main(void)
 
     print_heap_info();
 
-    param_apply();
+    param_set_from_mcu_json();
 
     print_heap_info();
 

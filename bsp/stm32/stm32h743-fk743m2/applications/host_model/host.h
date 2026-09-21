@@ -6,7 +6,8 @@
 #include "class/upload_obj.h"
 
 #define COM_MAX         7
-#define HOST_MAX        6
+#define HOST_MAX        4
+#define PLATFORM_MAX    4
 
 enum host_type
 {

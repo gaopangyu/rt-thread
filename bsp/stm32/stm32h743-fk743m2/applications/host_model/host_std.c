@@ -1,9 +1,12 @@
 #include "host_std.h"
+#include "store.h"
+#include "json_util.h"
+
+#include <string.h>
 
 #define DBG_TAG "host.std"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
-#include <string.h>
 
 static rt_bool_t host_std_muart_rx_bind_status(host_t self)
 {
@@ -260,4 +263,145 @@ exit:
     LOG_E("host_std %d create failed", config->host_id);
     host_std_delete(host);
     return -RT_ERROR;
+}
+
+static void host_std_parse_rs232(cJSON *obj, struct interface_rs232_config *cfg)
+{
+    rt_uint32_t v;
+
+    if (obj == RT_NULL || cfg == RT_NULL)
+        return;
+
+    json_copy_str(cfg->uart_name, sizeof(cfg->uart_name), obj, "uart_name");
+
+    if (json_get_u32(obj, "baud_rate", &v))
+        cfg->baud_rate = v;
+    if (json_get_u32(obj, "data_bits", &v))
+        cfg->data_bits = (rt_uint8_t)v;
+    if (json_get_u32(obj, "stop_bits", &v))
+        cfg->stop_bits = (rt_uint8_t)v;
+    if (json_get_u32(obj, "parity", &v))
+        cfg->parity = (rt_uint8_t)v;
+    if (json_get_u32(obj, "bit_order", &v))
+        cfg->bit_order = (rt_uint8_t)v;
+    if (json_get_u32(obj, "rx_bufsz", &v))
+        cfg->rx_bufsz = (rt_size_t)v;
+    if (json_get_u32(obj, "dma_ping_bufsz", &v))
+        cfg->dma_ping_bufsz = (rt_size_t)v;
+    if (json_get_u32(obj, "tx_bufsz", &v))
+        cfg->tx_bufsz = (rt_size_t)v;
+    if (json_get_u32(obj, "rx_en_pin", &v))
+        cfg->rx_en_pin = (rt_base_t)v;
+}
+
+static void host_std_parse_protocol_ev1(cJSON *obj, struct protocol_ev1_config *cfg)
+{
+    if (obj == RT_NULL || cfg == RT_NULL)
+        return;
+
+    json_copy_str(cfg->lib_name, sizeof(cfg->lib_name), obj, "lib_name");
+}
+
+static void host_std_parse_store(cJSON *obj, struct upload_store_config *cfg)
+{
+    if (obj == RT_NULL || cfg == RT_NULL)
+        return;
+
+    json_copy_str(cfg->path, sizeof(cfg->path), obj, "path");
+}
+
+rt_err_t host_std_create_from_json(cJSON *host_json)
+{
+    struct interface_rs232_config bus_interface_cfg = {0};
+    struct interface_rs232_config crt_interface_cfg = {0};
+    struct protocol_ev1_config bus_protocol_cfg = {0};
+    struct protocol_ev1_config crt_protocol_cfg = {0};
+    struct upload_store_config store_upload_cfg = {0};
+    struct funnel_default_config default_funnel_cfg =
+    {
+        .func_id = 0,
+        .event_last_num = EVENT_LAST_NUM_DEFAULT
+    };
+    struct upload_muart_config muart_upload_cfg = {0};
+    struct host_std_config host_std_cfg = {0};
+    rt_uint32_t v;
+    cJSON *item;
+
+    if (host_json == RT_NULL)
+        return -RT_EINVAL;
+
+    if (!json_get_u32(host_json, "id", &v) || v >= HOST_MAX)
+    {
+        LOG_E("std host id must < HOST_MAX(%d)", HOST_MAX);
+        return -RT_EINVAL;
+    }
+
+    host_std_cfg.host_type = HOST_TYPE_STD;
+    host_std_cfg.host_id = (rt_uint8_t)v;
+    json_copy_str(host_std_cfg.protocol_ver, sizeof(host_std_cfg.protocol_ver), host_json, "protocol_ver");
+    if (host_std_cfg.protocol_ver[0] == '\0')
+        rt_strncpy(host_std_cfg.protocol_ver, "ev1", sizeof(host_std_cfg.protocol_ver) - 1);
+
+    item = cJSON_GetObjectItemCaseSensitive(host_json, "crt_interface");
+    if (cJSON_IsObject(item))
+    {
+        if (json_get_u32(item, "id", &v))
+            host_std_cfg.crt_com_id = (rt_uint8_t)v;
+        host_std_parse_rs232(item, &crt_interface_cfg);
+        host_std_cfg.crt_interface_cfg = &crt_interface_cfg;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(host_json, "crt_protocol");
+    if (cJSON_IsObject(item))
+    {
+        host_std_parse_protocol_ev1(item, &crt_protocol_cfg);
+        host_std_cfg.crt_protocol_cfg = &crt_protocol_cfg;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(host_json, "bus_interface");
+    if (cJSON_IsObject(item))
+    {
+        if (json_get_u32(item, "id", &v))
+            host_std_cfg.bus_com_id = (rt_uint8_t)v;
+        host_std_parse_rs232(item, &bus_interface_cfg);
+        host_std_cfg.bus_interface_cfg = &bus_interface_cfg;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(host_json, "bus_protocol");
+    if (cJSON_IsObject(item))
+    {
+        host_std_parse_protocol_ev1(item, &bus_protocol_cfg);
+        host_std_cfg.bus_protocol_cfg = &bus_protocol_cfg;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(host_json, "funnel");
+    if (cJSON_IsObject(item))
+    {
+        if (json_get_u32(item, "func_id", &v))
+            default_funnel_cfg.func_id = (rt_uint8_t)v;
+        host_std_cfg.default_funnel_cfg = &default_funnel_cfg;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(host_json, "store");
+    if (cJSON_IsObject(item))
+    {
+        host_std_parse_store(item, &store_upload_cfg);
+        rt_strncpy(store_upload_cfg.dir, host_std_cfg.protocol_ver,
+                   sizeof(store_upload_cfg.dir) - 1);
+        store_upload_cfg.dir[sizeof(store_upload_cfg.dir) - 1] = '\0';
+        store_get_event_last_num(store_upload_cfg.dir, store_upload_cfg.path,
+                                 &default_funnel_cfg.event_last_num);
+        host_std_cfg.store_upload_cfg = &store_upload_cfg;
+        if (host_std_cfg.default_funnel_cfg == RT_NULL)
+            host_std_cfg.default_funnel_cfg = &default_funnel_cfg;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(host_json, "muart");
+    if (cJSON_IsObject(item) && json_get_u32(item, "number", &v))
+        muart_upload_cfg.number = (rt_uint8_t)v;
+    else
+        muart_upload_cfg.number = host_std_cfg.host_id;
+    host_std_cfg.muart_upload_cfg = &muart_upload_cfg;
+
+    return host_std_create(&host_std_cfg);
 }

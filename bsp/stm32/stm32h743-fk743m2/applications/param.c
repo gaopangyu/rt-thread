@@ -1,6 +1,7 @@
 #include "param.h"
 #include "host_std.h"
 #include "store.h"
+#include "json_util.h"
 
 #include <cJSON.h>
 #include <fcntl.h>
@@ -14,117 +15,295 @@
 
 #define PARAM_JSON_MAX      16384
 
-static const char param_default_json[] =
-"{\n"
-"  \"hosts\": [\n"
-"    {\n"
-"      \"type\": \"std\",\n"
-"      \"host_id\": 0,\n"
-"      \"crt_com_id\": 1,\n"
-"      \"bus_com_id\": 2,\n"
-"      \"bus_interface\": {\n"
-"        \"uart_name\": \"uart8\",\n"
-"        \"baud_rate\": 115200,\n"
-"        \"data_bits\": 8,\n"
-"        \"stop_bits\": 1,\n"
-"        \"parity\": 0,\n"
-"        \"bit_order\": 0,\n"
-"        \"rx_bufsz\": 10240,\n"
-"        \"dma_ping_bufsz\": 1024,\n"
-"        \"tx_bufsz\": 1024,\n"
-"        \"rx_en_pin\": 80\n"
-"      },\n"
-"      \"protocol_ver\": \"ev1\",\n"
-"      \"bus_protocol\": {\n"
-"        \"lib_name\": \"lib010101_tx3016a_crt.so\"\n"
-"      },\n"
-"      \"funnel\": {\n"
-"        \"func_id\": 0\n"
-"      },\n"
-"      \"store\": {\n"
-"        \"path\": \"tx3016a\"\n"
-"      },\n"
-"      \"muart\": {\n"
-"        \"number\": 0\n"
-"      }\n"
-"    }\n"
-"  ]\n"
-"}\n";
-
-static rt_bool_t json_get_u32(cJSON *obj, const char *key, rt_uint32_t *out)
-{
-    cJSON *item;
-
-    if (obj == RT_NULL || key == RT_NULL || out == RT_NULL)
-        return RT_FALSE;
-
-    item = cJSON_GetObjectItemCaseSensitive(obj, key);
-    if (!cJSON_IsNumber(item))
-        return RT_FALSE;
-
-    *out = (rt_uint32_t)item->valuedouble;
-    return RT_TRUE;
-}
-
-static void json_copy_str(char *dst, rt_size_t dst_sz, cJSON *obj, const char *key)
-{
-    cJSON *item;
-
-    if (dst == RT_NULL || dst_sz == 0 || obj == RT_NULL || key == RT_NULL)
-        return;
-
-    item = cJSON_GetObjectItemCaseSensitive(obj, key);
-    if (!cJSON_IsString(item) || item->valuestring == RT_NULL)
-        return;
-
-    rt_strncpy(dst, item->valuestring, dst_sz - 1);
-    dst[dst_sz - 1] = '\0';
-}
-
-static void param_parse_rs232(cJSON *obj, struct interface_rs232_config *cfg)
-{
-    rt_uint32_t v;
-
-    if (obj == RT_NULL || cfg == RT_NULL)
-        return;
-
-    json_copy_str(cfg->uart_name, sizeof(cfg->uart_name), obj, "uart_name");
-
-    if (json_get_u32(obj, "baud_rate", &v))
-        cfg->baud_rate = v;
-    if (json_get_u32(obj, "data_bits", &v))
-        cfg->data_bits = (rt_uint8_t)v;
-    if (json_get_u32(obj, "stop_bits", &v))
-        cfg->stop_bits = (rt_uint8_t)v;
-    if (json_get_u32(obj, "parity", &v))
-        cfg->parity = (rt_uint8_t)v;
-    if (json_get_u32(obj, "bit_order", &v))
-        cfg->bit_order = (rt_uint8_t)v;
-    if (json_get_u32(obj, "rx_bufsz", &v))
-        cfg->rx_bufsz = (rt_size_t)v;
-    if (json_get_u32(obj, "dma_ping_bufsz", &v))
-        cfg->dma_ping_bufsz = (rt_size_t)v;
-    if (json_get_u32(obj, "tx_bufsz", &v))
-        cfg->tx_bufsz = (rt_size_t)v;
-    if (json_get_u32(obj, "rx_en_pin", &v))
-        cfg->rx_en_pin = (rt_base_t)v;
-}
-
-static void param_parse_protocol_ev1(cJSON *obj, struct protocol_ev1_config *cfg)
-{
-    if (obj == RT_NULL || cfg == RT_NULL)
-        return;
-
-    json_copy_str(cfg->lib_name, sizeof(cfg->lib_name), obj, "lib_name");
-}
-
-static void param_parse_store(cJSON *obj, struct upload_store_config *cfg)
-{
-    if (obj == RT_NULL || cfg == RT_NULL)
-        return;
-
-    json_copy_str(cfg->path, sizeof(cfg->path), obj, "path");
-}
+static const char param_mcu_json_default[] =
+"{\r\n"
+"    \"hosts\": [\r\n"
+"        {\r\n"
+"            \"switch\": false,\r\n"
+"            \"id\": 0,\r\n"
+"            \"type\": \"std\",\r\n"
+"            \"protocol_ver\": \"ev1\",\r\n"
+"            \"host_type\": \"xxx\",\r\n"
+"            \"central_num\": 0,\r\n"
+"            \"regional_num\": 0,\r\n"
+"            \"local_num\": 0,\r\n"
+"            \"keyboard_addr\": 0,\r\n"
+"            \"key_addr\": 0,\r\n"
+"            \"crt_interface\": {\r\n"
+"                \"id\": 0,\r\n"
+"                \"uart_name\": \"uartx\",\r\n"
+"                \"baud_rate\": 115200,\r\n"
+"                \"data_bits\": 8,\r\n"
+"                \"stop_bits\": 1,\r\n"
+"                \"parity\": 0,\r\n"
+"                \"bit_order\": 0,\r\n"
+"                \"rx_bufsz\": 10240,\r\n"
+"                \"dma_ping_bufsz\": 1024,\r\n"
+"                \"tx_bufsz\": 1024,\r\n"
+"                \"rx_en_pin\": 80,\r\n"
+"                \"term_switch\": false\r\n"
+"            },\r\n"
+"            \"crt_protocol\": {\r\n"
+"                \"lib_name\": \"xxx_crt.so\"\r\n"
+"            },\r\n"
+"            \"bus_interface\": {\r\n"
+"                \"id\": 0,\r\n"
+"                \"uart_name\": \"uartx\",\r\n"
+"                \"baud_rate\": 115200,\r\n"
+"                \"data_bits\": 8,\r\n"
+"                \"stop_bits\": 1,\r\n"
+"                \"parity\": 0,\r\n"
+"                \"bit_order\": 0,\r\n"
+"                \"rx_bufsz\": 10240,\r\n"
+"                \"dma_ping_bufsz\": 1024,\r\n"
+"                \"tx_bufsz\": 1024,\r\n"
+"                \"rx_en_pin\": 80,\r\n"
+"                \"term_switch\": false\r\n"
+"            },\r\n"
+"            \"bus_protocol\": {\r\n"
+"                \"lib_name\": \"xxx_bus.so\"\r\n"
+"            },\r\n"
+"            \"funnel\": {\r\n"
+"                \"func_id\": 0\r\n"
+"            },\r\n"
+"            \"store\": {\r\n"
+"                \"path\": \"xxx\"\r\n"
+"            },\r\n"
+"            \"muart\": {\r\n"
+"                \"number\": 0\r\n"
+"            }\r\n"
+"        },\r\n"
+"        {\r\n"
+"            \"switch\": false,\r\n"
+"            \"id\": 1,\r\n"
+"            \"type\": \"std\",\r\n"
+"            \"protocol_ver\": \"ev1\",\r\n"
+"            \"host_type\": \"xxx\",\r\n"
+"            \"central_num\": 0,\r\n"
+"            \"regional_num\": 0,\r\n"
+"            \"local_num\": 0,\r\n"
+"            \"keyboard_addr\": 0,\r\n"
+"            \"key_addr\": 0,\r\n"
+"            \"crt_interface\": {\r\n"
+"                \"id\": 0,\r\n"
+"                \"uart_name\": \"uartx\",\r\n"
+"                \"baud_rate\": 115200,\r\n"
+"                \"data_bits\": 8,\r\n"
+"                \"stop_bits\": 1,\r\n"
+"                \"parity\": 0,\r\n"
+"                \"bit_order\": 0,\r\n"
+"                \"rx_bufsz\": 10240,\r\n"
+"                \"dma_ping_bufsz\": 1024,\r\n"
+"                \"tx_bufsz\": 1024,\r\n"
+"                \"rx_en_pin\": 80,\r\n"
+"                \"term_switch\": false\r\n"
+"            },\r\n"
+"            \"crt_protocol\": {\r\n"
+"                \"lib_name\": \"xxx_crt.so\"\r\n"
+"            },\r\n"
+"            \"bus_interface\": {\r\n"
+"                \"id\": 0,\r\n"
+"                \"uart_name\": \"uartx\",\r\n"
+"                \"baud_rate\": 115200,\r\n"
+"                \"data_bits\": 8,\r\n"
+"                \"stop_bits\": 1,\r\n"
+"                \"parity\": 0,\r\n"
+"                \"bit_order\": 0,\r\n"
+"                \"rx_bufsz\": 10240,\r\n"
+"                \"dma_ping_bufsz\": 1024,\r\n"
+"                \"tx_bufsz\": 1024,\r\n"
+"                \"rx_en_pin\": 80,\r\n"
+"                \"term_switch\": false\r\n"
+"            },\r\n"
+"            \"bus_protocol\": {\r\n"
+"                \"lib_name\": \"xxx_bus.so\"\r\n"
+"            },\r\n"
+"            \"funnel\": {\r\n"
+"                \"func_id\": 0\r\n"
+"            },\r\n"
+"            \"store\": {\r\n"
+"                \"path\": \"xxx\"\r\n"
+"            },\r\n"
+"            \"muart\": {\r\n"
+"                \"number\": 0\r\n"
+"            }\r\n"
+"        },\r\n"
+"        {\r\n"
+"            \"switch\": false,\r\n"
+"            \"id\": 2,\r\n"
+"            \"type\": \"std\",\r\n"
+"            \"protocol_ver\": \"ev1\",\r\n"
+"            \"host_type\": \"xxx\",\r\n"
+"            \"central_num\": 0,\r\n"
+"            \"regional_num\": 0,\r\n"
+"            \"local_num\": 0,\r\n"
+"            \"keyboard_addr\": 0,\r\n"
+"            \"key_addr\": 0,\r\n"
+"            \"crt_interface\": {\r\n"
+"                \"id\": 0,\r\n"
+"                \"uart_name\": \"uartx\",\r\n"
+"                \"baud_rate\": 115200,\r\n"
+"                \"data_bits\": 8,\r\n"
+"                \"stop_bits\": 1,\r\n"
+"                \"parity\": 0,\r\n"
+"                \"bit_order\": 0,\r\n"
+"                \"rx_bufsz\": 10240,\r\n"
+"                \"dma_ping_bufsz\": 1024,\r\n"
+"                \"tx_bufsz\": 1024,\r\n"
+"                \"rx_en_pin\": 80,\r\n"
+"                \"term_switch\": false\r\n"
+"            },\r\n"
+"            \"crt_protocol\": {\r\n"
+"                \"lib_name\": \"xxx_crt.so\"\r\n"
+"            },\r\n"
+"            \"bus_interface\": {\r\n"
+"                \"id\": 0,\r\n"
+"                \"uart_name\": \"uartx\",\r\n"
+"                \"baud_rate\": 115200,\r\n"
+"                \"data_bits\": 8,\r\n"
+"                \"stop_bits\": 1,\r\n"
+"                \"parity\": 0,\r\n"
+"                \"bit_order\": 0,\r\n"
+"                \"rx_bufsz\": 10240,\r\n"
+"                \"dma_ping_bufsz\": 1024,\r\n"
+"                \"tx_bufsz\": 1024,\r\n"
+"                \"rx_en_pin\": 80,\r\n"
+"                \"term_switch\": false\r\n"
+"            },\r\n"
+"            \"bus_protocol\": {\r\n"
+"                \"lib_name\": \"xxx_bus.so\"\r\n"
+"            },\r\n"
+"            \"funnel\": {\r\n"
+"                \"func_id\": 0\r\n"
+"            },\r\n"
+"            \"store\": {\r\n"
+"                \"path\": \"xxx\"\r\n"
+"            },\r\n"
+"            \"muart\": {\r\n"
+"                \"number\": 0\r\n"
+"            }\r\n"
+"        },\r\n"
+"        {\r\n"
+"            \"switch\": false,\r\n"
+"            \"id\": 3,\r\n"
+"            \"type\": \"std\",\r\n"
+"            \"protocol_ver\": \"ev1\",\r\n"
+"            \"host_type\": \"xxx\",\r\n"
+"            \"central_num\": 0,\r\n"
+"            \"regional_num\": 0,\r\n"
+"            \"local_num\": 0,\r\n"
+"            \"keyboard_addr\": 0,\r\n"
+"            \"key_addr\": 0,\r\n"
+"            \"crt_interface\": {\r\n"
+"                \"id\": 0,\r\n"
+"                \"uart_name\": \"uartx\",\r\n"
+"                \"baud_rate\": 115200,\r\n"
+"                \"data_bits\": 8,\r\n"
+"                \"stop_bits\": 1,\r\n"
+"                \"parity\": 0,\r\n"
+"                \"bit_order\": 0,\r\n"
+"                \"rx_bufsz\": 10240,\r\n"
+"                \"dma_ping_bufsz\": 1024,\r\n"
+"                \"tx_bufsz\": 1024,\r\n"
+"                \"rx_en_pin\": 80,\r\n"
+"                \"term_switch\": false\r\n"
+"            },\r\n"
+"            \"crt_protocol\": {\r\n"
+"                \"lib_name\": \"xxx_crt.so\"\r\n"
+"            },\r\n"
+"            \"bus_interface\": {\r\n"
+"                \"id\": 0,\r\n"
+"                \"uart_name\": \"uartx\",\r\n"
+"                \"baud_rate\": 115200,\r\n"
+"                \"data_bits\": 8,\r\n"
+"                \"stop_bits\": 1,\r\n"
+"                \"parity\": 0,\r\n"
+"                \"bit_order\": 0,\r\n"
+"                \"rx_bufsz\": 10240,\r\n"
+"                \"dma_ping_bufsz\": 1024,\r\n"
+"                \"tx_bufsz\": 1024,\r\n"
+"                \"rx_en_pin\": 80,\r\n"
+"                \"term_switch\": false\r\n"
+"            },\r\n"
+"            \"bus_protocol\": {\r\n"
+"                \"lib_name\": \"xxx_bus.so\"\r\n"
+"            },\r\n"
+"            \"funnel\": {\r\n"
+"                \"func_id\": 0\r\n"
+"            },\r\n"
+"            \"store\": {\r\n"
+"                \"path\": \"xxx\"\r\n"
+"            },\r\n"
+"            \"muart\": {\r\n"
+"                \"number\": 0\r\n"
+"            }\r\n"
+"        }\r\n"
+"    ],\r\n"
+"    \"platforms\": [\r\n"
+"        {\r\n"
+"            \"switch\": false,\r\n"
+"            \"id\": 0,\r\n"
+"            \"name\": \"海云平台\",\r\n"
+"            \"ip\": \"127.0.0.1\",\r\n"
+"            \"port\": 18088,\r\n"
+"            \"protocol\": 1,\r\n"
+"            \"data_source\": [\r\n"
+"                true,\r\n"
+"                false,\r\n"
+"                false,\r\n"
+"                false\r\n"
+"            ]\r\n"
+"        },\r\n"
+"        {\r\n"
+"            \"switch\": false,\r\n"
+"            \"id\": 1,\r\n"
+"            \"name\": \"海云平台\",\r\n"
+"            \"ip\": \"127.0.0.1\",\r\n"
+"            \"port\": 18088,\r\n"
+"            \"protocol\": 1,\r\n"
+"            \"data_source\": [\r\n"
+"                false,\r\n"
+"                true,\r\n"
+"                false,\r\n"
+"                false\r\n"
+"            ]\r\n"
+"        },\r\n"
+"        {\r\n"
+"            \"switch\": false,\r\n"
+"            \"id\": 2,\r\n"
+"            \"name\": \"海云平台\",\r\n"
+"            \"ip\": \"127.0.0.1\",\r\n"
+"            \"port\": 18088,\r\n"
+"            \"protocol\": 1,\r\n"
+"            \"data_source\": [\r\n"
+"                false,\r\n"
+"                false,\r\n"
+"                true,\r\n"
+"                false\r\n"
+"            ]\r\n"
+"        },\r\n"
+"        {\r\n"
+"            \"switch\": false,\r\n"
+"            \"id\": 3,\r\n"
+"            \"name\": \"海云平台\",\r\n"
+"            \"ip\": \"127.0.0.1\",\r\n"
+"            \"port\": 18088,\r\n"
+"            \"protocol\": 1,\r\n"
+"            \"data_source\": [\r\n"
+"                false,\r\n"
+"                false,\r\n"
+"                false,\r\n"
+"                true\r\n"
+"            ]\r\n"
+"        }\r\n"
+"    ],\r\n"
+"    \"eth\": {\r\n"
+"        \"dhcp\": true,\r\n"
+"        \"ip\": \"127.0.0.1\",\r\n"
+"        \"mask\": \"255.255.255.0\",\r\n"
+"        \"gateway\": \"192.168.1.1\"\r\n"
+"    }\r\n"
+"}\r\n";
 
 static enum host_type param_parse_host_type(cJSON *host_json)
 {
@@ -151,101 +330,89 @@ static enum host_type param_parse_host_type(cJSON *host_json)
     return HOST_TYPE_NONE;
 }
 
-static rt_err_t param_create_host_std(cJSON *host_json)
+static rt_err_t param_check_id_array(cJSON *arr, const char *name, int max)
 {
-    struct interface_rs232_config bus_interface_cfg = {0};
-    struct interface_rs232_config crt_interface_cfg = {0};
-    struct protocol_ev1_config bus_protocol_cfg = {0};
-    struct protocol_ev1_config crt_protocol_cfg = {0};
-    struct upload_store_config store_upload_cfg = {0};
-    struct funnel_default_config default_funnel_cfg =
-    {
-        .func_id = 0,
-        .event_last_num = EVENT_LAST_NUM_DEFAULT
-    };
-    struct upload_muart_config muart_upload_cfg = {0};
-    struct host_std_config host_std_cfg = {0};
-    rt_uint32_t v;
-    cJSON *item;
+    int i, count;
 
-    if (host_json == RT_NULL)
-        return -RT_EINVAL;
-
-    if (!json_get_u32(host_json, "host_id", &v))
+    if (!cJSON_IsArray(arr))
     {
-        LOG_E("std host missing host_id");
+        LOG_E("param_mcu.json missing %s array", name);
         return -RT_EINVAL;
     }
 
-    host_std_cfg.host_type = HOST_TYPE_STD;
-    host_std_cfg.host_id = (rt_uint8_t)v;
-    json_copy_str(host_std_cfg.protocol_ver, sizeof(host_std_cfg.protocol_ver), host_json, "protocol_ver");
-    if (host_std_cfg.protocol_ver[0] == '\0')
-        rt_strncpy(host_std_cfg.protocol_ver, "ev1", sizeof(host_std_cfg.protocol_ver) - 1);
-
-    if (json_get_u32(host_json, "crt_com_id", &v))
-        host_std_cfg.crt_com_id = (rt_uint8_t)v;
-    if (json_get_u32(host_json, "bus_com_id", &v))
-        host_std_cfg.bus_com_id = (rt_uint8_t)v;
-
-    item = cJSON_GetObjectItemCaseSensitive(host_json, "crt_interface");
-    if (cJSON_IsObject(item))
+    count = cJSON_GetArraySize(arr);
+    if (count > max)
     {
-        param_parse_rs232(item, &crt_interface_cfg);
-        host_std_cfg.crt_interface_cfg = &crt_interface_cfg;
+        LOG_E("%s count %d must <= %d", name, count, max);
+        return -RT_EINVAL;
     }
 
-    item = cJSON_GetObjectItemCaseSensitive(host_json, "crt_protocol");
-    if (cJSON_IsObject(item))
+    for (i = 0; i < count; i++)
     {
-        param_parse_protocol_ev1(item, &crt_protocol_cfg);
-        host_std_cfg.crt_protocol_cfg = &crt_protocol_cfg;
+        cJSON *item = cJSON_GetArrayItem(arr, i);
+        rt_uint32_t id;
+
+        if (!cJSON_IsObject(item))
+        {
+            LOG_E("%s[%d] is not object", name, i);
+            return -RT_EINVAL;
+        }
+
+        if (!json_get_u32(item, "id", &id) || id >= (rt_uint32_t)max)
+        {
+            LOG_E("%s[%d] id must < %d", name, i, max);
+            return -RT_EINVAL;
+        }
     }
 
-    item = cJSON_GetObjectItemCaseSensitive(host_json, "bus_interface");
-    if (cJSON_IsObject(item))
+    return RT_EOK;
+}
+
+static rt_err_t param_check_root(cJSON *root)
+{
+    cJSON *hosts;
+    cJSON *platforms;
+    int i, pcount;
+    rt_err_t err;
+
+    if (root == RT_NULL)
+        return -RT_EINVAL;
+
+    hosts = cJSON_GetObjectItemCaseSensitive(root, "hosts");
+    err = param_check_id_array(hosts, "hosts", HOST_MAX);
+    if (err != RT_EOK)
+        return err;
+
+    platforms = cJSON_GetObjectItemCaseSensitive(root, "platforms");
+    err = param_check_id_array(platforms, "platforms", PLATFORM_MAX);
+    if (err != RT_EOK)
+        return err;
+
+    pcount = cJSON_GetArraySize(platforms);
+    for (i = 0; i < pcount; i++)
     {
-        param_parse_rs232(item, &bus_interface_cfg);
-        host_std_cfg.bus_interface_cfg = &bus_interface_cfg;
+        cJSON *plat = cJSON_GetArrayItem(platforms, i);
+        cJSON *ds = cJSON_GetObjectItemCaseSensitive(plat, "data_source");
+        int ds_count;
+
+        if (ds == RT_NULL)
+            continue;
+        if (!cJSON_IsArray(ds))
+        {
+            LOG_E("platforms[%d] data_source is not array", i);
+            return -RT_EINVAL;
+        }
+
+        ds_count = cJSON_GetArraySize(ds);
+        if (ds_count > HOST_MAX)
+        {
+            LOG_E("platforms[%d] data_source count %d must <= HOST_MAX(%d)",
+                  i, ds_count, HOST_MAX);
+            return -RT_EINVAL;
+        }
     }
 
-    item = cJSON_GetObjectItemCaseSensitive(host_json, "bus_protocol");
-    if (cJSON_IsObject(item))
-    {
-        param_parse_protocol_ev1(item, &bus_protocol_cfg);
-        host_std_cfg.bus_protocol_cfg = &bus_protocol_cfg;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(host_json, "funnel");
-    if (cJSON_IsObject(item))
-    {
-        if (json_get_u32(item, "func_id", &v))
-            default_funnel_cfg.func_id = (rt_uint8_t)v;
-        host_std_cfg.default_funnel_cfg = &default_funnel_cfg;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(host_json, "store");
-    if (cJSON_IsObject(item))
-    {
-        param_parse_store(item, &store_upload_cfg);
-        rt_strncpy(store_upload_cfg.dir, host_std_cfg.protocol_ver,
-                   sizeof(store_upload_cfg.dir) - 1);
-        store_upload_cfg.dir[sizeof(store_upload_cfg.dir) - 1] = '\0';
-        store_get_event_last_num(store_upload_cfg.dir, store_upload_cfg.path,
-                                 &default_funnel_cfg.event_last_num);
-        host_std_cfg.store_upload_cfg = &store_upload_cfg;
-        if (host_std_cfg.default_funnel_cfg == RT_NULL)
-            host_std_cfg.default_funnel_cfg = &default_funnel_cfg;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(host_json, "muart");
-    if (cJSON_IsObject(item) && json_get_u32(item, "number", &v))
-        muart_upload_cfg.number = (rt_uint8_t)v;
-    else
-        muart_upload_cfg.number = host_std_cfg.host_id;
-    host_std_cfg.muart_upload_cfg = &muart_upload_cfg;
-
-    return host_std_create(&host_std_cfg);
+    return RT_EOK;
 }
 
 static rt_err_t param_create_hosts(cJSON *root)
@@ -258,14 +425,19 @@ static rt_err_t param_create_hosts(cJSON *root)
     hosts = cJSON_GetObjectItemCaseSensitive(root, "hosts");
     if (!cJSON_IsArray(hosts))
     {
-        LOG_E("param.json missing hosts array");
+        LOG_E("param_mcu.json missing hosts array");
         return -RT_EINVAL;
     }
 
     count = cJSON_GetArraySize(hosts);
+    if (count > HOST_MAX)
+    {
+        LOG_E("hosts count %d must <= HOST_MAX(%d)", count, HOST_MAX);
+        return -RT_EINVAL;
+    }
     if (count <= 0)
     {
-        LOG_W("param.json hosts is empty");
+        LOG_W("param_mcu.json hosts is empty");
         return RT_EOK;
     }
 
@@ -281,11 +453,17 @@ static rt_err_t param_create_hosts(cJSON *root)
             continue;
         }
 
+        if (!json_is_enabled(host_json, "switch", RT_TRUE))
+        {
+            LOG_I("hosts[%d] switch off, skip", i);
+            continue;
+        }
+
         type = param_parse_host_type(host_json);
         switch (type)
         {
         case HOST_TYPE_STD:
-            err = param_create_host_std(host_json);
+            err = host_std_create_from_json(host_json);
             break;
         default:
             LOG_W("hosts[%d] unsupported type, skip", i);
@@ -344,11 +522,14 @@ static rt_err_t param_read_file(char **out)
     return RT_EOK;
 }
 
-static rt_err_t param_write_default(void)
+static rt_err_t param_write_text(const char *text)
 {
     int fd;
     int n;
     rt_size_t len;
+
+    if (text == RT_NULL)
+        return -RT_EINVAL;
 
     ensure_dir("/init");
 
@@ -359,8 +540,8 @@ static rt_err_t param_write_default(void)
         return -RT_ERROR;
     }
 
-    len = rt_strlen(param_default_json);
-    n = write(fd, param_default_json, len);
+    len = rt_strlen(text);
+    n = write(fd, text, len);
     close(fd);
 
     if (n != (int)len)
@@ -369,16 +550,57 @@ static rt_err_t param_write_default(void)
         return -RT_ERROR;
     }
 
-    LOG_I("created default %s", PARAM_JSON_PATH);
     return RT_EOK;
 }
 
-rt_err_t param_apply(void)
+static rt_err_t param_write_default(void)
+{
+    rt_err_t err;
+
+    err = param_write_text(param_mcu_json_default);
+    if (err == RT_EOK)
+        LOG_I("created default %s", PARAM_JSON_PATH);
+    return err;
+}
+
+static rt_err_t param_save_root(cJSON *root)
+{
+    char *printed;
+    rt_size_t len;
+    rt_err_t err;
+
+    if (root == RT_NULL)
+        return -RT_EINVAL;
+
+    printed = cJSON_Print(root);
+    if (printed == RT_NULL)
+        return -RT_ENOMEM;
+
+    len = rt_strlen(printed);
+    if (len == 0 || len > PARAM_JSON_MAX)
+    {
+        LOG_E("param json size invalid: %u", (unsigned)len);
+        cJSON_free(printed);
+        return -RT_ERROR;
+    }
+
+    err = param_check_root(root);
+    if (err != RT_EOK)
+    {
+        cJSON_free(printed);
+        return err;
+    }
+
+    err = param_write_text(printed);
+    cJSON_free(printed);
+    return err;
+}
+
+static cJSON *param_load_root(void)
 {
     char *file_buf = RT_NULL;
     const char *json_text;
     cJSON *root;
-    rt_err_t err;
 
     if (param_read_file(&file_buf) == RT_EOK)
     {
@@ -388,15 +610,299 @@ rt_err_t param_apply(void)
     else
     {
         param_write_default();
-        json_text = param_default_json;
+        json_text = param_mcu_json_default;
         LOG_I("use default param");
     }
 
     root = cJSON_Parse(json_text);
     rt_free(file_buf);
     if (root == RT_NULL)
+        return RT_NULL;
+
+    if (param_check_root(root) != RT_EOK)
     {
-        LOG_E("parse param.json failed");
+        cJSON_Delete(root);
+        return RT_NULL;
+    }
+
+    return root;
+}
+
+static rt_err_t param_ui_apply_host_platforms(cJSON *root, rt_uint32_t host_id, cJSON *ui_platform)
+{
+    cJSON *platforms;
+    int i, n;
+
+    if (!cJSON_IsArray(ui_platform))
+        return RT_EOK;
+
+    if (host_id >= HOST_MAX)
+    {
+        LOG_E("ui host id %u out of range", host_id);
+        return -RT_EINVAL;
+    }
+
+    platforms = cJSON_GetObjectItemCaseSensitive(root, "platforms");
+    if (!cJSON_IsArray(platforms))
+    {
+        LOG_E("param missing platforms array");
+        return -RT_EINVAL;
+    }
+
+    n = cJSON_GetArraySize(ui_platform);
+    if (n > PLATFORM_MAX)
+    {
+        LOG_E("ui host.platform count %d must <= PLATFORM_MAX(%d)", n, PLATFORM_MAX);
+        return -RT_EINVAL;
+    }
+
+    for (i = 0; i < n; i++)
+    {
+        cJSON *en = cJSON_GetArrayItem(ui_platform, i);
+        cJSON *plat;
+        cJSON *ds;
+        rt_bool_t enabled;
+
+        if (cJSON_IsTrue(en))
+            enabled = RT_TRUE;
+        else if (cJSON_IsFalse(en))
+            enabled = RT_FALSE;
+        else if (cJSON_IsNumber(en))
+            enabled = en->valuedouble != 0;
+        else
+            continue;
+
+        plat = json_array_find_by_id(platforms, (rt_uint32_t)i);
+        if (!cJSON_IsObject(plat))
+        {
+            LOG_W("platforms id %d not found", i);
+            continue;
+        }
+
+        ds = cJSON_GetObjectItemCaseSensitive(plat, "data_source");
+        if (!cJSON_IsArray(ds))
+        {
+            ds = cJSON_CreateArray();
+            json_set_item(plat, "data_source", ds);
+        }
+
+        if (cJSON_GetArraySize(ds) > HOST_MAX)
+        {
+            LOG_E("platforms id %d data_source count must <= HOST_MAX(%d)", i, HOST_MAX);
+            return -RT_EINVAL;
+        }
+
+        while (cJSON_GetArraySize(ds) < HOST_MAX)
+            cJSON_AddItemToArray(ds, cJSON_CreateBool(0));
+
+        cJSON_ReplaceItemInArray(ds, (int)host_id, cJSON_CreateBool(enabled ? 1 : 0));
+    }
+
+    return RT_EOK;
+}
+
+static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
+{
+    static const char * const copy_keys[] =
+    {
+        "switch", "id", "type", "protocol_ver", "host_type",
+        "central_num", "regional_num", "local_num",
+        "keyboard_addr", "key_addr"
+    };
+    cJSON *hosts;
+    cJSON *dst;
+    cJSON *ui_platform;
+    cJSON *item;
+    rt_uint32_t host_id;
+    rt_size_t i;
+    rt_err_t err;
+
+    if (!cJSON_IsObject(ui_host))
+        return -RT_EINVAL;
+
+    if (!json_get_u32(ui_host, "id", &host_id) || host_id >= HOST_MAX)
+    {
+        LOG_E("ui host id must < HOST_MAX(%d)", HOST_MAX);
+        return -RT_EINVAL;
+    }
+
+    hosts = cJSON_GetObjectItemCaseSensitive(root, "hosts");
+    dst = json_array_find_by_id(hosts, host_id);
+    if (!cJSON_IsObject(dst))
+    {
+        LOG_E("hosts id %u not found", host_id);
+        return -RT_EINVAL;
+    }
+
+    for (i = 0; i < sizeof(copy_keys) / sizeof(copy_keys[0]); i++)
+        json_copy_key(dst, ui_host, copy_keys[i]);
+
+    json_merge_nested(dst, ui_host, "crt_interface");
+    json_merge_nested(dst, ui_host, "bus_interface");
+
+    item = cJSON_GetObjectItemCaseSensitive(ui_host, "host_type");
+    if (cJSON_IsString(item) && item->valuestring != RT_NULL)
+    {
+        char lib_name[64];
+        cJSON *nested;
+
+        json_set_string(dst, "host_type", item->valuestring);
+
+        nested = json_ensure_object(dst, "crt_protocol");
+        rt_snprintf(lib_name, sizeof(lib_name), "%s_crt.so", item->valuestring);
+        json_set_string(nested, "lib_name", lib_name);
+
+        nested = json_ensure_object(dst, "bus_protocol");
+        rt_snprintf(lib_name, sizeof(lib_name), "%s_bus.so", item->valuestring);
+        json_set_string(nested, "lib_name", lib_name);
+
+        nested = json_ensure_object(dst, "store");
+        json_set_string(nested, "path", item->valuestring);
+    }
+
+    ui_platform = cJSON_GetObjectItemCaseSensitive(ui_host, "platform");
+    err = param_ui_apply_host_platforms(root, host_id, ui_platform);
+    if (err != RT_EOK)
+        return err;
+
+    LOG_I("apply ui host id %u", host_id);
+    return RT_EOK;
+}
+
+static rt_err_t param_ui_apply_platform(cJSON *root, cJSON *ui_platform)
+{
+    static const char * const copy_keys[] =
+    {
+        "switch", "id", "name", "ip", "port", "protocol"
+    };
+    cJSON *platforms;
+    cJSON *dst;
+    rt_uint32_t platform_id;
+    rt_size_t i;
+
+    if (!cJSON_IsObject(ui_platform))
+        return -RT_EINVAL;
+
+    if (!json_get_u32(ui_platform, "id", &platform_id) || platform_id >= PLATFORM_MAX)
+    {
+        LOG_E("ui platform id must < PLATFORM_MAX(%d)", PLATFORM_MAX);
+        return -RT_EINVAL;
+    }
+
+    platforms = cJSON_GetObjectItemCaseSensitive(root, "platforms");
+    dst = json_array_find_by_id(platforms, platform_id);
+    if (!cJSON_IsObject(dst))
+    {
+        LOG_E("platforms id %u not found", platform_id);
+        return -RT_EINVAL;
+    }
+
+    for (i = 0; i < sizeof(copy_keys) / sizeof(copy_keys[0]); i++)
+        json_copy_key(dst, ui_platform, copy_keys[i]);
+
+    LOG_I("apply ui platform id %u", platform_id);
+    return RT_EOK;
+}
+
+static rt_err_t param_ui_apply_eth(cJSON *root, cJSON *ui_eth)
+{
+    cJSON *dst;
+
+    if (!cJSON_IsObject(ui_eth))
+        return -RT_EINVAL;
+
+    dst = cJSON_GetObjectItemCaseSensitive(root, "eth");
+    if (!cJSON_IsObject(dst))
+    {
+        json_set_item(root, "eth", cJSON_Duplicate(ui_eth, 1));
+        LOG_I("apply ui eth (create)");
+        return RT_EOK;
+    }
+
+    json_merge_object(dst, ui_eth);
+    LOG_I("apply ui eth");
+    return RT_EOK;
+}
+
+rt_err_t param_set_from_ui(const char *json_text)
+{
+    cJSON *ui_root;
+    cJSON *mcu_root;
+    cJSON *item;
+    rt_err_t err = -RT_EINVAL;
+    rt_bool_t applied = RT_FALSE;
+
+    if (json_text == RT_NULL)
+        return -RT_EINVAL;
+
+    ui_root = cJSON_Parse(json_text);
+    if (ui_root == RT_NULL)
+    {
+        LOG_E("parse ui param failed");
+        return -RT_ERROR;
+    }
+
+    mcu_root = param_load_root();
+    if (mcu_root == RT_NULL)
+    {
+        LOG_E("parse param_mcu.json failed");
+        cJSON_Delete(ui_root);
+        return -RT_ERROR;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(ui_root, "host");
+    if (item != RT_NULL)
+    {
+        err = param_ui_apply_host(mcu_root, item);
+        if (err != RT_EOK)
+            goto exit;
+        applied = RT_TRUE;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(ui_root, "platform");
+    if (item != RT_NULL)
+    {
+        err = param_ui_apply_platform(mcu_root, item);
+        if (err != RT_EOK)
+            goto exit;
+        applied = RT_TRUE;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(ui_root, "eth");
+    if (item != RT_NULL)
+    {
+        err = param_ui_apply_eth(mcu_root, item);
+        if (err != RT_EOK)
+            goto exit;
+        applied = RT_TRUE;
+    }
+
+    if (!applied)
+    {
+        LOG_E("ui param has no host/platform/eth");
+        err = -RT_EINVAL;
+        goto exit;
+    }
+
+    err = param_save_root(mcu_root);
+    if (err == RT_EOK)
+        LOG_I("saved %s", PARAM_JSON_PATH);
+
+exit:
+    cJSON_Delete(ui_root);
+    cJSON_Delete(mcu_root);
+    return err;
+}
+
+rt_err_t param_set_from_mcu_json(void)
+{
+    cJSON *root;
+    rt_err_t err;
+
+    root = param_load_root();
+    if (root == RT_NULL)
+    {
+        LOG_E("parse param_mcu.json failed");
         return -RT_ERROR;
     }
 
