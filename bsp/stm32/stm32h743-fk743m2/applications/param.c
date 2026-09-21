@@ -8,6 +8,11 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <stdlib.h>
+
+#ifdef RT_USING_FINSH
+#include <finsh.h>
+#endif
 
 #define DBG_TAG "param"
 #define DBG_LVL DBG_LOG
@@ -910,3 +915,380 @@ rt_err_t param_set_from_mcu_json(void)
     cJSON_Delete(root);
     return err;
 }
+
+#ifdef RT_USING_FINSH
+static rt_err_t param_parse_name_id(const char *s, char *name, rt_size_t name_sz,
+                                    rt_bool_t *has_id, rt_uint32_t *id)
+{
+    const char *lb;
+    const char *rb;
+    rt_size_t nlen;
+    char *end;
+    unsigned long v;
+
+    if (s == RT_NULL || name == RT_NULL || name_sz == 0 || has_id == RT_NULL || id == RT_NULL)
+        return -RT_EINVAL;
+
+    *has_id = RT_FALSE;
+    *id = 0;
+
+    lb = strchr(s, '[');
+    if (lb == RT_NULL)
+    {
+        rt_strncpy(name, s, name_sz - 1);
+        name[name_sz - 1] = '\0';
+        return RT_EOK;
+    }
+
+    rb = strchr(lb, ']');
+    if (rb == RT_NULL || rb[1] != '\0' || lb == s)
+        return -RT_EINVAL;
+
+    nlen = (rt_size_t)(lb - s);
+    if (nlen == 0 || nlen >= name_sz)
+        return -RT_EINVAL;
+
+    rt_memcpy(name, s, nlen);
+    name[nlen] = '\0';
+
+    v = strtoul(lb + 1, &end, 10);
+    if (end != rb)
+        return -RT_EINVAL;
+
+    *has_id = RT_TRUE;
+    *id = (rt_uint32_t)v;
+    return RT_EOK;
+}
+
+static void param_normalize_section_name(char *name)
+{
+    if (name != RT_NULL && rt_strcmp(name, "platform") == 0)
+        rt_strncpy(name, "platforms", sizeof("platforms"));
+}
+
+static rt_err_t param_resolve_section(cJSON *root, int argc, char **argv, int *next_arg, cJSON **section)
+{
+    char name[16];
+    rt_bool_t has_id;
+    rt_uint32_t id;
+    cJSON *item;
+    int max;
+
+    if (root == RT_NULL || argv == RT_NULL || next_arg == RT_NULL || section == RT_NULL || argc < 2)
+        return -RT_EINVAL;
+
+    if (param_parse_name_id(argv[1], name, sizeof(name), &has_id, &id) != RT_EOK)
+    {
+        rt_kprintf("invalid selector: %s\n", argv[1]);
+        return -RT_EINVAL;
+    }
+
+    *next_arg = 2;
+    if (!has_id && argc >= 3)
+    {
+        char *end;
+        unsigned long v = strtoul(argv[2], &end, 10);
+        if (end != argv[2] && *end == '\0')
+        {
+            has_id = RT_TRUE;
+            id = (rt_uint32_t)v;
+            *next_arg = 3;
+        }
+    }
+
+    param_normalize_section_name(name);
+    item = cJSON_GetObjectItemCaseSensitive(root, name);
+    if (item == RT_NULL)
+    {
+        rt_kprintf("unknown section: %s\n", name);
+        return -RT_EINVAL;
+    }
+
+    if (cJSON_IsArray(item))
+    {
+        max = (rt_strcmp(name, "hosts") == 0) ? HOST_MAX : PLATFORM_MAX;
+        if (!has_id)
+        {
+            rt_kprintf("need id, e.g. %s[0]\n", name);
+            return -RT_EINVAL;
+        }
+        if (id >= (rt_uint32_t)max)
+        {
+            rt_kprintf("%s id %u must < %d\n", name, id, max);
+            return -RT_EINVAL;
+        }
+
+        *section = json_array_find_by_id(item, id);
+        if (*section == RT_NULL)
+        {
+            rt_kprintf("%s id %u not found\n", name, id);
+            return -RT_EINVAL;
+        }
+        return RT_EOK;
+    }
+
+    if (has_id)
+    {
+        rt_kprintf("%s is not array\n", name);
+        return -RT_EINVAL;
+    }
+
+    *section = item;
+    return RT_EOK;
+}
+
+static cJSON *param_child(cJSON *cur, const char *tok)
+{
+    char name[32];
+    rt_bool_t has_id;
+    rt_uint32_t id;
+    char *end;
+    unsigned long v;
+
+    if (cur == RT_NULL || tok == RT_NULL)
+        return RT_NULL;
+
+    if (cJSON_IsArray(cur))
+    {
+        if (param_parse_name_id(tok, name, sizeof(name), &has_id, &id) == RT_EOK && has_id)
+            return json_array_find_by_id(cur, id);
+
+        v = strtoul(tok, &end, 10);
+        if (end != tok && *end == '\0')
+            return cJSON_GetArrayItem(cur, (int)v);
+        return RT_NULL;
+    }
+
+    if (!cJSON_IsObject(cur))
+        return RT_NULL;
+
+    if (param_parse_name_id(tok, name, sizeof(name), &has_id, &id) != RT_EOK)
+        return RT_NULL;
+
+    cur = cJSON_GetObjectItemCaseSensitive(cur, name);
+    if (!has_id)
+        return cur;
+    if (cJSON_IsArray(cur))
+        return json_array_find_by_id(cur, id);
+    return RT_NULL;
+}
+
+static cJSON *param_make_value(cJSON *old_item, const char *s)
+{
+    char *end;
+    double d;
+
+    if (s == RT_NULL)
+        return RT_NULL;
+
+    if (old_item != RT_NULL)
+    {
+        if (cJSON_IsBool(old_item))
+        {
+            if (rt_strcmp(s, "true") == 0 || rt_strcmp(s, "1") == 0)
+                return cJSON_CreateBool(1);
+            if (rt_strcmp(s, "false") == 0 || rt_strcmp(s, "0") == 0)
+                return cJSON_CreateBool(0);
+            return RT_NULL;
+        }
+        if (cJSON_IsNumber(old_item))
+        {
+            d = strtod(s, &end);
+            if (end == s || *end != '\0')
+                return RT_NULL;
+            return cJSON_CreateNumber(d);
+        }
+        if (cJSON_IsString(old_item))
+            return cJSON_CreateString(s);
+    }
+
+    if (rt_strcmp(s, "true") == 0)
+        return cJSON_CreateBool(1);
+    if (rt_strcmp(s, "false") == 0)
+        return cJSON_CreateBool(0);
+
+    d = strtod(s, &end);
+    if (end != s && *end == '\0')
+        return cJSON_CreateNumber(d);
+
+    return cJSON_CreateString(s);
+}
+
+static rt_err_t param_set_leaf(cJSON *parent, const char *tok, const char *value_str)
+{
+    char name[32];
+    rt_bool_t has_id;
+    rt_uint32_t id;
+    cJSON *old;
+    cJSON *neu;
+    char *end;
+    unsigned long v;
+
+    if (parent == RT_NULL || tok == RT_NULL || value_str == RT_NULL)
+        return -RT_EINVAL;
+
+    if (cJSON_IsArray(parent))
+    {
+        if (param_parse_name_id(tok, name, sizeof(name), &has_id, &id) == RT_EOK && has_id)
+            v = id;
+        else
+        {
+            v = strtoul(tok, &end, 10);
+            if (end == tok || *end != '\0')
+                return -RT_EINVAL;
+        }
+
+        if (v >= (unsigned long)cJSON_GetArraySize(parent))
+            return -RT_EINVAL;
+
+        old = cJSON_GetArrayItem(parent, (int)v);
+        neu = param_make_value(old, value_str);
+        if (neu == RT_NULL)
+            return -RT_EINVAL;
+        cJSON_ReplaceItemInArray(parent, (int)v, neu);
+        return RT_EOK;
+    }
+
+    if (!cJSON_IsObject(parent))
+        return -RT_EINVAL;
+
+    if (param_parse_name_id(tok, name, sizeof(name), &has_id, &id) != RT_EOK || has_id)
+        return -RT_EINVAL;
+
+    old = cJSON_GetObjectItemCaseSensitive(parent, name);
+    neu = param_make_value(old, value_str);
+    if (neu == RT_NULL)
+        return -RT_EINVAL;
+
+    json_set_item(parent, name, neu);
+    return RT_EOK;
+}
+
+static void param_print_item(cJSON *item)
+{
+    char *printed;
+
+    if (item == RT_NULL)
+        return;
+
+    printed = cJSON_Print(item);
+    if (printed == RT_NULL)
+    {
+        rt_kprintf("print json failed\n");
+        return;
+    }
+
+    rt_kprintf("%s\n", printed);
+    cJSON_free(printed);
+}
+
+static int cmd_get_param(int argc, char **argv)
+{
+    cJSON *root;
+    cJSON *section;
+    int next_arg;
+
+    if (argc < 2)
+    {
+        rt_kprintf("Usage: get_param <hosts[id]|platforms[id]|eth>\n");
+        rt_kprintf("Example: get_param hosts[0]\n");
+        rt_kprintf("         get_param platforms 1\n");
+        rt_kprintf("         get_param eth\n");
+        return -RT_ERROR;
+    }
+
+    root = param_load_root();
+    if (root == RT_NULL)
+    {
+        rt_kprintf("load %s failed\n", PARAM_JSON_PATH);
+        return -RT_ERROR;
+    }
+
+    if (param_resolve_section(root, argc, argv, &next_arg, &section) != RT_EOK)
+    {
+        cJSON_Delete(root);
+        return -RT_ERROR;
+    }
+
+    if (next_arg != argc)
+    {
+        rt_kprintf("Usage: get_param <hosts[id]|platforms[id]|eth>\n");
+        cJSON_Delete(root);
+        return -RT_ERROR;
+    }
+
+    param_print_item(section);
+    cJSON_Delete(root);
+    return RT_EOK;
+}
+MSH_CMD_EXPORT_ALIAS(cmd_get_param, get_param, Get param: get_param hosts[id]|platforms[id]|eth);
+
+static int cmd_set_param(int argc, char **argv)
+{
+    cJSON *root;
+    cJSON *section;
+    cJSON *parent;
+    int next_arg;
+    int i;
+
+    if (argc < 4)
+    {
+        rt_kprintf("Usage: set_param <hosts[id]|platforms[id]|eth> [keys...] <key> <value>\n");
+        rt_kprintf("Example: set_param hosts[0] crt_interface uart_name uart0\n");
+        rt_kprintf("         set_param eth dhcp false\n");
+        return -RT_ERROR;
+    }
+
+    root = param_load_root();
+    if (root == RT_NULL)
+    {
+        rt_kprintf("load %s failed\n", PARAM_JSON_PATH);
+        return -RT_ERROR;
+    }
+
+    if (param_resolve_section(root, argc, argv, &next_arg, &section) != RT_EOK)
+    {
+        cJSON_Delete(root);
+        return -RT_ERROR;
+    }
+
+    if (argc - next_arg < 2)
+    {
+        rt_kprintf("Usage: set_param <hosts[id]|platforms[id]|eth> [keys...] <key> <value>\n");
+        cJSON_Delete(root);
+        return -RT_ERROR;
+    }
+
+    parent = section;
+    for (i = next_arg; i < argc - 2; i++)
+    {
+        parent = param_child(parent, argv[i]);
+        if (parent == RT_NULL)
+        {
+            rt_kprintf("path not found: %s\n", argv[i]);
+            cJSON_Delete(root);
+            return -RT_ERROR;
+        }
+    }
+
+    if (param_set_leaf(parent, argv[argc - 2], argv[argc - 1]) != RT_EOK)
+    {
+        rt_kprintf("set %s = %s failed\n", argv[argc - 2], argv[argc - 1]);
+        cJSON_Delete(root);
+        return -RT_ERROR;
+    }
+
+    if (param_save_root(root) != RT_EOK)
+    {
+        rt_kprintf("save %s failed\n", PARAM_JSON_PATH);
+        cJSON_Delete(root);
+        return -RT_ERROR;
+    }
+
+    rt_kprintf("set ok: %s = %s\n", argv[argc - 2], argv[argc - 1]);
+    cJSON_Delete(root);
+    return RT_EOK;
+}
+MSH_CMD_EXPORT_ALIAS(cmd_set_param, set_param, Set param: set_param hosts[0] crt_interface uart_name uart0);
+#endif
+
