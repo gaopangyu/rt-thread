@@ -37,6 +37,8 @@ int main(void)
     // 按照日期获取历史事件不恢复绑定
     #ifdef ULOG_USING_FILTER
         ulog_global_filter_lvl_set(LOG_LVL_DBG);
+        ulog_tag_lvl_filter_set("protocol_cmd", LOG_LVL_WARNING);
+        ulog_tag_lvl_filter_set("upload_muart", LOG_LVL_WARNING);
     #endif
 
     // rt_thread_mdelay(500);

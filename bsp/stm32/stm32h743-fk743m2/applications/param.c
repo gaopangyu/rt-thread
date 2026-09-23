@@ -1041,6 +1041,76 @@ static rt_err_t param_resolve_section(cJSON *root, int argc, char **argv, int *n
     return RT_EOK;
 }
 
+static const char *param_reply_key(const char *selector)
+{
+    if (selector == RT_NULL)
+        return RT_NULL;
+    if (rt_strncmp(selector, "hosts", 5) == 0 || rt_strcmp(selector, "host") == 0)
+        return "host";
+    if (rt_strncmp(selector, "platforms", 9) == 0 || rt_strncmp(selector, "platform", 8) == 0)
+        return "platform";
+    if (rt_strcmp(selector, "eth") == 0)
+        return "eth";
+    return RT_NULL;
+}
+
+rt_size_t param_get_json(const char *selector, char *out, rt_size_t out_sz)
+{
+    cJSON *root;
+    cJSON *section;
+    cJSON *wrap;
+    char *argv[2];
+    int next_arg;
+    const char *key;
+    char *printed;
+    rt_size_t n;
+
+    if (selector == RT_NULL || out == RT_NULL || out_sz == 0)
+        return 0;
+
+    key = param_reply_key(selector);
+    if (key == RT_NULL)
+        return 0;
+
+    root = param_load_root();
+    if (root == RT_NULL)
+        return 0;
+
+    argv[0] = "get_param";
+    argv[1] = (char *)selector;
+    if (param_resolve_section(root, 2, argv, &next_arg, &section) != RT_EOK)
+    {
+        cJSON_Delete(root);
+        return 0;
+    }
+
+    wrap = cJSON_CreateObject();
+    if (wrap == RT_NULL)
+    {
+        cJSON_Delete(root);
+        return 0;
+    }
+    cJSON_AddItemToObject(wrap, key, cJSON_Duplicate(section, 1));
+    cJSON_Delete(root);
+
+    printed = cJSON_PrintUnformatted(wrap);
+    cJSON_Delete(wrap);
+    if (printed == RT_NULL)
+        return 0;
+
+    n = rt_strlen(printed);
+    if (n == 0 || n >= out_sz)
+    {
+        LOG_E("param get json size %u", (unsigned)n);
+        cJSON_free(printed);
+        return 0;
+    }
+
+    rt_memcpy(out, printed, n);
+    cJSON_free(printed);
+    return n;
+}
+
 static cJSON *param_child(cJSON *cur, const char *tok)
 {
     char name[32];

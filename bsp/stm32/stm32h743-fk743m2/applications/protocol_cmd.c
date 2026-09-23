@@ -2,6 +2,8 @@
 #include "bind.h"
 #include "upload_muart.h"
 #include "host.h"
+#include "param.h"
+#include "console.h"
 
 #include <time.h>
 #include <string.h>
@@ -155,20 +157,74 @@ static void protocol_cmd_recv(void *parameter)
 
 static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
 {
+    rt_uint8_t cmd;
+    rt_size_t reply_len = 0;
+    host_t host;
+
     if (buffer == RT_NULL || len == 0)
         return 0;
 
-    rt_size_t reply_len = 0;
+    /* bit7：0 请求，1 回复。这里只处理请求。 */
+    if (buffer[0] & 0x80)
+        return 0;
 
-    switch(buffer[0])
+    cmd = buffer[0] & 0x7F;
+
+    switch (cmd)
     {
-        case 0x01://获取参数
+        case 0x01: /* 获取参数。请求：hosts[id]|platforms[id]|eth；回复：{"host"|"platform"|"eth":{...}} */
+        {
+            char selector[32];
+
             LOG_I("protocol cmd parse: 0x01 get param\r\n");
+            if (len < 2 || len - 1 >= sizeof(selector))
+            {
+                LOG_E("protocol cmd parse: 0x01 frame len: %d\r\n", (int)len);
+                break;
+            }
+
+            rt_memcpy(selector, buffer + 1, len - 1);
+            selector[len - 1] = '\0';
+            reply_len = param_get_json(selector, (char *)cmd_reply_buffer + 1, sizeof(cmd_reply_buffer) - 1);
+            if (reply_len == 0)
+                LOG_E("protocol cmd parse: 0x01 get %s failed\r\n", selector);
+            else
+            {
+                cmd_reply_buffer[0] = cmd | 0x80;
+                reply_len += 1;
+            }
             break;
-        case 0x02://设置参数
+        }
+        case 0x02: /* 设置参数。请求：{"host"|"platform"|"eth":{...}}；回复：成功条数 + 失败条数 */
+        {
+            char *json;
+            rt_err_t err;
+
             LOG_I("protocol cmd parse: 0x02 set param\r\n");
+            if (len < 2)
+            {
+                LOG_E("protocol cmd parse: 0x02 frame len: %d\r\n", (int)len);
+                break;
+            }
+
+            json = rt_malloc(len);
+            if (json == RT_NULL)
+                break;
+
+            rt_memcpy(json, buffer + 1, len - 1);
+            json[len - 1] = '\0';
+            err = param_set_from_ui(json);
+            rt_free(json);
+
+            cmd_reply_buffer[0] = cmd | 0x80;
+            cmd_reply_buffer[1] = (err == RT_EOK) ? 1 : 0;
+            cmd_reply_buffer[2] = (err == RT_EOK) ? 0 : 1;
+            reply_len = 3;
+            LOG_I("protocol cmd return: 0x02 set param succ=%d fail=%d\r\n",
+                  cmd_reply_buffer[1], cmd_reply_buffer[2]);
             break;
-        case 0x03://获取历史报文
+        }
+        case 0x03: /* 获取历史报文 */
             LOG_I("protocol cmd parse: 0x03 get history messages\r\n");
 
             /* 布局: [0]=0x03 [1]=host_id [2]=event_type
@@ -186,33 +242,68 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
                 || g_host[event_history.host_id] == RT_NULL || g_host[event_history.host_id]->ops == RT_NULL
                 || g_host[event_history.host_id]->ops->get_history == RT_NULL)
             {
-                LOG_E("protocol cmd parse: 0x03 invalid args host=%d count=%d \r\n", 
+                LOG_E("protocol cmd parse: 0x03 invalid args host=%d count=%d \r\n",
                                                event_history.host_id, event_history.count);
                 break;
             }
 
             rt_bool_t is_end = RT_FALSE;
-            host_t host = g_host[event_history.host_id];
+            host = g_host[event_history.host_id];
 
             reply_len = host->ops->get_history(host,
-                                                cmd_reply_buffer,
-                                                sizeof(cmd_reply_buffer),
+                                                cmd_reply_buffer + 1,
+                                                sizeof(cmd_reply_buffer) - 1,
                                                 &event_history,
                                                 &is_end);
+            if (reply_len > 0)
+            {
+                cmd_reply_buffer[0] = cmd | 0x80;
+                reply_len += 1;
+            }
             if (is_end && host->ops->muart_rx_bind_create != RT_NULL)
                 host->ops->muart_rx_bind_create(host);
 
             break;
-        case 0x04://删除绑定
-            LOG_I("protocol cmd parse: 0x04 delete bind\r\n");
+        case 0x04: /* 删除绑定。请求：host_id；回复空 */
+        case 0x05: /* 创建绑定。请求：host_id；回复空 */
+        {
+            rt_uint8_t host_id;
+
+            LOG_I("protocol cmd parse: 0x%02X %s bind\r\n", cmd, cmd == 0x04 ? "delete" : "create");
+            if (len < 2)
+            {
+                LOG_E("protocol cmd parse: 0x%02X frame len: %d < 2\r\n", cmd, (int)len);
+                break;
+            }
+
+            host_id = buffer[1];
+            if (host_id >= HOST_MAX
+                || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL)
+            {
+                LOG_E("protocol cmd parse: 0x%02X invalid host=%d\r\n", cmd, host_id);
+                break;
+            }
+
+            host = g_host[host_id];
+            if (cmd == 0x04)
+            {
+                if (host->ops->muart_rx_bind_delete == RT_NULL)
+                    break;
+                host->ops->muart_rx_bind_delete(host);
+            }
+            else
+            {
+                if (host->ops->muart_rx_bind_create == RT_NULL)
+                    break;
+                host->ops->muart_rx_bind_create(host);
+            }
+            cmd_reply_buffer[0] = cmd | 0x80;
+            reply_len = 1;
             break;
-        case 0x05://创建绑定
-            LOG_I("protocol cmd parse: 0x05 create bind\r\n");
-            break;  
-        case 0x06://获取绑定
+        }
+        case 0x06: /* 获取绑定状态。请求：host_id；回复：0 未绑定 / 1 已绑定 */
             LOG_I("protocol cmd parse: 0x06 get bind\r\n");
 
-            /* 布局: [0]=0x06 [1]=host_id */
             if (len < 2)
             {
                 LOG_E("protocol cmd parse: 0x06 frame len: %d < 2\r\n", (int)len);
@@ -230,15 +321,41 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
                 break;
             }
 
-            cmd_reply_buffer[0] = g_host[host_id]->ops->muart_rx_bind_status(g_host[host_id]) ? 1 : 0;
-            reply_len = 1;
-            LOG_I("protocol cmd return: 0x06 get bind: %d\r\n", cmd_reply_buffer[0]);
+            cmd_reply_buffer[0] = cmd | 0x80;
+            cmd_reply_buffer[1] = g_host[host_id]->ops->muart_rx_bind_status(g_host[host_id]) ? 1 : 0;
+            reply_len = 2;
+            LOG_I("protocol cmd return: 0x06 get bind: %d\r\n", cmd_reply_buffer[1]);
 
             break;
-        case 0x07://切换控制台
+        case 0x07: /* 切换控制台。请求：usb|uart|upload；回复空 */
+        {
+            char name[16];
+
             LOG_I("protocol cmd parse: 0x07 switch console\r\n");
-            
-            break;  
+            if (len < 2 || len - 1 >= sizeof(name))
+            {
+                LOG_E("protocol cmd parse: 0x07 frame len: %d\r\n", (int)len);
+                break;
+            }
+
+            rt_memcpy(name, buffer + 1, len - 1);
+            name[len - 1] = '\0';
+            if (rt_strcmp(name, "uart") == 0)
+                set_console_device(CONSOLE_DEVICE_UART);
+            else if (rt_strcmp(name, "usb") == 0)
+                set_console_device(CONSOLE_DEVICE_USB_CDC);
+            else if (rt_strcmp(name, "upload") == 0)
+                set_console_device(CONSOLE_DEVICE_UPLOAD);
+            else
+            {
+                LOG_E("protocol cmd parse: 0x07 invalid console: %s\r\n", name);
+                break;
+            }
+
+            cmd_reply_buffer[0] = cmd | 0x80;
+            reply_len = 1;
+            break;
+        }
         default:
             LOG_E("protocol cmd parse: unknown command: 0x%02X\r\n", buffer[0]);
             break;
