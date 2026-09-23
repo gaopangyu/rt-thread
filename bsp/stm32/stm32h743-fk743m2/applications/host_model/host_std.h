@@ -47,5 +47,6 @@ typedef struct host_std *host_std_t;
 
 rt_err_t host_std_create(host_std_config_t config);
 rt_err_t host_std_create_from_json(cJSON *host_json);
+rt_err_t host_std_set_param_from_json(cJSON *host_json);
 
 #endif /* __HOST_STD_H__ */

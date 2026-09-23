@@ -770,6 +770,10 @@ static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
     if (err != RT_EOK)
         return err;
 
+    err = host_std_set_param_from_json(dst);
+    if (err != RT_EOK)
+        return err;
+
     LOG_I("apply ui host id %u", host_id);
     return RT_EOK;
 }
@@ -1276,6 +1280,16 @@ static int cmd_set_param(int argc, char **argv)
         rt_kprintf("set %s = %s failed\n", argv[argc - 2], argv[argc - 1]);
         cJSON_Delete(root);
         return -RT_ERROR;
+    }
+
+    if (rt_strncmp(argv[1], "hosts", 5) == 0)
+    {
+        if (host_std_set_param_from_json(section) != RT_EOK)
+        {
+            rt_kprintf("hosts set_param failed\n");
+            cJSON_Delete(root);
+            return -RT_ERROR;
+        }
     }
 
     if (param_save_root(root) != RT_EOK)

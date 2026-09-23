@@ -1,5 +1,14 @@
 #include "host.h"
+#include "json_util.h"
+#include "class/interface_rs232.h"
+#include "class/protocol_ev1.h"
+#include "class/upload_store.h"
+
 #include <string.h>
+
+#define DBG_TAG "host"
+#define DBG_LVL DBG_LOG
+#include <rtdbg.h>
 
 host_t g_host[HOST_MAX] = 
 {
@@ -44,4 +53,260 @@ const char *host_protocol_parent_name(const char *protocol_ver)
         return PROTOCOL_EV1_PARENT_NAME;
 
     return RT_NULL;
+}
+
+rt_err_t host_set_interface_param(interface_obj_t obj, void *cfg, const char *name)
+{
+    double_ret ret;
+
+    if (cfg == RT_NULL)
+        return RT_EOK;
+    if (obj == RT_NULL || obj->ops == RT_NULL || obj->ops->set_param == RT_NULL)
+    {
+        LOG_W("%s set_param skipped", name);
+        return RT_EOK;
+    }
+
+    ret = obj->ops->set_param(obj, cfg);
+    if (ret.fail != 0)
+    {
+        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
+        return -RT_ERROR;
+    }
+
+    LOG_I("%s set_param succ:%d", name, ret.succ);
+    return RT_EOK;
+}
+
+rt_err_t host_set_protocol_param(protocol_obj_t obj, void *cfg, const char *name)
+{
+    double_ret ret;
+
+    if (cfg == RT_NULL)
+        return RT_EOK;
+    if (obj == RT_NULL || obj->ops == RT_NULL || obj->ops->set_param == RT_NULL)
+    {
+        LOG_W("%s set_param skipped", name);
+        return RT_EOK;
+    }
+
+    ret = obj->ops->set_param(obj, cfg);
+    if (ret.fail != 0)
+    {
+        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
+        return -RT_ERROR;
+    }
+
+    LOG_I("%s set_param succ:%d", name, ret.succ);
+    return RT_EOK;
+}
+
+rt_err_t host_set_funnel_param(funnel_obj_t obj, void *cfg, const char *name)
+{
+    double_ret ret;
+
+    if (cfg == RT_NULL)
+        return RT_EOK;
+    if (obj == RT_NULL || obj->ops == RT_NULL || obj->ops->set_param == RT_NULL)
+    {
+        LOG_W("%s set_param skipped", name);
+        return RT_EOK;
+    }
+
+    ret = obj->ops->set_param(obj, cfg);
+    if (ret.fail != 0)
+    {
+        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
+        return -RT_ERROR;
+    }
+
+    LOG_I("%s set_param succ:%d", name, ret.succ);
+    return RT_EOK;
+}
+
+rt_err_t host_set_upload_param(upload_obj_t obj, void *cfg, const char *name)
+{
+    double_ret ret;
+
+    if (cfg == RT_NULL)
+        return RT_EOK;
+    if (obj == RT_NULL || obj->ops == RT_NULL || obj->ops->set_param == RT_NULL)
+    {
+        LOG_W("%s set_param skipped", name);
+        return RT_EOK;
+    }
+
+    ret = obj->ops->set_param(obj, cfg);
+    if (ret.fail != 0)
+    {
+        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
+        return -RT_ERROR;
+    }
+
+    LOG_I("%s set_param succ:%d", name, ret.succ);
+    return RT_EOK;
+}
+
+void host_delete_interface(interface_obj_t *obj)
+{
+    if (obj == RT_NULL || *obj == RT_NULL)
+        return;
+
+    if ((*obj)->ops != RT_NULL && (*obj)->ops->delete != RT_NULL)
+        (*obj)->ops->delete(*obj);
+    *obj = RT_NULL;
+}
+
+void host_delete_protocol(protocol_obj_t *obj)
+{
+    if (obj == RT_NULL || *obj == RT_NULL)
+        return;
+
+    if ((*obj)->ops != RT_NULL && (*obj)->ops->delete != RT_NULL)
+        (*obj)->ops->delete(*obj);
+    *obj = RT_NULL;
+}
+
+void host_delete_funnel(funnel_obj_t *obj)
+{
+    if (obj == RT_NULL || *obj == RT_NULL)
+        return;
+
+    if ((*obj)->ops != RT_NULL && (*obj)->ops->delete != RT_NULL)
+        (*obj)->ops->delete(*obj);
+    *obj = RT_NULL;
+}
+
+void host_delete_upload(upload_obj_t *obj)
+{
+    if (obj == RT_NULL || *obj == RT_NULL)
+        return;
+
+    if ((*obj)->ops != RT_NULL && (*obj)->ops->delete != RT_NULL)
+        (*obj)->ops->delete(*obj);
+    *obj = RT_NULL;
+}
+
+interface_obj_t host_create_interface(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
+{
+    interface_obj_t parent;
+    char name[RT_NAME_MAX];
+
+    if (parent_name == RT_NULL || cfg == RT_NULL)
+        return RT_NULL;
+
+    parent = (interface_obj_t)rt_object_find(parent_name, RT_Object_Class_Custom);
+    if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
+        return RT_NULL;
+    if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
+        return RT_NULL;
+
+    return parent->ops->create(parent, name, cfg);
+}
+
+protocol_obj_t host_create_protocol(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
+{
+    protocol_obj_t parent;
+    char name[RT_NAME_MAX];
+
+    if (parent_name == RT_NULL || cfg == RT_NULL)
+        return RT_NULL;
+
+    parent = (protocol_obj_t)rt_object_find(parent_name, RT_Object_Class_Custom);
+    if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
+        return RT_NULL;
+    if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
+        return RT_NULL;
+
+    return parent->ops->create(parent, name, cfg);
+}
+
+funnel_obj_t host_create_funnel(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
+{
+    funnel_obj_t parent;
+    char name[RT_NAME_MAX];
+
+    if (parent_name == RT_NULL || cfg == RT_NULL)
+        return RT_NULL;
+
+    parent = (funnel_obj_t)rt_object_find(parent_name, RT_Object_Class_Custom);
+    if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
+        return RT_NULL;
+    if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
+        return RT_NULL;
+
+    return parent->ops->create(parent, name, cfg);
+}
+
+upload_obj_t host_create_upload(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
+{
+    upload_obj_t parent;
+    char name[RT_NAME_MAX];
+
+    if (parent_name == RT_NULL || cfg == RT_NULL)
+        return RT_NULL;
+
+    parent = (upload_obj_t)rt_object_find(parent_name, RT_Object_Class_Custom);
+    if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
+        return RT_NULL;
+    if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
+        return RT_NULL;
+
+    return parent->ops->create(parent, name, cfg);
+}
+
+rt_size_t host_upload_get_history(upload_obj_t obj, rt_uint8_t *buffer, rt_size_t size,
+                                  event_history_t event_history, rt_bool_t *is_end)
+{
+    if (obj == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
+        return 0;
+    if (obj->ops == RT_NULL || obj->ops->get_history == RT_NULL)
+        return 0;
+
+    return obj->ops->get_history(obj, buffer, size, event_history, is_end);
+}
+
+void host_parse_rs232(cJSON *obj, struct interface_rs232_config *cfg)
+{
+    rt_uint32_t v;
+
+    if (obj == RT_NULL || cfg == RT_NULL)
+        return;
+
+    json_copy_str(cfg->uart_name, sizeof(cfg->uart_name), obj, "uart_name");
+
+    if (json_get_u32(obj, "baud_rate", &v))
+        cfg->baud_rate = v;
+    if (json_get_u32(obj, "data_bits", &v))
+        cfg->data_bits = (rt_uint8_t)v;
+    if (json_get_u32(obj, "stop_bits", &v))
+        cfg->stop_bits = (rt_uint8_t)v;
+    if (json_get_u32(obj, "parity", &v))
+        cfg->parity = (rt_uint8_t)v;
+    if (json_get_u32(obj, "bit_order", &v))
+        cfg->bit_order = (rt_uint8_t)v;
+    if (json_get_u32(obj, "rx_bufsz", &v))
+        cfg->rx_bufsz = (rt_size_t)v;
+    if (json_get_u32(obj, "dma_ping_bufsz", &v))
+        cfg->dma_ping_bufsz = (rt_size_t)v;
+    if (json_get_u32(obj, "tx_bufsz", &v))
+        cfg->tx_bufsz = (rt_size_t)v;
+    if (json_get_u32(obj, "rx_en_pin", &v))
+        cfg->rx_en_pin = (rt_base_t)v;
+}
+
+void host_parse_protocol_ev1(cJSON *obj, struct protocol_ev1_config *cfg)
+{
+    if (obj == RT_NULL || cfg == RT_NULL)
+        return;
+
+    json_copy_str(cfg->lib_name, sizeof(cfg->lib_name), obj, "lib_name");
+}
+
+void host_parse_store(cJSON *obj, struct upload_store_config *cfg)
+{
+    if (obj == RT_NULL || cfg == RT_NULL)
+        return;
+
+    json_copy_str(cfg->path, sizeof(cfg->path), obj, "path");
 }
