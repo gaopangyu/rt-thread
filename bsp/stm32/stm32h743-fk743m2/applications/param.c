@@ -485,7 +485,7 @@ static rt_err_t param_create_hosts(cJSON *root)
     return ret;
 }
 
-static rt_err_t param_read_file(char **out)
+static rt_err_t param_read_file(const char *path, char **out)
 {
     struct stat st;
     int fd;
@@ -494,16 +494,19 @@ static rt_err_t param_read_file(char **out)
 
     *out = RT_NULL;
 
-    if (stat(PARAM_JSON_PATH, &st) != 0)
+    if (path == RT_NULL)
+        return -RT_EINVAL;
+
+    if (stat(path, &st) != 0)
         return -RT_ERROR;
 
     if (st.st_size <= 0 || st.st_size > PARAM_JSON_MAX)
     {
-        LOG_E("%s size invalid: %ld", PARAM_JSON_PATH, (long)st.st_size);
+        LOG_E("%s size invalid: %ld", path, (long)st.st_size);
         return -RT_ERROR;
     }
 
-    fd = open(PARAM_JSON_PATH, O_RDONLY, 0);
+    fd = open(path, O_RDONLY, 0);
     if (fd < 0)
         return -RT_ERROR;
 
@@ -527,21 +530,21 @@ static rt_err_t param_read_file(char **out)
     return RT_EOK;
 }
 
-static rt_err_t param_write_text(const char *text)
+static rt_err_t param_write_text(const char *path, const char *text)
 {
     int fd;
     int n;
     rt_size_t len;
 
-    if (text == RT_NULL)
+    if (path == RT_NULL || text == RT_NULL)
         return -RT_EINVAL;
 
     ensure_dir("/init");
 
-    fd = open(PARAM_JSON_PATH, O_WRONLY | O_CREAT | O_TRUNC, 0);
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0);
     if (fd < 0)
     {
-        LOG_E("create %s failed", PARAM_JSON_PATH);
+        LOG_E("create %s failed", path);
         return -RT_ERROR;
     }
 
@@ -551,20 +554,20 @@ static rt_err_t param_write_text(const char *text)
 
     if (n != (int)len)
     {
-        LOG_E("write %s failed", PARAM_JSON_PATH);
+        LOG_E("write %s failed", path);
         return -RT_ERROR;
     }
 
     return RT_EOK;
 }
 
-static rt_err_t param_write_default(void)
+static rt_err_t param_write_default(const char *path)
 {
     rt_err_t err;
 
-    err = param_write_text(param_mcu_json_default);
+    err = param_write_text(path, param_mcu_json_default);
     if (err == RT_EOK)
-        LOG_I("created default %s", PARAM_JSON_PATH);
+        LOG_I("created default %s", path);
     return err;
 }
 
@@ -596,25 +599,28 @@ static rt_err_t param_save_root(cJSON *root)
         return err;
     }
 
-    err = param_write_text(printed);
+    err = param_write_text(PARAM_FILE_PATH, printed);
     cJSON_free(printed);
     return err;
 }
 
-static cJSON *param_load_root(void)
+static cJSON *param_load_root(const char *path)
 {
     char *file_buf = RT_NULL;
     const char *json_text;
     cJSON *root;
 
-    if (param_read_file(&file_buf) == RT_EOK)
+    if (path == RT_NULL)
+        return RT_NULL;
+
+    if (param_read_file(path, &file_buf) == RT_EOK)
     {
         json_text = file_buf;
-        LOG_I("load %s", PARAM_JSON_PATH);
+        LOG_I("load %s", path);
     }
     else
     {
-        param_write_default();
+        param_write_default(path);
         json_text = param_mcu_json_default;
         LOG_I("use default param");
     }
@@ -851,7 +857,7 @@ rt_err_t param_set_from_ui(const char *json_text)
         return -RT_ERROR;
     }
 
-    mcu_root = param_load_root();
+    mcu_root = param_load_root(PARAM_FILE_PATH);
     if (mcu_root == RT_NULL)
     {
         LOG_E("parse param_mcu.json failed");
@@ -895,7 +901,7 @@ rt_err_t param_set_from_ui(const char *json_text)
 
     err = param_save_root(mcu_root);
     if (err == RT_EOK)
-        LOG_I("saved %s", PARAM_JSON_PATH);
+        LOG_I("saved %s", PARAM_FILE_PATH);
 
 exit:
     cJSON_Delete(ui_root);
@@ -903,15 +909,18 @@ exit:
     return err;
 }
 
-rt_err_t param_set_from_mcu_json(void)
+rt_err_t param_set_from_file(char *path)
 {
     cJSON *root;
     rt_err_t err;
 
-    root = param_load_root();
+    if (path == RT_NULL)
+        return -RT_EINVAL;
+
+    root = param_load_root(path);
     if (root == RT_NULL)
     {
-        LOG_E("parse param_mcu.json failed");
+        LOG_E("parse %s failed", path);
         return -RT_ERROR;
     }
 
@@ -1072,7 +1081,7 @@ rt_size_t param_get_json(const char *selector, char *out, rt_size_t out_sz)
     if (key == RT_NULL)
         return 0;
 
-    root = param_load_root();
+    root = param_load_root(PARAM_FILE_PATH);
     if (root == RT_NULL)
         return 0;
 
@@ -1271,10 +1280,10 @@ static int cmd_get_param(int argc, char **argv)
         return -RT_ERROR;
     }
 
-    root = param_load_root();
+    root = param_load_root(PARAM_FILE_PATH);
     if (root == RT_NULL)
     {
-        rt_kprintf("load %s failed\n", PARAM_JSON_PATH);
+        rt_kprintf("load %s failed\n", PARAM_FILE_PATH);
         return -RT_ERROR;
     }
 
@@ -1313,10 +1322,10 @@ static int cmd_set_param(int argc, char **argv)
         return -RT_ERROR;
     }
 
-    root = param_load_root();
+    root = param_load_root(PARAM_FILE_PATH);
     if (root == RT_NULL)
     {
-        rt_kprintf("load %s failed\n", PARAM_JSON_PATH);
+        rt_kprintf("load %s failed\n", PARAM_FILE_PATH);
         return -RT_ERROR;
     }
 
@@ -1364,7 +1373,7 @@ static int cmd_set_param(int argc, char **argv)
 
     if (param_save_root(root) != RT_EOK)
     {
-        rt_kprintf("save %s failed\n", PARAM_JSON_PATH);
+        rt_kprintf("save %s failed\n", PARAM_FILE_PATH);
         cJSON_Delete(root);
         return -RT_ERROR;
     }
