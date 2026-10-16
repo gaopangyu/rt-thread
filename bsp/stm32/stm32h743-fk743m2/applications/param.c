@@ -324,6 +324,7 @@ static const char param_mcu_json_default[] =
 
 /* ---------- 文件读写 ---------- */
 
+/* 读出整个 JSON 文件 */
 static rt_err_t param_read_file(const char *path, char **out)
 {
     struct stat st;
@@ -369,6 +370,7 @@ static rt_err_t param_read_file(const char *path, char **out)
     return RT_EOK;
 }
 
+/* 把文本写入文件，必要时先建 /init */
 static rt_err_t param_write_text(const char *path, const char *text)
 {
     int fd;
@@ -400,6 +402,7 @@ static rt_err_t param_write_text(const char *path, const char *text)
     return RT_EOK;
 }
 
+/* 检查数组元素是对象，且 id 在范围内 */
 static rt_err_t param_check_id_array(cJSON *arr, const char *name, int max)
 {
     int i, count;
@@ -438,6 +441,7 @@ static rt_err_t param_check_id_array(cJSON *arr, const char *name, int max)
     return RT_EOK;
 }
 
+/* 检查 hosts、platforms 和 data_source */
 static rt_err_t param_check_root(cJSON *root)
 {
     cJSON *hosts;
@@ -485,6 +489,7 @@ static rt_err_t param_check_root(cJSON *root)
     return RT_EOK;
 }
 
+/* 校验后把根对象写回参数文件 */
 static rt_err_t param_save_root(cJSON *root)
 {
     char *printed;
@@ -518,6 +523,7 @@ static rt_err_t param_save_root(cJSON *root)
     return err;
 }
 
+/* 读参数文件，失败则写入默认参数再解析 */
 static cJSON *param_load_root(const char *path)
 {
     char *file_buf = RT_NULL;
@@ -554,6 +560,7 @@ static cJSON *param_load_root(const char *path)
     return root;
 }
 
+/* 解析下发 JSON，并加载参数文件 */
 static rt_err_t param_open_edit(const char *json_text, const char *tag, cJSON **incoming, cJSON **file)
 {
     if (json_text == RT_NULL)
@@ -578,6 +585,7 @@ static rt_err_t param_open_edit(const char *json_text, const char *tag, cJSON **
     return RT_EOK;
 }
 
+/* 保存参数文件 */
 static rt_err_t param_commit_edit(cJSON *file)
 {
     rt_err_t err = param_save_root(file);
@@ -589,6 +597,7 @@ static rt_err_t param_commit_edit(cJSON *file)
 
 /* ---------- 查找、data_source、JSON 片段 ---------- */
 
+/* 从 type 字段得到主机类型 */
 static enum host_type param_parse_host_type(cJSON *host_json)
 {
     cJSON *item;
@@ -614,16 +623,19 @@ static enum host_type param_parse_host_type(cJSON *host_json)
     return HOST_TYPE_NONE;
 }
 
+/* 按 id 找主机 */
 static cJSON *param_host_by_id(cJSON *root, rt_uint32_t id)
 {
     return json_array_find_by_id(cJSON_GetObjectItemCaseSensitive(root, "hosts"), id);
 }
 
+/* 按 id 找平台 */
 static cJSON *param_plat_by_id(cJSON *root, rt_uint32_t id)
 {
     return json_array_find_by_id(cJSON_GetObjectItemCaseSensitive(root, "platforms"), id);
 }
 
+/* 按 id 找主机，找不到打日志 */
 static cJSON *param_need_host(cJSON *root, rt_uint32_t id)
 {
     cJSON *host = param_host_by_id(root, id);
@@ -633,6 +645,7 @@ static cJSON *param_need_host(cJSON *root, rt_uint32_t id)
     return cJSON_IsObject(host) ? host : RT_NULL;
 }
 
+/* 按 id 找平台，找不到打日志 */
 static cJSON *param_need_plat(cJSON *root, rt_uint32_t id)
 {
     cJSON *plat = param_plat_by_id(root, id);
@@ -642,6 +655,7 @@ static cJSON *param_need_plat(cJSON *root, rt_uint32_t id)
     return cJSON_IsObject(plat) ? plat : RT_NULL;
 }
 
+/* 该平台是否接了这台主机 */
 static rt_bool_t param_data_source_on(cJSON *plat, rt_uint32_t host_id)
 {
     cJSON *ds;
@@ -662,6 +676,7 @@ static rt_bool_t param_data_source_on(cJSON *plat, rt_uint32_t host_id)
     return RT_FALSE;
 }
 
+/* 设置平台 data_source 里这台主机的开关 */
 static rt_err_t param_set_data_source(cJSON *plat, rt_uint32_t host_id, rt_bool_t enabled)
 {
     cJSON *ds;
@@ -691,6 +706,7 @@ static rt_err_t param_set_data_source(cJSON *plat, rt_uint32_t host_id, rt_bool_
     return RT_EOK;
 }
 
+/* 按字段名从 src 拷到 dst */
 static void param_copy_keys(cJSON *dst, cJSON *src, const char * const *keys, rt_size_t n)
 {
     rt_size_t i;
@@ -699,6 +715,7 @@ static void param_copy_keys(cJSON *dst, cJSON *src, const char * const *keys, rt
         json_copy_key(dst, src, keys[i]);
 }
 
+/* 只取出指定字段，组成新对象 */
 static cJSON *param_pick_object(cJSON *src, const char * const *keys, rt_size_t n)
 {
     cJSON *dst = cJSON_CreateObject();
@@ -710,6 +727,7 @@ static cJSON *param_pick_object(cJSON *src, const char * const *keys, rt_size_t 
     return dst;
 }
 
+/* 把 JSON 写成无格式字符串到缓冲区 */
 static rt_size_t param_print_json(cJSON *obj, char *out, rt_size_t out_sz)
 {
     char *printed;
@@ -735,6 +753,7 @@ static rt_size_t param_print_json(cJSON *obj, char *out, rt_size_t out_sz)
     return n;
 }
 
+/* 用 key 包一层对象，失败时释放 child */
 static cJSON *param_wrap(const char *key, cJSON *child)
 {
     cJSON *wrap;
@@ -753,6 +772,7 @@ static cJSON *param_wrap(const char *key, cJSON *child)
     return wrap;
 }
 
+/* 写到缓冲区后释放对象 */
 static rt_size_t param_send_json(cJSON *obj, char *out, rt_size_t out_sz)
 {
     rt_size_t n;
@@ -767,6 +787,7 @@ static rt_size_t param_send_json(cJSON *obj, char *out, rt_size_t out_sz)
 
 /* ---------- 选择器 hosts[id] / platforms[id] / eth ---------- */
 
+/* 解析 hosts[0] 这种名字和 id */
 static rt_err_t param_parse_name_id(const char *s, char *name, rt_size_t name_sz,
                                     rt_bool_t *has_id, rt_uint32_t *id)
 {
@@ -810,6 +831,7 @@ static rt_err_t param_parse_name_id(const char *s, char *name, rt_size_t name_sz
     return RT_EOK;
 }
 
+/* 选择器对应的回包字段名：host、platform、eth */
 static const char *param_reply_key(const char *selector)
 {
     if (selector == RT_NULL)
@@ -823,6 +845,7 @@ static const char *param_reply_key(const char *selector)
     return RT_NULL;
 }
 
+/* 按选择器取出参数文件里的一块 */
 static rt_err_t param_resolve_section(cJSON *root, int argc, char **argv, int *next_arg, cJSON **section)
 {
     char name[16];
@@ -896,6 +919,7 @@ static rt_err_t param_resolve_section(cJSON *root, int argc, char **argv, int *n
     return RT_EOK;
 }
 
+/* 加载参数文件，并取出选择器对应的块 */
 static rt_err_t param_open_section(const char *path, const char *selector,
                                    cJSON **root, cJSON **section, const char **key)
 {
@@ -924,19 +948,7 @@ static rt_err_t param_open_section(const char *path, const char *selector,
     return RT_EOK;
 }
 
-static const char *param_selector_kind(const char *name, rt_bool_t has_id, rt_uint32_t id)
-{
-    if (name == RT_NULL)
-        return RT_NULL;
-    if (rt_strcmp(name, "eth") == 0)
-        return has_id ? RT_NULL : "eth";
-    if (rt_strcmp(name, "hosts") == 0 || rt_strcmp(name, "host") == 0)
-        return (has_id && id < HOST_MAX) ? "host" : RT_NULL;
-    if (rt_strcmp(name, "platforms") == 0 || rt_strcmp(name, "platform") == 0)
-        return (has_id && id < PLATFORM_MAX) ? "platform" : RT_NULL;
-    return RT_NULL;
-}
-
+/* std 主机下发到运行时，其他类型跳过 */
 static rt_err_t param_apply_std_host(cJSON *host, rt_bool_t *skip)
 {
     *skip = RT_FALSE;
@@ -949,6 +961,7 @@ static rt_err_t param_apply_std_host(cJSON *host, rt_bool_t *skip)
     return host_std_set_param_from_json(host);
 }
 
+/* 把参数文件里的主机应用到运行时 */
 static rt_err_t param_apply_hosts(cJSON *root)
 {
     cJSON *hosts;
@@ -1005,6 +1018,7 @@ static rt_err_t param_apply_hosts(cJSON *root)
 
 /* ---------- UI：file 与界面参数互转 ---------- */
 
+/* 用 host.platform[] 改各平台的 data_source */
 static rt_err_t param_ui_apply_host_platforms(cJSON *root, rt_uint32_t host_id, cJSON *ui_platform)
 {
     cJSON *platforms;
@@ -1062,6 +1076,7 @@ static rt_err_t param_ui_apply_host_platforms(cJSON *root, rt_uint32_t host_id, 
     return RT_EOK;
 }
 
+/* 把界面主机写进参数文件并生效 */
 static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
 {
     static const char * const copy_keys[] =
@@ -1127,6 +1142,7 @@ static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
     return RT_EOK;
 }
 
+/* 把界面平台写进参数文件 */
 static rt_err_t param_ui_apply_platform(cJSON *root, cJSON *ui_platform)
 {
     static const char * const copy_keys[] =
@@ -1155,6 +1171,7 @@ static rt_err_t param_ui_apply_platform(cJSON *root, cJSON *ui_platform)
     return RT_EOK;
 }
 
+/* 把以太网参数合并进参数文件 */
 static rt_err_t param_ui_apply_eth(cJSON *root, cJSON *ui_eth)
 {
     cJSON *dst;
@@ -1175,6 +1192,7 @@ static rt_err_t param_ui_apply_eth(cJSON *root, cJSON *ui_eth)
     return RT_EOK;
 }
 
+/* 把参数文件里的主机转成界面格式 */
 static cJSON *param_file_to_ui_host(cJSON *root, cJSON *host)
 {
     static const char * const host_keys[] =
@@ -1228,6 +1246,7 @@ static cJSON *param_file_to_ui_host(cJSON *root, cJSON *host)
 /* tx_enable/rx_enable 不进 file，生成 net 时固定为 true。
  * auto_switch_adapter/register_en/adapter 存在 platforms。 */
 
+/* 协议号转名字：1 是 ev1，2 是 gb26875 */
 static const char *param_net_protocol_name(int protocol)
 {
     if (protocol == 1)
@@ -1237,6 +1256,7 @@ static const char *param_net_protocol_name(int protocol)
     return RT_NULL;
 }
 
+/* 协议名转协议号 */
 static int param_net_protocol_id(const char *name)
 {
     if (name == RT_NULL)
@@ -1248,6 +1268,7 @@ static int param_net_protocol_id(const char *name)
     return -1;
 }
 
+/* 解析数字 id，超出 max 则失败 */
 static int param_net_match_id(const char *s, unsigned long *id, unsigned long max)
 {
     char *end;
@@ -1264,6 +1285,7 @@ static int param_net_match_id(const char *s, unsigned long *id, unsigned long ma
     return 1;
 }
 
+/* 解析 interface_muart_N 里的主机号 */
 static int param_net_parse_muart(const char *name, rt_uint32_t *host_id)
 {
     unsigned long v;
@@ -1277,6 +1299,7 @@ static int param_net_parse_muart(const char *name, rt_uint32_t *host_id)
     return 1;
 }
 
+/* 解析 protocol_ev1_N 或 protocol_gb26875_N */
 static int param_net_parse_protocol(const char *name, char *proto, rt_size_t proto_sz, rt_uint32_t *host_id)
 {
     const char *body;
@@ -1307,6 +1330,7 @@ static int param_net_parse_protocol(const char *name, char *proto, rt_size_t pro
     return 1;
 }
 
+/* 解析 socket_cloud_HP，前一位主机、后一位平台 */
 static int param_net_parse_socket(const char *name, rt_uint32_t *host_id, rt_uint32_t *plat_id)
 {
     const char *p;
@@ -1325,27 +1349,32 @@ static int param_net_parse_socket(const char *name, rt_uint32_t *host_id, rt_uin
     return 1;
 }
 
+/* socket 从平台拷贝的字段 */
 static const char * const param_socket_keys[] =
 {
     "ip", "port", "switch",
     "auto_switch_adapter", "register_en", "adapter"
 };
 
+/* 生成 interface_muart 名字 */
 static void param_net_name_muart(char *buf, rt_size_t n, rt_uint32_t host_id)
 {
     rt_snprintf(buf, n, "interface_muart_%u", host_id);
 }
 
+/* 生成 protocol 名字 */
 static void param_net_name_protocol(char *buf, rt_size_t n, const char *proto, rt_uint32_t host_id)
 {
     rt_snprintf(buf, n, "protocol_%s_%u", proto, host_id);
 }
 
+/* 生成 socket_cloud 名字 */
 static void param_net_name_socket(char *buf, rt_size_t n, rt_uint32_t host_id, rt_uint32_t plat_id)
 {
     rt_snprintf(buf, n, "socket_cloud_%u%u", host_id, plat_id);
 }
 
+/* 主机协议名，不是已知协议时用 ev1 */
 static const char *param_host_proto(cJSON *host)
 {
     cJSON *ver = cJSON_GetObjectItemCaseSensitive(host, "protocol_ver");
@@ -1356,6 +1385,7 @@ static const char *param_host_proto(cJSON *host)
     return "ev1";
 }
 
+/* 平台接了这台主机时返回协议名 */
 static const char *param_plat_proto(cJSON *plat, rt_uint32_t host_id)
 {
     rt_uint32_t protocol = 0;
@@ -1367,11 +1397,13 @@ static const char *param_plat_proto(cJSON *plat, rt_uint32_t host_id)
     return param_net_protocol_name((int)protocol);
 }
 
+/* 往对象里放一个 null 字段 */
 static void param_put_null(cJSON *obj, const char *name)
 {
     cJSON_AddItemToObject(obj, name, cJSON_CreateNull());
 }
 
+/* 生成串口对象，收发固定为 true */
 static cJSON *param_make_muart(cJSON *host, rt_uint32_t host_id)
 {
     cJSON *iface = cJSON_CreateObject();
@@ -1390,6 +1422,7 @@ static cJSON *param_make_muart(cJSON *host, rt_uint32_t host_id)
     return iface;
 }
 
+/* 从平台取出 socket 字段，缺的补默认值 */
 static cJSON *param_make_socket(cJSON *plat)
 {
     cJSON *sock = param_pick_object(plat, param_socket_keys,
@@ -1406,11 +1439,13 @@ static cJSON *param_make_socket(cJSON *plat)
     return sock;
 }
 
+/* null 或 false 表示关闭 */
 static rt_bool_t param_json_off(cJSON *item)
 {
     return cJSON_IsNull(item) || cJSON_IsFalse(item);
 }
 
+/* 名字解析结果转错误码，不认识则跳过 */
 static rt_err_t param_net_name_rc(int rc, const char *kind, const char *name)
 {
     if (rc > 0)
@@ -1425,6 +1460,7 @@ static rt_err_t param_net_name_rc(int rc, const char *kind, const char *name)
     return -RT_EINVAL;
 }
 
+/* 记录 bind 里的主机号，不一致则失败 */
 static rt_err_t param_note_host(rt_bool_t *got, rt_uint32_t *host_id, rt_uint32_t id, const char *name)
 {
     if (*got && *host_id != id)
@@ -1438,6 +1474,7 @@ static rt_err_t param_note_host(rt_bool_t *got, rt_uint32_t *host_id, rt_uint32_
     return RT_EOK;
 }
 
+/* 建好 protocols、interfaces、binds 空壳 */
 static cJSON *param_net_host_shell(cJSON **protocols, cJSON **interfaces, cJSON **binds)
 {
     cJSON *out = cJSON_CreateObject();
@@ -1463,6 +1500,7 @@ static cJSON *param_net_host_shell(cJSON **protocols, cJSON **interfaces, cJSON 
     return out;
 }
 
+/* 追加一条 bind */
 static rt_err_t param_net_add_bind(cJSON *binds, const char *muart, const char *proto, const char *sock)
 {
     cJSON *row = cJSON_CreateArray();
@@ -1478,6 +1516,7 @@ static rt_err_t param_net_add_bind(cJSON *binds, const char *muart, const char *
     return RT_EOK;
 }
 
+/* 一台主机转成合宙参数 */
 static cJSON *param_net_from_host(cJSON *root, rt_uint32_t host_id)
 {
     cJSON *out;
@@ -1581,6 +1620,7 @@ static cJSON *param_net_from_host(cJSON *root, rt_uint32_t host_id)
     return out;
 }
 
+/* 一个平台转成合宙 sockets */
 static cJSON *param_net_from_platform(cJSON *root, rt_uint32_t plat_id)
 {
     cJSON *out;
@@ -1625,6 +1665,7 @@ static cJSON *param_net_from_platform(cJSON *root, rt_uint32_t plat_id)
     return out;
 }
 
+/* 以太网转成合宙参数 */
 static cJSON *param_net_from_eth(cJSON *root)
 {
     cJSON *eth = cJSON_GetObjectItemCaseSensitive(root, "eth");
@@ -1637,6 +1678,101 @@ static cJSON *param_net_from_eth(cJSON *root)
     return param_wrap("eth", dup);
 }
 
+/* 全部主机、平台和以太网合成一份合宙参数 */
+static cJSON *param_net_from_all(cJSON *root)
+{
+    cJSON *out;
+    cJSON *protocols;
+    cJSON *interfaces;
+    cJSON *sockets;
+    cJSON *binds;
+    int i;
+
+    out = cJSON_CreateObject();
+    protocols = cJSON_CreateObject();
+    interfaces = cJSON_CreateObject();
+    sockets = cJSON_CreateObject();
+    binds = cJSON_CreateArray();
+    if (out == RT_NULL || protocols == RT_NULL || interfaces == RT_NULL ||
+        sockets == RT_NULL || binds == RT_NULL)
+    {
+        cJSON_Delete(out);
+        cJSON_Delete(protocols);
+        cJSON_Delete(interfaces);
+        cJSON_Delete(sockets);
+        cJSON_Delete(binds);
+        return RT_NULL;
+    }
+
+    cJSON_AddItemToObject(out, "protocols", protocols);
+    cJSON_AddItemToObject(out, "sockets", sockets);
+    cJSON_AddItemToObject(out, "binds", binds);
+    cJSON_AddItemToObject(out, "interfaces", interfaces);
+
+    for (i = 0; i < HOST_MAX; i++)
+    {
+        cJSON *piece = param_net_from_host(root, (rt_uint32_t)i);
+        cJSON *rows;
+
+        if (piece == RT_NULL)
+        {
+            cJSON_Delete(out);
+            return RT_NULL;
+        }
+
+        json_merge_object(protocols, cJSON_GetObjectItemCaseSensitive(piece, "protocols"));
+        json_merge_object(interfaces, cJSON_GetObjectItemCaseSensitive(piece, "interfaces"));
+        rows = cJSON_GetObjectItemCaseSensitive(piece, "binds");
+        if (cJSON_IsArray(rows))
+        {
+            cJSON *row;
+
+            for (row = rows->child; row != RT_NULL; row = row->next)
+            {
+                cJSON *dup = cJSON_Duplicate(row, 1);
+
+                if (dup == RT_NULL)
+                {
+                    cJSON_Delete(piece);
+                    cJSON_Delete(out);
+                    return RT_NULL;
+                }
+                cJSON_AddItemToArray(binds, dup);
+            }
+        }
+        cJSON_Delete(piece);
+    }
+
+    for (i = 0; i < PLATFORM_MAX; i++)
+    {
+        cJSON *piece = param_net_from_platform(root, (rt_uint32_t)i);
+
+        if (piece == RT_NULL)
+        {
+            cJSON_Delete(out);
+            return RT_NULL;
+        }
+
+        json_merge_object(sockets, cJSON_GetObjectItemCaseSensitive(piece, "sockets"));
+        cJSON_Delete(piece);
+    }
+
+    {
+        cJSON *eth = param_net_from_eth(root);
+
+        if (eth == RT_NULL)
+        {
+            cJSON_Delete(out);
+            return RT_NULL;
+        }
+        json_merge_object(out, eth);
+        cJSON_Delete(eth);
+    }
+
+    return out;
+}
+
+/* 改主机开关，并标记需要生效 */
 static rt_err_t param_net_set_switch(cJSON *root, rt_uint32_t host_id, rt_bool_t on, rt_bool_t *touched)
 {
     cJSON *host = param_need_host(root, host_id);
@@ -1649,6 +1785,85 @@ static rt_err_t param_net_set_switch(cJSON *root, rt_uint32_t host_id, rt_bool_t
     return RT_EOK;
 }
 
+/* 从名字里记下主机号 */
+static void param_net_mark_host_name(const char *name, rt_bool_t *seen)
+{
+    char proto[32];
+    rt_uint32_t host_id = 0;
+    rt_uint32_t plat_id = 0;
+
+    if (name == RT_NULL)
+        return;
+    if (param_net_parse_muart(name, &host_id) != 1 &&
+        param_net_parse_protocol(name, proto, sizeof(proto), &host_id) != 1 &&
+        param_net_parse_socket(name, &host_id, &plat_id) != 1)
+        return;
+    if (host_id < HOST_MAX)
+        seen[host_id] = RT_TRUE;
+}
+
+/* JSON 里没有的主机号最后关掉 */
+static rt_err_t param_net_drop_absent(cJSON *root, cJSON *net, rt_bool_t *touched)
+{
+    rt_bool_t seen[HOST_MAX];
+    cJSON *child;
+    cJSON *obj;
+    int h;
+
+    rt_memset(seen, 0, sizeof(seen));
+
+    obj = cJSON_GetObjectItemCaseSensitive(net, "interfaces");
+    if (cJSON_IsObject(obj))
+    {
+        for (child = obj->child; child != RT_NULL; child = child->next)
+            param_net_mark_host_name(child->string, seen);
+    }
+
+    obj = cJSON_GetObjectItemCaseSensitive(net, "protocols");
+    if (cJSON_IsObject(obj))
+    {
+        for (child = obj->child; child != RT_NULL; child = child->next)
+            param_net_mark_host_name(child->string, seen);
+    }
+
+    obj = cJSON_GetObjectItemCaseSensitive(net, "sockets");
+    if (cJSON_IsObject(obj))
+    {
+        for (child = obj->child; child != RT_NULL; child = child->next)
+            param_net_mark_host_name(child->string, seen);
+    }
+
+    obj = cJSON_GetObjectItemCaseSensitive(net, "binds");
+    if (cJSON_IsArray(obj))
+    {
+        for (child = obj->child; child != RT_NULL; child = child->next)
+        {
+            cJSON *item;
+
+            if (!cJSON_IsArray(child))
+                continue;
+            for (item = child->child; item != RT_NULL; item = item->next)
+            {
+                if (cJSON_IsString(item))
+                    param_net_mark_host_name(item->valuestring, seen);
+            }
+        }
+    }
+
+    for (h = 0; h < HOST_MAX; h++)
+    {
+        if (seen[h])
+            continue;
+        if (!cJSON_IsObject(param_host_by_id(root, (rt_uint32_t)h)))
+            continue;
+        if (param_net_set_switch(root, (rt_uint32_t)h, RT_FALSE, touched) != RT_EOK)
+            return -RT_EINVAL;
+    }
+
+    return RT_EOK;
+}
+
+/* 用 interface_muart 更新主机开关和串口号 */
 static rt_err_t param_net_apply_interfaces(cJSON *root, cJSON *interfaces, rt_bool_t *touched)
 {
     cJSON *child;
@@ -1701,6 +1916,7 @@ static rt_err_t param_net_apply_interfaces(cJSON *root, cJSON *interfaces, rt_bo
     return RT_EOK;
 }
 
+/* 校验 protocol 名字 */
 static rt_err_t param_net_apply_protocols(cJSON *protocols)
 {
     cJSON *child;
@@ -1728,6 +1944,7 @@ static rt_err_t param_net_apply_protocols(cJSON *protocols)
     return RT_EOK;
 }
 
+/* 用 socket 更新平台连接和 socket 字段 */
 static rt_err_t param_net_apply_sockets(cJSON *root, cJSON *sockets)
 {
     cJSON *child;
@@ -1776,6 +1993,7 @@ static rt_err_t param_net_apply_sockets(cJSON *root, cJSON *sockets)
     return RT_EOK;
 }
 
+/* 用 bind 打开主机、数据源和协议号 */
 static rt_err_t param_net_apply_binds(cJSON *root, cJSON *binds, rt_bool_t *touched)
 {
     cJSON *row;
@@ -1857,6 +2075,7 @@ static rt_err_t param_net_apply_binds(cJSON *root, cJSON *binds, rt_bool_t *touc
     return RT_EOK;
 }
 
+/* 把改过的主机应用到运行时 */
 static rt_err_t param_net_apply_runtime(cJSON *root, const rt_bool_t *touched)
 {
     int i;
@@ -1890,6 +2109,7 @@ static rt_err_t param_net_apply_runtime(cJSON *root, const rt_bool_t *touched)
 /* ---------- MSH ---------- */
 
 #ifdef RT_USING_FINSH
+/* 沿路径取下一层，支持名字和数组下标 */
 static cJSON *param_child(cJSON *cur, const char *tok)
 {
     char name[32];
@@ -1926,6 +2146,7 @@ static cJSON *param_child(cJSON *cur, const char *tok)
     return RT_NULL;
 }
 
+/* 按原字段类型把字符串转成 JSON 值 */
 static cJSON *param_make_value(cJSON *old_item, const char *s)
 {
     char *end;
@@ -1967,6 +2188,7 @@ static cJSON *param_make_value(cJSON *old_item, const char *s)
     return cJSON_CreateString(s);
 }
 
+/* 改对象字段或数组元素 */
 static rt_err_t param_set_leaf(cJSON *parent, const char *tok, const char *value_str)
 {
     char name[32];
@@ -2017,6 +2239,7 @@ static rt_err_t param_set_leaf(cJSON *parent, const char *tok, const char *value
     return RT_EOK;
 }
 
+/* 格式化打印到控制台 */
 static void param_print_item(cJSON *item)
 {
     char *printed;
@@ -2035,6 +2258,7 @@ static void param_print_item(cJSON *item)
     cJSON_free(printed);
 }
 
+/* MSH：读出一块参数 */
 static int cmd_get_param(int argc, char **argv)
 {
     cJSON *root;
@@ -2076,6 +2300,7 @@ static int cmd_get_param(int argc, char **argv)
 }
 MSH_CMD_EXPORT_ALIAS(cmd_get_param, get_param, Get param: get_param hosts[id]|platforms[id]|eth);
 
+/* MSH：改一个字段并保存 */
 static int cmd_set_param(int argc, char **argv)
 {
     cJSON *root;
@@ -2157,6 +2382,7 @@ MSH_CMD_EXPORT_ALIAS(cmd_set_param, set_param, Set param: set_param hosts[0] crt
 
 /* ---------- 对外接口 ---------- */
 
+/* 加载参数文件，并让主机生效 */
 rt_err_t param_set_from_file(char *path)
 {
     cJSON *root;
@@ -2177,6 +2403,7 @@ rt_err_t param_set_from_file(char *path)
     return err;
 }
 
+/* 按选择器读出参数文件里的一块 */
 rt_size_t param_get_from_file(char *path, const char *selector, char *out, rt_size_t out_sz)
 {
     cJSON *root;
@@ -2194,6 +2421,7 @@ rt_size_t param_get_from_file(char *path, const char *selector, char *out, rt_si
     return param_send_json(wrap, out, out_sz);
 }
 
+/* 把界面 JSON 合并进参数文件 */
 rt_err_t param_set_from_ui(const char *json_text)
 {
     cJSON *ui_root;
@@ -2248,6 +2476,7 @@ exit:
     return err;
 }
 
+/* 按选择器转成界面 JSON */
 rt_size_t param_get_to_ui(char *path, const char *selector, char *out, rt_size_t out_sz)
 {
     static const char * const plat_keys[] =
@@ -2275,6 +2504,7 @@ rt_size_t param_get_to_ui(char *path, const char *selector, char *out, rt_size_t
     return param_send_json(param_wrap(key, ui_obj), out, out_sz);
 }
 
+/* 把整份合宙 JSON 写进参数文件并生效 */
 rt_err_t param_set_from_net(const char *json_text)
 {
     cJSON *net_root;
@@ -2342,6 +2572,10 @@ rt_err_t param_set_from_net(const char *json_text)
         goto exit;
     }
 
+    err = param_net_drop_absent(mcu_root, net_root, touched);
+    if (err != RT_EOK)
+        goto exit;
+
     err = param_net_apply_runtime(mcu_root, touched);
     if (err != RT_EOK)
         goto exit;
@@ -2354,35 +2588,20 @@ exit:
     return err;
 }
 
-rt_size_t param_get_to_net(char *path, const char *selector, char *out, rt_size_t out_sz)
+/* 把整份参数转成合宙 JSON */
+rt_size_t param_get_to_net(char *path, char *out, rt_size_t out_sz)
 {
     cJSON *root;
     cJSON *net;
-    char name[16];
-    rt_bool_t has_id;
-    rt_uint32_t id = 0;
-    const char *kind;
 
-    if (path == RT_NULL || selector == RT_NULL || out == RT_NULL || out_sz == 0)
-        return 0;
-    if (param_parse_name_id(selector, name, sizeof(name), &has_id, &id) != RT_EOK)
-        return 0;
-
-    kind = param_selector_kind(name, has_id, id);
-    if (kind == RT_NULL)
+    if (path == RT_NULL || out == RT_NULL || out_sz == 0)
         return 0;
 
     root = param_load_root(path);
     if (root == RT_NULL)
         return 0;
 
-    if (rt_strcmp(kind, "eth") == 0)
-        net = param_net_from_eth(root);
-    else if (rt_strcmp(kind, "host") == 0)
-        net = param_net_from_host(root, id);
-    else
-        net = param_net_from_platform(root, id);
-
+    net = param_net_from_all(root);
     cJSON_Delete(root);
     return param_send_json(net, out, out_sz);
 }
