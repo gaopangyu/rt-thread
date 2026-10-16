@@ -1,0 +1,35 @@
+{
+    "protocols": {
+        "protocol_ev1_0": {}
+    },
+    "sockets": {
+        "socket_cloud_00": {
+            "auto_switch_adapter": true,
+            "ip": "172.16.10.244",
+            "register_en": false,
+            "adapter": 1,
+            "switch": true,
+            "port": 10002
+        }
+    },
+    "binds": [
+        [
+            "interface_muart_0",
+            "protocol_ev1_0",
+            "socket_cloud_00"
+        ]
+    ],
+    "interfaces": {
+        "interface_muart_0": {
+            "number": 0,
+            "tx_enable": true,
+            "rx_enable": true
+        }
+    },
+    "eth": {
+        "dhcp": true,
+        "ip": "127.0.0.1",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1"
+    }
+}

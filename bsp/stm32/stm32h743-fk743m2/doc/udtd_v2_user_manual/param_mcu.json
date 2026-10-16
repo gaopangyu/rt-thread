@@ -229,6 +229,9 @@
             "ip": "127.0.0.1",
             "port": 18088,
             "protocol": 1,
+            "auto_switch_adapter": true,
+            "register_en": false,
+            "adapter": 1,
             "data_source": [
                 true,
                 false,
@@ -243,6 +246,9 @@
             "ip": "127.0.0.1",
             "port": 18088,
             "protocol": 1,
+            "auto_switch_adapter": true,
+            "register_en": false,
+            "adapter": 1,
             "data_source": [
                 false,
                 true,
@@ -257,6 +263,9 @@
             "ip": "127.0.0.1",
             "port": 18088,
             "protocol": 1,
+            "auto_switch_adapter": true,
+            "register_en": false,
+            "adapter": 1,
             "data_source": [
                 false,
                 false,
@@ -271,6 +280,9 @@
             "ip": "127.0.0.1",
             "port": 18088,
             "protocol": 1,
+            "auto_switch_adapter": true,
+            "register_en": false,
+            "adapter": 1,
             "data_source": [
                 false,
                 false,
