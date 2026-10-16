@@ -1063,7 +1063,7 @@ static const char *param_reply_key(const char *selector)
     return RT_NULL;
 }
 
-rt_size_t param_get_json(const char *selector, char *out, rt_size_t out_sz)
+rt_size_t param_get_from_file(char *path, const char *selector, char *out, rt_size_t out_sz)
 {
     cJSON *root;
     cJSON *section;
@@ -1074,14 +1074,14 @@ rt_size_t param_get_json(const char *selector, char *out, rt_size_t out_sz)
     char *printed;
     rt_size_t n;
 
-    if (selector == RT_NULL || out == RT_NULL || out_sz == 0)
+    if (path == RT_NULL || selector == RT_NULL || out == RT_NULL || out_sz == 0)
         return 0;
 
     key = param_reply_key(selector);
     if (key == RT_NULL)
         return 0;
 
-    root = param_load_root(PARAM_FILE_PATH);
+    root = param_load_root(path);
     if (root == RT_NULL)
         return 0;
 
