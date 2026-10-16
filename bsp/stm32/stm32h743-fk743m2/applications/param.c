@@ -420,7 +420,7 @@ static rt_err_t param_check_root(cJSON *root)
     return RT_EOK;
 }
 
-static rt_err_t param_create_hosts(cJSON *root)
+static rt_err_t param_apply_hosts(cJSON *root)
 {
     cJSON *hosts;
     cJSON *host_json;
@@ -430,7 +430,7 @@ static rt_err_t param_create_hosts(cJSON *root)
     hosts = cJSON_GetObjectItemCaseSensitive(root, "hosts");
     if (!cJSON_IsArray(hosts))
     {
-        LOG_E("param_mcu.json missing hosts array");
+        LOG_E("param file missing hosts array");
         return -RT_EINVAL;
     }
 
@@ -442,7 +442,7 @@ static rt_err_t param_create_hosts(cJSON *root)
     }
     if (count <= 0)
     {
-        LOG_W("param_mcu.json hosts is empty");
+        LOG_W("param file hosts is empty");
         return RT_EOK;
     }
 
@@ -458,17 +458,11 @@ static rt_err_t param_create_hosts(cJSON *root)
             continue;
         }
 
-        if (!json_is_enabled(host_json, "switch", RT_TRUE))
-        {
-            LOG_I("hosts[%d] switch off, skip", i);
-            continue;
-        }
-
         type = param_parse_host_type(host_json);
         switch (type)
         {
         case HOST_TYPE_STD:
-            err = host_std_create_from_json(host_json);
+            err = host_std_set_param_from_json(host_json);
             break;
         default:
             LOG_W("hosts[%d] unsupported type, skip", i);
@@ -477,7 +471,7 @@ static rt_err_t param_create_hosts(cJSON *root)
 
         if (err != RT_EOK)
         {
-            LOG_E("hosts[%d] create failed: %d", i, err);
+            LOG_E("hosts[%d] apply failed: %d", i, err);
             ret = err;
         }
     }
@@ -924,7 +918,7 @@ rt_err_t param_set_from_file(char *path)
         return -RT_ERROR;
     }
 
-    err = param_create_hosts(root);
+    err = param_apply_hosts(root);
     cJSON_Delete(root);
     return err;
 }
@@ -1117,6 +1111,197 @@ rt_size_t param_get_from_file(char *path, const char *selector, char *out, rt_si
 
     rt_memcpy(out, printed, n);
     cJSON_free(printed);
+    return n;
+}
+
+static void param_copy_keys(cJSON *dst, cJSON *src, const char * const *keys, rt_size_t n)
+{
+    rt_size_t i;
+
+    if (dst == RT_NULL)
+        return;
+
+    for (i = 0; i < n; i++)
+        json_copy_key(dst, src, keys[i]);
+}
+
+static cJSON *param_pick_object(cJSON *src, const char * const *keys, rt_size_t n)
+{
+    cJSON *dst = cJSON_CreateObject();
+
+    if (dst == RT_NULL)
+        return RT_NULL;
+
+    param_copy_keys(dst, src, keys, n);
+    return dst;
+}
+
+static int param_bool_at(cJSON *arr, int index)
+{
+    cJSON *item;
+
+    if (!cJSON_IsArray(arr) || index < 0)
+        return 0;
+
+    item = cJSON_GetArrayItem(arr, index);
+    if (cJSON_IsTrue(item))
+        return 1;
+    if (cJSON_IsNumber(item))
+        return item->valuedouble != 0;
+    return 0;
+}
+
+static cJSON *param_ui_host_platform(cJSON *root, rt_uint32_t host_id)
+{
+    cJSON *platforms;
+    cJSON *arr;
+    int i;
+
+    arr = cJSON_CreateArray();
+    if (arr == RT_NULL)
+        return RT_NULL;
+
+    platforms = cJSON_GetObjectItemCaseSensitive(root, "platforms");
+    for (i = 0; i < PLATFORM_MAX; i++)
+    {
+        cJSON *plat = json_array_find_by_id(platforms, (rt_uint32_t)i);
+        cJSON *ds = RT_NULL;
+
+        if (cJSON_IsObject(plat))
+            ds = cJSON_GetObjectItemCaseSensitive(plat, "data_source");
+        cJSON_AddItemToArray(arr, cJSON_CreateBool(param_bool_at(ds, (int)host_id)));
+    }
+
+    return arr;
+}
+
+static cJSON *param_file_to_ui_host(cJSON *root, cJSON *host)
+{
+    static const char * const host_keys[] =
+    {
+        "switch", "id", "type", "protocol_ver", "host_type",
+        "central_num", "regional_num", "local_num",
+        "keyboard_addr", "key_addr"
+    };
+    static const char * const crt_keys[] = { "id", "baud_rate", "term_switch" };
+    static const char * const bus_keys[] = { "id", "baud_rate", "parity", "term_switch" };
+    cJSON *ui;
+    cJSON *crt;
+    cJSON *bus;
+    cJSON *platform;
+    rt_uint32_t host_id = 0;
+
+    ui = param_pick_object(host, host_keys, sizeof(host_keys) / sizeof(host_keys[0]));
+    if (ui == RT_NULL)
+        return RT_NULL;
+
+    crt = param_pick_object(cJSON_GetObjectItemCaseSensitive(host, "crt_interface"),
+                            crt_keys, sizeof(crt_keys) / sizeof(crt_keys[0]));
+    bus = param_pick_object(cJSON_GetObjectItemCaseSensitive(host, "bus_interface"),
+                            bus_keys, sizeof(bus_keys) / sizeof(bus_keys[0]));
+    json_get_u32(host, "id", &host_id);
+    platform = param_ui_host_platform(root, host_id);
+    if (crt == RT_NULL || bus == RT_NULL || platform == RT_NULL)
+    {
+        cJSON_Delete(ui);
+        cJSON_Delete(crt);
+        cJSON_Delete(bus);
+        cJSON_Delete(platform);
+        return RT_NULL;
+    }
+
+    json_set_item(ui, "crt_interface", crt);
+    json_set_item(ui, "bus_interface", bus);
+    json_set_item(ui, "platform", platform);
+    return ui;
+}
+
+static cJSON *param_file_to_ui_platform(cJSON *platform)
+{
+    static const char * const keys[] =
+    {
+        "switch", "id", "name", "ip", "port", "protocol"
+    };
+
+    return param_pick_object(platform, keys, sizeof(keys) / sizeof(keys[0]));
+}
+
+static rt_size_t param_print_to_buf(cJSON *obj, char *out, rt_size_t out_sz)
+{
+    char *printed;
+    rt_size_t n;
+
+    if (obj == RT_NULL || out == RT_NULL || out_sz == 0)
+        return 0;
+
+    printed = cJSON_PrintUnformatted(obj);
+    if (printed == RT_NULL)
+        return 0;
+
+    n = rt_strlen(printed);
+    if (n == 0 || n >= out_sz)
+    {
+        LOG_E("param json size %u", (unsigned)n);
+        cJSON_free(printed);
+        return 0;
+    }
+
+    rt_memcpy(out, printed, n);
+    cJSON_free(printed);
+    return n;
+}
+
+rt_size_t param_get_to_ui(char *path, const char *selector, char *out, rt_size_t out_sz)
+{
+    cJSON *root;
+    cJSON *section;
+    cJSON *ui_obj = RT_NULL;
+    cJSON *wrap;
+    char *argv[2];
+    int next_arg;
+    const char *key;
+    rt_size_t n;
+
+    if (path == RT_NULL || selector == RT_NULL || out == RT_NULL || out_sz == 0)
+        return 0;
+
+    key = param_reply_key(selector);
+    if (key == RT_NULL)
+        return 0;
+
+    root = param_load_root(path);
+    if (root == RT_NULL)
+        return 0;
+
+    argv[0] = "get_param";
+    argv[1] = (char *)selector;
+    if (param_resolve_section(root, 2, argv, &next_arg, &section) != RT_EOK)
+    {
+        cJSON_Delete(root);
+        return 0;
+    }
+
+    if (rt_strcmp(key, "host") == 0)
+        ui_obj = param_file_to_ui_host(root, section);
+    else if (rt_strcmp(key, "platform") == 0)
+        ui_obj = param_file_to_ui_platform(section);
+    else
+        ui_obj = cJSON_Duplicate(section, 1);
+
+    cJSON_Delete(root);
+    if (ui_obj == RT_NULL)
+        return 0;
+
+    wrap = cJSON_CreateObject();
+    if (wrap == RT_NULL)
+    {
+        cJSON_Delete(ui_obj);
+        return 0;
+    }
+    cJSON_AddItemToObject(wrap, key, ui_obj);
+
+    n = param_print_to_buf(wrap, out, out_sz);
+    cJSON_Delete(wrap);
     return n;
 }
 
