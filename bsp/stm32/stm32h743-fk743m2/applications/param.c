@@ -948,17 +948,18 @@ static rt_err_t param_open_section(const char *path, const char *selector,
     return RT_EOK;
 }
 
-/* std 主机下发到运行时，其他类型跳过 */
-static rt_err_t param_apply_std_host(cJSON *host, rt_bool_t *skip)
+/* 按 type 字段把主机下发到运行时，未知类型跳过 */
+static rt_err_t param_apply_host(cJSON *host, rt_bool_t *skip)
 {
     *skip = RT_FALSE;
-    if (param_parse_host_type(host) != HOST_TYPE_STD)
+    switch (param_parse_host_type(host))
     {
+    case HOST_TYPE_STD:
+        return host_std_set_param_from_json(host);
+    default:
         *skip = RT_TRUE;
         return RT_EOK;
     }
-
-    return host_std_set_param_from_json(host);
 }
 
 /* 把参数文件里的主机应用到运行时 */
@@ -1000,7 +1001,7 @@ static rt_err_t param_apply_hosts(cJSON *root)
             continue;
         }
 
-        err = param_apply_std_host(host_json, &skip);
+        err = param_apply_host(host_json, &skip);
         if (skip)
         {
             LOG_W("hosts[%d] unsupported type, skip", i);
@@ -1134,21 +1135,31 @@ static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
     if (err != RT_EOK)
         return err;
 
-    err = host_std_set_param_from_json(dst);
-    if (err != RT_EOK)
-        return err;
+    {
+        rt_bool_t skip;
+
+        err = param_apply_host(dst, &skip);
+        if (skip)
+        {
+            LOG_W("ui host id %u unsupported type, skip", host_id);
+            return RT_EOK;
+        }
+        if (err != RT_EOK)
+            return err;
+    }
 
     LOG_I("apply ui host id %u", host_id);
     return RT_EOK;
 }
 
+static const char * const param_ui_plat_keys[] =
+{
+    "switch", "id", "name", "ip", "port", "protocol"
+};
+
 /* 把界面平台写进参数文件 */
 static rt_err_t param_ui_apply_platform(cJSON *root, cJSON *ui_platform)
 {
-    static const char * const copy_keys[] =
-    {
-        "switch", "id", "name", "ip", "port", "protocol"
-    };
     cJSON *dst;
     rt_uint32_t platform_id;
 
@@ -1165,7 +1176,8 @@ static rt_err_t param_ui_apply_platform(cJSON *root, cJSON *ui_platform)
     if (dst == RT_NULL)
         return -RT_EINVAL;
 
-    param_copy_keys(dst, ui_platform, copy_keys, sizeof(copy_keys) / sizeof(copy_keys[0]));
+    param_copy_keys(dst, ui_platform, param_ui_plat_keys,
+                    sizeof(param_ui_plat_keys) / sizeof(param_ui_plat_keys[0]));
 
     LOG_I("apply ui platform id %u", platform_id);
     return RT_EOK;
@@ -1242,67 +1254,51 @@ static cJSON *param_file_to_ui_host(cJSON *root, cJSON *host)
     return ui;
 }
 
-/* 把界面主机数组写进参数文件 */
-static rt_err_t param_ui_apply_hosts(cJSON *root, cJSON *ui_hosts)
+/* 按条数上限逐项写入数组 */
+static rt_err_t param_apply_array(cJSON *root, cJSON *arr, int max,
+                                  const char *what, const char *max_name,
+                                  rt_err_t (*apply_one)(cJSON *root, cJSON *item))
 {
     int i;
     int n;
 
-    if (!cJSON_IsArray(ui_hosts))
+    if (!cJSON_IsArray(arr))
         return -RT_EINVAL;
 
-    n = cJSON_GetArraySize(ui_hosts);
-    if (n > HOST_MAX)
+    n = cJSON_GetArraySize(arr);
+    if (n > max)
     {
-        LOG_E("ui hosts count %d must <= HOST_MAX(%d)", n, HOST_MAX);
+        LOG_E("%s count %d must <= %s(%d)", what, n, max_name, max);
         return -RT_EINVAL;
     }
 
     for (i = 0; i < n; i++)
     {
-        rt_err_t err = param_ui_apply_host(root, cJSON_GetArrayItem(ui_hosts, i));
+        rt_err_t err = apply_one(root, cJSON_GetArrayItem(arr, i));
 
         if (err != RT_EOK)
             return err;
     }
 
     return RT_EOK;
+}
+
+/* 把界面主机数组写进参数文件 */
+static rt_err_t param_ui_apply_hosts(cJSON *root, cJSON *ui_hosts)
+{
+    return param_apply_array(root, ui_hosts, HOST_MAX, "ui hosts", "HOST_MAX", param_ui_apply_host);
 }
 
 /* 把界面平台数组写进参数文件 */
 static rt_err_t param_ui_apply_platforms(cJSON *root, cJSON *ui_platforms)
 {
-    int i;
-    int n;
-
-    if (!cJSON_IsArray(ui_platforms))
-        return -RT_EINVAL;
-
-    n = cJSON_GetArraySize(ui_platforms);
-    if (n > PLATFORM_MAX)
-    {
-        LOG_E("ui platforms count %d must <= PLATFORM_MAX(%d)", n, PLATFORM_MAX);
-        return -RT_EINVAL;
-    }
-
-    for (i = 0; i < n; i++)
-    {
-        rt_err_t err = param_ui_apply_platform(root, cJSON_GetArrayItem(ui_platforms, i));
-
-        if (err != RT_EOK)
-            return err;
-    }
-
-    return RT_EOK;
+    return param_apply_array(root, ui_platforms, PLATFORM_MAX, "ui platforms", "PLATFORM_MAX",
+                             param_ui_apply_platform);
 }
 
 /* 把参数文件转成整份界面 JSON */
 static cJSON *param_file_to_ui_all(cJSON *root)
 {
-    static const char * const plat_keys[] =
-    {
-        "switch", "id", "name", "ip", "port", "protocol"
-    };
     cJSON *out;
     cJSON *hosts;
     cJSON *platforms;
@@ -1329,12 +1325,7 @@ static cJSON *param_file_to_ui_all(cJSON *root)
             continue;
         ui = param_file_to_ui_host(root, host);
         if (ui == RT_NULL)
-        {
-            cJSON_Delete(out);
-            cJSON_Delete(hosts);
-            cJSON_Delete(platforms);
-            return RT_NULL;
-        }
+            goto fail;
         cJSON_AddItemToArray(hosts, ui);
     }
 
@@ -1345,14 +1336,10 @@ static cJSON *param_file_to_ui_all(cJSON *root)
 
         if (!cJSON_IsObject(plat))
             continue;
-        ui = param_pick_object(plat, plat_keys, sizeof(plat_keys) / sizeof(plat_keys[0]));
+        ui = param_pick_object(plat, param_ui_plat_keys,
+                               sizeof(param_ui_plat_keys) / sizeof(param_ui_plat_keys[0]));
         if (ui == RT_NULL)
-        {
-            cJSON_Delete(out);
-            cJSON_Delete(hosts);
-            cJSON_Delete(platforms);
-            return RT_NULL;
-        }
+            goto fail;
         cJSON_AddItemToArray(platforms, ui);
     }
 
@@ -1362,17 +1349,18 @@ static cJSON *param_file_to_ui_all(cJSON *root)
     else
         eth = cJSON_CreateObject();
     if (eth == RT_NULL)
-    {
-        cJSON_Delete(out);
-        cJSON_Delete(hosts);
-        cJSON_Delete(platforms);
-        return RT_NULL;
-    }
+        goto fail;
 
     cJSON_AddItemToObject(out, "hosts", hosts);
     cJSON_AddItemToObject(out, "platforms", platforms);
     cJSON_AddItemToObject(out, "eth", eth);
     return out;
+
+fail:
+    cJSON_Delete(out);
+    cJSON_Delete(hosts);
+    cJSON_Delete(platforms);
+    return RT_NULL;
 }
 
 /* ---------- net：file 与合宙参数互转 ---------- */
@@ -1811,7 +1799,7 @@ static cJSON *param_net_from_eth(cJSON *root)
     return param_wrap("eth", dup);
 }
 
-/* 全部主机、平台和以太网合成一份合宙参数 */
+/* 合成一份合宙参数，hosts 与参数文件里的 hosts 相同 */
 static cJSON *param_net_from_all(cJSON *root)
 {
     cJSON *out;
@@ -1902,6 +1890,22 @@ static cJSON *param_net_from_all(cJSON *root)
         cJSON_Delete(eth);
     }
 
+    {
+        cJSON *hosts = cJSON_GetObjectItemCaseSensitive(root, "hosts");
+        cJSON *dup;
+
+        if (cJSON_IsArray(hosts))
+            dup = cJSON_Duplicate(hosts, 1);
+        else
+            dup = cJSON_CreateArray();
+        if (dup == RT_NULL)
+        {
+            cJSON_Delete(out);
+            return RT_NULL;
+        }
+        cJSON_AddItemToObject(out, "hosts", dup);
+    }
+
     return out;
 }
 
@@ -1935,6 +1939,18 @@ static void param_net_mark_host_name(const char *name, rt_bool_t *seen)
         seen[host_id] = RT_TRUE;
 }
 
+/* 从对象的字段名记下主机号 */
+static void param_net_mark_keys(cJSON *obj, rt_bool_t *seen)
+{
+    cJSON *child;
+
+    if (!cJSON_IsObject(obj))
+        return;
+
+    for (child = obj->child; child != RT_NULL; child = child->next)
+        param_net_mark_host_name(child->string, seen);
+}
+
 /* JSON 里没有的主机号最后关掉 */
 static rt_err_t param_net_drop_absent(cJSON *root, cJSON *net, rt_bool_t *touched)
 {
@@ -1945,25 +1961,20 @@ static rt_err_t param_net_drop_absent(cJSON *root, cJSON *net, rt_bool_t *touche
 
     rt_memset(seen, 0, sizeof(seen));
 
-    obj = cJSON_GetObjectItemCaseSensitive(net, "interfaces");
-    if (cJSON_IsObject(obj))
-    {
-        for (child = obj->child; child != RT_NULL; child = child->next)
-            param_net_mark_host_name(child->string, seen);
-    }
+    param_net_mark_keys(cJSON_GetObjectItemCaseSensitive(net, "interfaces"), seen);
+    param_net_mark_keys(cJSON_GetObjectItemCaseSensitive(net, "protocols"), seen);
+    param_net_mark_keys(cJSON_GetObjectItemCaseSensitive(net, "sockets"), seen);
 
-    obj = cJSON_GetObjectItemCaseSensitive(net, "protocols");
-    if (cJSON_IsObject(obj))
+    obj = cJSON_GetObjectItemCaseSensitive(net, "hosts");
+    if (cJSON_IsArray(obj))
     {
         for (child = obj->child; child != RT_NULL; child = child->next)
-            param_net_mark_host_name(child->string, seen);
-    }
+        {
+            rt_uint32_t id;
 
-    obj = cJSON_GetObjectItemCaseSensitive(net, "sockets");
-    if (cJSON_IsObject(obj))
-    {
-        for (child = obj->child; child != RT_NULL; child = child->next)
-            param_net_mark_host_name(child->string, seen);
+            if (json_get_u32(child, "id", &id) && id < HOST_MAX)
+                seen[id] = RT_TRUE;
+        }
     }
 
     obj = cJSON_GetObjectItemCaseSensitive(net, "binds");
@@ -1991,6 +2002,75 @@ static rt_err_t param_net_drop_absent(cJSON *root, cJSON *net, rt_bool_t *touche
             continue;
         if (param_net_set_switch(root, (rt_uint32_t)h, RT_FALSE, touched) != RT_EOK)
             return -RT_EINVAL;
+    }
+
+    return RT_EOK;
+}
+
+/* 用合宙 JSON 里的 hosts 覆盖文件里的同 id 主机 */
+static rt_err_t param_net_apply_hosts(cJSON *root, cJSON *net_hosts, rt_bool_t *touched)
+{
+    cJSON *file_hosts;
+    int i;
+    int n;
+
+    if (!cJSON_IsArray(net_hosts))
+        return -RT_EINVAL;
+
+    n = cJSON_GetArraySize(net_hosts);
+    if (n > HOST_MAX)
+    {
+        LOG_E("net hosts count %d must <= HOST_MAX(%d)", n, HOST_MAX);
+        return -RT_EINVAL;
+    }
+
+    file_hosts = cJSON_GetObjectItemCaseSensitive(root, "hosts");
+    if (!cJSON_IsArray(file_hosts))
+    {
+        LOG_E("param file missing hosts array");
+        return -RT_EINVAL;
+    }
+
+    for (i = 0; i < n; i++)
+    {
+        cJSON *src = cJSON_GetArrayItem(net_hosts, i);
+        cJSON *dup;
+        rt_uint32_t id;
+        int j;
+        int found = 0;
+        int fn;
+
+        if (!cJSON_IsObject(src) || !json_get_u32(src, "id", &id) || id >= HOST_MAX)
+        {
+            LOG_E("net hosts[%d] id must < HOST_MAX(%d)", i, HOST_MAX);
+            return -RT_EINVAL;
+        }
+
+        dup = cJSON_Duplicate(src, 1);
+        if (dup == RT_NULL)
+            return -RT_ENOMEM;
+
+        fn = cJSON_GetArraySize(file_hosts);
+        for (j = 0; j < fn; j++)
+        {
+            cJSON *dst = cJSON_GetArrayItem(file_hosts, j);
+            rt_uint32_t dst_id;
+
+            if (cJSON_IsObject(dst) && json_get_u32(dst, "id", &dst_id) && dst_id == id)
+            {
+                cJSON_ReplaceItemInArray(file_hosts, j, dup);
+                dup = RT_NULL;
+                found = 1;
+                break;
+            }
+        }
+        if (!found)
+        {
+            cJSON_Delete(dup);
+            LOG_E("hosts id %u not found", id);
+            return -RT_EINVAL;
+        }
+        touched[id] = RT_TRUE;
     }
 
     return RT_EOK;
@@ -2223,7 +2303,7 @@ static rt_err_t param_net_apply_runtime(cJSON *root, const rt_bool_t *touched)
             continue;
 
         host = param_host_by_id(root, (rt_uint32_t)i);
-        err = param_apply_std_host(host, &skip);
+        err = param_apply_host(host, &skip);
         if (skip)
         {
             LOG_W("hosts id %d unsupported type, skip", i);
@@ -2491,12 +2571,16 @@ static int cmd_set_param(int argc, char **argv)
 
     if (rt_strncmp(argv[1], "hosts", 5) == 0)
     {
-        if (host_std_set_param_from_json(section) != RT_EOK)
+        rt_bool_t skip;
+
+        if (param_apply_host(section, &skip) != RT_EOK)
         {
             rt_kprintf("hosts set_param failed\n");
             cJSON_Delete(root);
             return -RT_ERROR;
         }
+        if (skip)
+            rt_kprintf("hosts unsupported type, skip\n");
     }
 
     if (param_save_root(root) != RT_EOK)
@@ -2512,6 +2596,227 @@ static int cmd_set_param(int argc, char **argv)
 }
 MSH_CMD_EXPORT_ALIAS(cmd_set_param, set_param, Set param: set_param hosts[0] crt_interface uart_name uart0);
 #endif
+
+/* 有该字段才写入，并记为已处理 */
+static rt_err_t param_apply_key(cJSON *doc, cJSON *file, const char *key,
+                                rt_err_t (*fn)(cJSON *file, cJSON *item),
+                                rt_bool_t *applied)
+{
+    cJSON *item;
+    rt_err_t err;
+
+    item = cJSON_GetObjectItemCaseSensitive(doc, key);
+    if (item == RT_NULL)
+        return RT_EOK;
+
+    err = fn(file, item);
+    if (err != RT_EOK)
+        return err;
+
+    *applied = RT_TRUE;
+    return RT_EOK;
+}
+
+/* 解析下发 JSON，写入成功后保存 */
+static rt_err_t param_edit(const char *json_text, const char *tag,
+                           rt_err_t (*apply)(cJSON *incoming, cJSON *file))
+{
+    cJSON *incoming;
+    cJSON *file;
+    rt_err_t err;
+
+    err = param_open_edit(json_text, tag, &incoming, &file);
+    if (err != RT_EOK)
+        return err;
+
+    err = apply(incoming, file);
+    if (err == RT_EOK)
+        err = param_commit_edit(file);
+
+    cJSON_Delete(incoming);
+    cJSON_Delete(file);
+    return err;
+}
+
+/* 加载参数文件，可选转换后写到缓冲区 */
+static rt_size_t param_load_send(char *path, char *out, rt_size_t out_sz,
+                                 cJSON *(*build)(cJSON *root))
+{
+    cJSON *root;
+    cJSON *obj;
+
+    if (path == RT_NULL || out == RT_NULL || out_sz == 0)
+        return 0;
+
+    root = param_load_root(path);
+    if (root == RT_NULL)
+        return 0;
+
+    if (build == RT_NULL)
+        return param_send_json(root, out, out_sz);
+
+    obj = build(root);
+    cJSON_Delete(root);
+    return param_send_json(obj, out, out_sz);
+}
+
+/* 按选择器取出一块，转换后写到缓冲区 */
+static rt_size_t param_export_section(char *path, const char *selector, char *out, rt_size_t out_sz,
+                                      cJSON *(*build)(cJSON *root, cJSON *section, const char *key))
+{
+    cJSON *root;
+    cJSON *section;
+    cJSON *obj;
+    const char *key;
+
+    if (path == RT_NULL || selector == RT_NULL || out == RT_NULL || out_sz == 0)
+        return 0;
+    if (param_open_section(path, selector, &root, &section, &key) != RT_EOK)
+        return 0;
+
+    obj = build(root, section, key);
+    cJSON_Delete(root);
+    return param_send_json(obj, out, out_sz);
+}
+
+/* 写入单条界面参数 */
+static rt_err_t param_ui_apply_doc(cJSON *ui, cJSON *file)
+{
+    rt_bool_t applied = RT_FALSE;
+    rt_err_t err;
+
+    err = param_apply_key(ui, file, "host", param_ui_apply_host, &applied);
+    if (err != RT_EOK)
+        return err;
+    err = param_apply_key(ui, file, "platform", param_ui_apply_platform, &applied);
+    if (err != RT_EOK)
+        return err;
+    err = param_apply_key(ui, file, "eth", param_ui_apply_eth, &applied);
+    if (err != RT_EOK)
+        return err;
+    if (!applied)
+    {
+        LOG_E("ui param has no host/platform/eth");
+        return -RT_EINVAL;
+    }
+    return RT_EOK;
+}
+
+/* 写入整份界面参数 */
+static rt_err_t param_ui_apply_all_doc(cJSON *ui, cJSON *file)
+{
+    rt_bool_t applied = RT_FALSE;
+    rt_err_t err;
+
+    err = param_apply_key(ui, file, "hosts", param_ui_apply_hosts, &applied);
+    if (err != RT_EOK)
+        return err;
+    err = param_apply_key(ui, file, "platforms", param_ui_apply_platforms, &applied);
+    if (err != RT_EOK)
+        return err;
+    err = param_apply_key(ui, file, "eth", param_ui_apply_eth, &applied);
+    if (err != RT_EOK)
+        return err;
+    if (!applied)
+    {
+        LOG_E("ui param has no hosts/platforms/eth");
+        return -RT_EINVAL;
+    }
+    return RT_EOK;
+}
+
+/* 按选择器把一块转成界面 JSON */
+static cJSON *param_section_to_ui(cJSON *root, cJSON *section, const char *key)
+{
+    cJSON *ui;
+
+    if (rt_strcmp(key, "host") == 0)
+        ui = param_file_to_ui_host(root, section);
+    else if (rt_strcmp(key, "platform") == 0)
+        ui = param_pick_object(section, param_ui_plat_keys,
+                               sizeof(param_ui_plat_keys) / sizeof(param_ui_plat_keys[0]));
+    else
+        ui = cJSON_Duplicate(section, 1);
+    return param_wrap(key, ui);
+}
+
+/* 按选择器原样包一层 */
+static cJSON *param_section_dup(cJSON *root, cJSON *section, const char *key)
+{
+    (void)root;
+    return param_wrap(key, cJSON_Duplicate(section, 1));
+}
+
+/* 写入整份合宙参数 */
+static rt_err_t param_net_apply_doc(cJSON *net, cJSON *file)
+{
+    cJSON *item;
+    rt_bool_t touched[HOST_MAX];
+    rt_bool_t applied = RT_FALSE;
+    rt_err_t err;
+
+    rt_memset(touched, 0, sizeof(touched));
+
+    item = cJSON_GetObjectItemCaseSensitive(net, "interfaces");
+    if (item != RT_NULL)
+    {
+        err = param_net_apply_interfaces(file, item, touched);
+        if (err != RT_EOK)
+            return err;
+        applied = RT_TRUE;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(net, "protocols");
+    if (item != RT_NULL)
+    {
+        err = param_net_apply_protocols(item);
+        if (err != RT_EOK)
+            return err;
+        applied = RT_TRUE;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(net, "sockets");
+    if (item != RT_NULL)
+    {
+        err = param_net_apply_sockets(file, item);
+        if (err != RT_EOK)
+            return err;
+        applied = RT_TRUE;
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(net, "binds");
+    if (item != RT_NULL)
+    {
+        err = param_net_apply_binds(file, item, touched);
+        if (err != RT_EOK)
+            return err;
+        applied = RT_TRUE;
+    }
+
+    err = param_apply_key(net, file, "eth", param_ui_apply_eth, &applied);
+    if (err != RT_EOK)
+        return err;
+
+    item = cJSON_GetObjectItemCaseSensitive(net, "hosts");
+    if (item != RT_NULL)
+    {
+        err = param_net_apply_hosts(file, item, touched);
+        if (err != RT_EOK)
+            return err;
+        applied = RT_TRUE;
+    }
+
+    if (!applied)
+    {
+        LOG_E("net param has no interfaces/protocols/sockets/binds/eth/hosts");
+        return -RT_EINVAL;
+    }
+
+    err = param_net_drop_absent(file, net, touched);
+    if (err != RT_EOK)
+        return err;
+    return param_net_apply_runtime(file, touched);
+}
 
 /* ---------- 对外接口 ---------- */
 
@@ -2539,290 +2844,47 @@ rt_err_t param_set_all_from_file(char *path)
 /* 按选择器读出参数文件里的一块 */
 rt_size_t param_get_from_file(char *path, const char *selector, char *out, rt_size_t out_sz)
 {
-    cJSON *root;
-    cJSON *section;
-    cJSON *wrap;
-    const char *key;
-
-    if (path == RT_NULL || selector == RT_NULL || out == RT_NULL || out_sz == 0)
-        return 0;
-    if (param_open_section(path, selector, &root, &section, &key) != RT_EOK)
-        return 0;
-
-    wrap = param_wrap(key, cJSON_Duplicate(section, 1));
-    cJSON_Delete(root);
-    return param_send_json(wrap, out, out_sz);
+    return param_export_section(path, selector, out, out_sz, param_section_dup);
 }
 
 /* 读出整份参数文件：hosts、platforms、eth */
 rt_size_t param_get_all_from_file(char *path, char *out, rt_size_t out_sz)
 {
-    cJSON *root;
-
-    if (path == RT_NULL || out == RT_NULL || out_sz == 0)
-        return 0;
-
-    root = param_load_root(path);
-    if (root == RT_NULL)
-        return 0;
-
-    return param_send_json(root, out, out_sz);
+    return param_load_send(path, out, out_sz, RT_NULL);
 }
 
 /* 把界面 JSON 合并进参数文件 */
 rt_err_t param_set_from_ui(const char *json_text)
 {
-    cJSON *ui_root;
-    cJSON *mcu_root;
-    cJSON *item;
-    rt_err_t err = -RT_EINVAL;
-    rt_bool_t applied = RT_FALSE;
-
-    err = param_open_edit(json_text, "ui", &ui_root, &mcu_root);
-    if (err != RT_EOK)
-        return err;
-
-    item = cJSON_GetObjectItemCaseSensitive(ui_root, "host");
-    if (item != RT_NULL)
-    {
-        err = param_ui_apply_host(mcu_root, item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(ui_root, "platform");
-    if (item != RT_NULL)
-    {
-        err = param_ui_apply_platform(mcu_root, item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(ui_root, "eth");
-    if (item != RT_NULL)
-    {
-        err = param_ui_apply_eth(mcu_root, item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    if (!applied)
-    {
-        LOG_E("ui param has no host/platform/eth");
-        err = -RT_EINVAL;
-        goto exit;
-    }
-
-    err = param_commit_edit(mcu_root);
-
-exit:
-    cJSON_Delete(ui_root);
-    cJSON_Delete(mcu_root);
-    return err;
+    return param_edit(json_text, "ui", param_ui_apply_doc);
 }
 
 /* 按选择器转成界面 JSON */
 rt_size_t param_get_to_ui(char *path, const char *selector, char *out, rt_size_t out_sz)
 {
-    static const char * const plat_keys[] =
-    {
-        "switch", "id", "name", "ip", "port", "protocol"
-    };
-    cJSON *root;
-    cJSON *section;
-    cJSON *ui_obj = RT_NULL;
-    const char *key;
-
-    if (path == RT_NULL || selector == RT_NULL || out == RT_NULL || out_sz == 0)
-        return 0;
-    if (param_open_section(path, selector, &root, &section, &key) != RT_EOK)
-        return 0;
-
-    if (rt_strcmp(key, "host") == 0)
-        ui_obj = param_file_to_ui_host(root, section);
-    else if (rt_strcmp(key, "platform") == 0)
-        ui_obj = param_pick_object(section, plat_keys, sizeof(plat_keys) / sizeof(plat_keys[0]));
-    else
-        ui_obj = cJSON_Duplicate(section, 1);
-
-    cJSON_Delete(root);
-    return param_send_json(param_wrap(key, ui_obj), out, out_sz);
+    return param_export_section(path, selector, out, out_sz, param_section_to_ui);
 }
 
 /* 把整份界面 JSON 写进参数文件并生效 */
 rt_err_t param_set_all_from_ui(const char *json_text)
 {
-    cJSON *ui_root;
-    cJSON *mcu_root;
-    cJSON *item;
-    rt_err_t err;
-    rt_bool_t applied = RT_FALSE;
-
-    err = param_open_edit(json_text, "ui", &ui_root, &mcu_root);
-    if (err != RT_EOK)
-        return err;
-
-    item = cJSON_GetObjectItemCaseSensitive(ui_root, "hosts");
-    if (item != RT_NULL)
-    {
-        err = param_ui_apply_hosts(mcu_root, item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(ui_root, "platforms");
-    if (item != RT_NULL)
-    {
-        err = param_ui_apply_platforms(mcu_root, item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(ui_root, "eth");
-    if (item != RT_NULL)
-    {
-        err = param_ui_apply_eth(mcu_root, item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    if (!applied)
-    {
-        LOG_E("ui param has no hosts/platforms/eth");
-        err = -RT_EINVAL;
-        goto exit;
-    }
-
-    err = param_commit_edit(mcu_root);
-
-exit:
-    cJSON_Delete(ui_root);
-    cJSON_Delete(mcu_root);
-    return err;
+    return param_edit(json_text, "ui", param_ui_apply_all_doc);
 }
 
 /* 把整份参数转成界面 JSON */
 rt_size_t param_get_all_to_ui(char *path, char *out, rt_size_t out_sz)
 {
-    cJSON *root;
-    cJSON *ui;
-
-    if (path == RT_NULL || out == RT_NULL || out_sz == 0)
-        return 0;
-
-    root = param_load_root(path);
-    if (root == RT_NULL)
-        return 0;
-
-    ui = param_file_to_ui_all(root);
-    cJSON_Delete(root);
-    return param_send_json(ui, out, out_sz);
+    return param_load_send(path, out, out_sz, param_file_to_ui_all);
 }
 
 /* 把整份合宙 JSON 写进参数文件并生效 */
 rt_err_t param_set_all_from_net(const char *json_text)
 {
-    cJSON *net_root;
-    cJSON *mcu_root;
-    cJSON *item;
-    rt_bool_t touched[HOST_MAX];
-    rt_err_t err;
-    rt_bool_t applied = RT_FALSE;
-
-    err = param_open_edit(json_text, "net", &net_root, &mcu_root);
-    if (err != RT_EOK)
-        return err;
-
-    rt_memset(touched, 0, sizeof(touched));
-
-    item = cJSON_GetObjectItemCaseSensitive(net_root, "interfaces");
-    if (item != RT_NULL)
-    {
-        err = param_net_apply_interfaces(mcu_root, item, touched);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(net_root, "protocols");
-    if (item != RT_NULL)
-    {
-        err = param_net_apply_protocols(item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(net_root, "sockets");
-    if (item != RT_NULL)
-    {
-        err = param_net_apply_sockets(mcu_root, item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(net_root, "binds");
-    if (item != RT_NULL)
-    {
-        err = param_net_apply_binds(mcu_root, item, touched);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    item = cJSON_GetObjectItemCaseSensitive(net_root, "eth");
-    if (item != RT_NULL)
-    {
-        err = param_ui_apply_eth(mcu_root, item);
-        if (err != RT_EOK)
-            goto exit;
-        applied = RT_TRUE;
-    }
-
-    if (!applied)
-    {
-        LOG_E("net param has no interfaces/protocols/sockets/binds/eth");
-        err = -RT_EINVAL;
-        goto exit;
-    }
-
-    err = param_net_drop_absent(mcu_root, net_root, touched);
-    if (err != RT_EOK)
-        goto exit;
-
-    err = param_net_apply_runtime(mcu_root, touched);
-    if (err != RT_EOK)
-        goto exit;
-
-    err = param_commit_edit(mcu_root);
-
-exit:
-    cJSON_Delete(net_root);
-    cJSON_Delete(mcu_root);
-    return err;
+    return param_edit(json_text, "net", param_net_apply_doc);
 }
 
 /* 把整份参数转成合宙 JSON */
 rt_size_t param_get_all_to_net(char *path, char *out, rt_size_t out_sz)
 {
-    cJSON *root;
-    cJSON *net;
-
-    if (path == RT_NULL || out == RT_NULL || out_sz == 0)
-        return 0;
-
-    root = param_load_root(path);
-    if (root == RT_NULL)
-        return 0;
-
-    net = param_net_from_all(root);
-    cJSON_Delete(root);
-    return param_send_json(net, out, out_sz);
+    return param_load_send(path, out, out_sz, param_net_from_all);
 }
