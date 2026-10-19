@@ -12,7 +12,7 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-#define CMD_BUFFER_SIZE 1023
+#define CMD_BUFFER_SIZE 8192
 static rt_uint8_t cmd_recv_buffer[CMD_BUFFER_SIZE];
 static rt_size_t cmd_recv_len = 0;
 static rt_uint8_t cmd_reply_buffer[CMD_BUFFER_SIZE];

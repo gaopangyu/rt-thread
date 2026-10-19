@@ -1518,12 +1518,6 @@ static const char *param_plat_proto(cJSON *plat, rt_uint32_t host_id)
     return param_net_protocol_name((int)protocol);
 }
 
-/* 往对象里放一个 null 字段 */
-static void param_put_null(cJSON *obj, const char *name)
-{
-    cJSON_AddItemToObject(obj, name, cJSON_CreateNull());
-}
-
 /* 生成串口对象，收发固定为 true */
 static cJSON *param_make_muart(cJSON *host, rt_uint32_t host_id)
 {
@@ -1662,17 +1656,10 @@ static cJSON *param_net_from_host(cJSON *root, rt_uint32_t host_id)
     if (out == RT_NULL)
         return RT_NULL;
 
-    param_net_name_muart(muart_name, sizeof(muart_name), host_id);
     if (!json_is_enabled(host, "switch", RT_FALSE))
-    {
-        param_put_null(interfaces, muart_name);
-        param_net_name_protocol(proto_name, sizeof(proto_name), "ev1", host_id);
-        param_put_null(protocols, proto_name);
-        param_net_name_protocol(proto_name, sizeof(proto_name), "gb26875", host_id);
-        param_put_null(protocols, proto_name);
         return out;
-    }
 
+    param_net_name_muart(muart_name, sizeof(muart_name), host_id);
     iface = param_make_muart(host, host_id);
     if (iface == RT_NULL)
     {
@@ -1704,11 +1691,10 @@ static cJSON *param_net_from_host(cJSON *root, rt_uint32_t host_id)
 
     for (p = 1; p <= 2; p++)
     {
+        if (!used[p])
+            continue;
         param_net_name_protocol(proto_name, sizeof(proto_name), param_net_protocol_name(p), host_id);
-        if (used[p])
-            cJSON_AddItemToObject(protocols, proto_name, cJSON_CreateObject());
-        else
-            param_put_null(protocols, proto_name);
+        cJSON_AddItemToObject(protocols, proto_name, cJSON_CreateObject());
     }
 
     for (p = 0; p < PLATFORM_MAX; p++)
@@ -1779,8 +1765,6 @@ static cJSON *param_net_from_platform(cJSON *root, rt_uint32_t plat_id)
             }
             cJSON_AddItemToObject(sockets, name, sock);
         }
-        else
-            param_put_null(sockets, name);
     }
 
     return out;
