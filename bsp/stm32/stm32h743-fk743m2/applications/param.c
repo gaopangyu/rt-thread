@@ -1795,6 +1795,17 @@ static cJSON *param_net_from_eth(cJSON *root)
     return param_wrap("eth", dup);
 }
 
+/* 空对象或空数组不放进合宙 JSON */
+static void param_drop_empty(cJSON *obj, const char *key)
+{
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(obj, key);
+
+    if (item == RT_NULL)
+        return;
+    if ((cJSON_IsObject(item) || cJSON_IsArray(item)) && item->child == RT_NULL)
+        cJSON_DeleteItemFromObject(obj, key);
+}
+
 /* 合成一份合宙参数，hosts 与参数文件里的 hosts 相同 */
 static cJSON *param_net_from_all(cJSON *root)
 {
@@ -1902,6 +1913,11 @@ static cJSON *param_net_from_all(cJSON *root)
         cJSON_AddItemToObject(out, "hosts", dup);
     }
 
+    param_drop_empty(out, "protocols");
+    param_drop_empty(out, "sockets");
+    param_drop_empty(out, "binds");
+    param_drop_empty(out, "interfaces");
+    cJSON_AddItemToObject(out, "clear", cJSON_CreateBool(1));
     return out;
 }
 
