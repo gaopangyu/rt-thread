@@ -1506,6 +1506,12 @@ static const char *param_host_proto(cJSON *host)
     return "ev1";
 }
 
+/* 平台 switch 打开 */
+static rt_bool_t param_plat_on(cJSON *plat)
+{
+    return json_is_enabled(plat, "switch", RT_FALSE);
+}
+
 /* 平台接了这台主机时返回协议名 */
 static const char *param_plat_proto(cJSON *plat, rt_uint32_t host_id)
 {
@@ -1699,8 +1705,12 @@ static cJSON *param_net_from_host(cJSON *root, rt_uint32_t host_id)
 
     for (p = 0; p < PLATFORM_MAX; p++)
     {
-        const char *pname = param_plat_proto(param_plat_by_id(root, (rt_uint32_t)p), host_id);
+        cJSON *plat = param_plat_by_id(root, (rt_uint32_t)p);
+        const char *pname;
 
+        if (!param_plat_on(plat))
+            continue;
+        pname = param_plat_proto(plat, host_id);
         if (pname == RT_NULL)
             continue;
 
@@ -1748,6 +1758,8 @@ static cJSON *param_net_from_platform(cJSON *root, rt_uint32_t plat_id)
         return RT_NULL;
     }
     cJSON_AddItemToObject(out, "sockets", sockets);
+    if (!param_plat_on(plat))
+        return out;
 
     for (h = 0; h < HOST_MAX; h++)
     {
