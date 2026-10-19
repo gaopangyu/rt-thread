@@ -2537,7 +2537,7 @@ rt_err_t param_set_all_from_file(char *path)
 }
 
 /* 按选择器读出参数文件里的一块 */
-rt_size_t param_get_all_from_file(char *path, const char *selector, char *out, rt_size_t out_sz)
+rt_size_t param_get_from_file(char *path, const char *selector, char *out, rt_size_t out_sz)
 {
     cJSON *root;
     cJSON *section;
@@ -2552,6 +2552,21 @@ rt_size_t param_get_all_from_file(char *path, const char *selector, char *out, r
     wrap = param_wrap(key, cJSON_Duplicate(section, 1));
     cJSON_Delete(root);
     return param_send_json(wrap, out, out_sz);
+}
+
+/* 读出整份参数文件：hosts、platforms、eth */
+rt_size_t param_get_all_from_file(char *path, char *out, rt_size_t out_sz)
+{
+    cJSON *root;
+
+    if (path == RT_NULL || out == RT_NULL || out_sz == 0)
+        return 0;
+
+    root = param_load_root(path);
+    if (root == RT_NULL)
+        return 0;
+
+    return param_send_json(root, out, out_sz);
 }
 
 /* 把界面 JSON 合并进参数文件 */

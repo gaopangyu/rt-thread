@@ -172,22 +172,12 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
 
     switch (cmd)
     {
-        case 0x01: /* 获取参数。请求：hosts[id]|platforms[id]|eth；回复：{"host"|"platform"|"eth":{...}} */
+        case 0x01: /* 获取参数。请求：无选择器；回复：整份合宙 JSON */
         {
-            char selector[32];
-
             LOG_I("protocol cmd parse: 0x01 get param\r\n");
-            if (len < 2 || len - 1 >= sizeof(selector))
-            {
-                LOG_E("protocol cmd parse: 0x01 frame len: %d\r\n", (int)len);
-                break;
-            }
-
-            rt_memcpy(selector, buffer + 1, len - 1);
-            selector[len - 1] = '\0';
-            reply_len = param_get_all_from_file(PARAM_FILE_PATH, selector, (char *)cmd_reply_buffer + 1, sizeof(cmd_reply_buffer) - 1);
+            reply_len = param_get_all_to_net(PARAM_FILE_PATH, (char *)cmd_reply_buffer + 1, sizeof(cmd_reply_buffer) - 1);
             if (reply_len == 0)
-                LOG_E("protocol cmd parse: 0x01 get %s failed\r\n", selector);
+                LOG_E("protocol cmd parse: 0x01 get net param failed\r\n");
             else
             {
                 cmd_reply_buffer[0] = cmd | 0x80;
@@ -195,7 +185,7 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             }
             break;
         }
-        case 0x02: /* 设置参数。请求：{"host"|"platform"|"eth":{...}}；回复：成功条数 + 失败条数 */
+        case 0x02: /* 设置参数。请求：整份合宙 JSON；回复：成功条数 + 失败条数 */
         {
             char *json;
             rt_err_t err;
@@ -213,7 +203,7 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
 
             rt_memcpy(json, buffer + 1, len - 1);
             json[len - 1] = '\0';
-            err = param_set_from_ui(json);
+            err = param_set_all_from_net(json);
             rt_free(json);
 
             cmd_reply_buffer[0] = cmd | 0x80;
