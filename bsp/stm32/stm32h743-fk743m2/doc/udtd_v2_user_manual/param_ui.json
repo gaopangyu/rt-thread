@@ -50,3 +50,164 @@
         "gateway": "192.168.1.1"
     }
 }
+//ui下发所有参数
+{
+    "hosts": [
+        {
+            "switch": false,
+            "id": 0,
+            "type": "std",
+            "protocol_ver": "ev1",
+            "host_type": "xxx",
+            "central_num": 0,
+            "regional_num": 0,
+            "local_num": 0,
+            "keyboard_addr": 0,
+            "key_addr": 0,
+            "crt_interface": {
+                "id": 0,
+                "baud_rate": 0,
+                "term_switch": false
+            },
+            "bus_interface": {
+                "id": 0,
+                "baud_rate": 0,
+                "parity": 0,
+                "term_switch": false
+            },
+            "platform": [
+                true,
+                false,
+                false,
+                false
+            ]
+        },
+        {
+            "switch": false,
+            "id": 1,
+            "type": "std",
+            "protocol_ver": "ev1",
+            "host_type": "xxx",
+            "central_num": 0,
+            "regional_num": 0,
+            "local_num": 0,
+            "keyboard_addr": 0,
+            "key_addr": 0,
+            "crt_interface": {
+                "id": 0,
+                "baud_rate": 0,
+                "term_switch": false
+            },
+            "bus_interface": {
+                "id": 0,
+                "baud_rate": 0,
+                "parity": 0,
+                "term_switch": false
+            },
+            "platform": [
+                true,
+                false,
+                false,
+                false
+            ]
+        },
+        {
+            "switch": false,
+            "id": 2,
+            "type": "std",
+            "protocol_ver": "ev1",
+            "host_type": "xxx",
+            "central_num": 0,
+            "regional_num": 0,
+            "local_num": 0,
+            "keyboard_addr": 0,
+            "key_addr": 0,
+            "crt_interface": {
+                "id": 0,
+                "baud_rate": 0,
+                "term_switch": false
+            },
+            "bus_interface": {
+                "id": 0,
+                "baud_rate": 0,
+                "parity": 0,
+                "term_switch": false
+            },
+            "platform": [
+                true,
+                false,
+                false,
+                false
+            ]
+        },
+        {
+            "switch": false,
+            "id": 3,
+            "type": "std",
+            "protocol_ver": "ev1",
+            "host_type": "xxx",
+            "central_num": 0,
+            "regional_num": 0,
+            "local_num": 0,
+            "keyboard_addr": 0,
+            "key_addr": 0,
+            "crt_interface": {
+                "id": 0,
+                "baud_rate": 0,
+                "term_switch": false
+            },
+            "bus_interface": {
+                "id": 0,
+                "baud_rate": 0,
+                "parity": 0,
+                "term_switch": false
+            },
+            "platform": [
+                true,
+                false,
+                false,
+                false
+            ]
+        }
+    ],
+    "platforms": [
+        {
+            "switch": false,
+            "id": 0,
+            "name": "海云物联网平台",
+            "ip": "127.0.0.1",
+            "port": 18088,
+            "protocol": 1
+        },
+        {
+            "switch": false,
+            "id": 1,
+            "name": "海云物联网平台",
+            "ip": "127.0.0.1",
+            "port": 18088,
+            "protocol": 1
+        },
+        {
+            "switch": false,
+            "id": 2,
+            "name": "海云物联网平台",
+            "ip": "127.0.0.1",
+            "port": 18088,
+            "protocol": 1
+        },
+        {
+            "switch": false,
+            "id": 3,
+            "name": "海云物联网平台",
+            "ip": "127.0.0.1",
+            "port": 18088,
+            "protocol": 1
+        }
+    ],
+    "eth": {
+        "dhcp": true,
+        "ip": "127.0.0.1",
+        "mask": "255.255.255.0",
+        "gateway": "192.168.1.1"
+    }
+}

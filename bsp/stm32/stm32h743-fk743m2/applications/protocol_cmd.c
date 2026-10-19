@@ -185,7 +185,7 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
 
             rt_memcpy(selector, buffer + 1, len - 1);
             selector[len - 1] = '\0';
-            reply_len = param_get_from_file(PARAM_FILE_PATH, selector, (char *)cmd_reply_buffer + 1, sizeof(cmd_reply_buffer) - 1);
+            reply_len = param_get_all_from_file(PARAM_FILE_PATH, selector, (char *)cmd_reply_buffer + 1, sizeof(cmd_reply_buffer) - 1);
             if (reply_len == 0)
                 LOG_E("protocol cmd parse: 0x01 get %s failed\r\n", selector);
             else

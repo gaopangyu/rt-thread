@@ -72,7 +72,7 @@ int main(void)
 
     print_heap_info();
 
-    param_set_from_file(PARAM_FILE_PATH);
+    param_set_all_from_file(PARAM_FILE_PATH);
 
     print_heap_info();
 
