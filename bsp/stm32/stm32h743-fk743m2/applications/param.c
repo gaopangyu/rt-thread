@@ -2471,7 +2471,7 @@ static void param_print_item(cJSON *item)
     cJSON_free(printed);
 }
 
-/* MSH：读出一块参数 */
+/* MSH：读出一块或整份参数 */
 static int cmd_get_param(int argc, char **argv)
 {
     cJSON *root;
@@ -2480,8 +2480,9 @@ static int cmd_get_param(int argc, char **argv)
 
     if (argc < 2)
     {
-        rt_kprintf("Usage: get_param <hosts[id]|platforms[id]|eth>\n");
-        rt_kprintf("Example: get_param hosts[0]\n");
+        rt_kprintf("Usage: get_param <all|hosts[id]|platforms[id]|eth>\n");
+        rt_kprintf("Example: get_param all\n");
+        rt_kprintf("         get_param hosts[0]\n");
         rt_kprintf("         get_param platforms 1\n");
         rt_kprintf("         get_param eth\n");
         return -RT_ERROR;
@@ -2494,6 +2495,13 @@ static int cmd_get_param(int argc, char **argv)
         return -RT_ERROR;
     }
 
+    if (argc == 2 && rt_strcmp(argv[1], "all") == 0)
+    {
+        param_print_item(root);
+        cJSON_Delete(root);
+        return RT_EOK;
+    }
+
     if (param_resolve_section(root, argc, argv, &next_arg, &section) != RT_EOK)
     {
         cJSON_Delete(root);
@@ -2502,7 +2510,7 @@ static int cmd_get_param(int argc, char **argv)
 
     if (next_arg != argc)
     {
-        rt_kprintf("Usage: get_param <hosts[id]|platforms[id]|eth>\n");
+        rt_kprintf("Usage: get_param <all|hosts[id]|platforms[id]|eth>\n");
         cJSON_Delete(root);
         return -RT_ERROR;
     }
@@ -2511,7 +2519,7 @@ static int cmd_get_param(int argc, char **argv)
     cJSON_Delete(root);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_get_param, get_param, Get param: get_param hosts[id]|platforms[id]|eth);
+MSH_CMD_EXPORT_ALIAS(cmd_get_param, get_param, Get param: get_param all|hosts[id]|platforms[id]|eth);
 
 /* MSH：改一个字段并保存 */
 static int cmd_set_param(int argc, char **argv)
