@@ -2427,6 +2427,19 @@ static rt_err_t param_set_leaf(cJSON *parent, const char *tok, const char *value
     if (parent == RT_NULL || tok == RT_NULL || value_str == RT_NULL)
         return -RT_EINVAL;
 
+    if (rt_strcmp(value_str, "null") == 0)
+    {
+        if (!cJSON_IsObject(parent))
+            return -RT_EINVAL;
+        if (param_parse_name_id(tok, name, sizeof(name), &has_id, &id) != RT_EOK || has_id)
+            return -RT_EINVAL;
+        if (cJSON_GetObjectItemCaseSensitive(parent, name) == RT_NULL)
+            return -RT_EINVAL;
+
+        cJSON_DeleteItemFromObject(parent, name);
+        return RT_EOK;
+    }
+
     if (cJSON_IsArray(parent))
     {
         if (param_parse_name_id(tok, name, sizeof(name), &has_id, &id) == RT_EOK && has_id)
@@ -2547,6 +2560,7 @@ static int cmd_set_param(int argc, char **argv)
         rt_kprintf("Usage: set_param <hosts[id]|platforms[id]|eth> [keys...] <key> <value>\n");
         rt_kprintf("Example: set_param hosts[0] crt_interface uart_name uart0\n");
         rt_kprintf("         set_param eth dhcp false\n");
+        rt_kprintf("         set_param hosts[0] crt_interface uart_name null\n");
         return -RT_ERROR;
     }
 
