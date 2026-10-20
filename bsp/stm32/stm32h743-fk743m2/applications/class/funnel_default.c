@@ -175,6 +175,7 @@ static rt_err_t funnel_default_handle_rx_bind_pre(funnel_default_obj_t obj,
 
     set_event_last_num(&obj->event_last_num, file_type, last_num + 1);
 
+    rt_free(new_buffer);
     custom_obj->rxb.buffer = RT_NULL;
     custom_obj->rxb.len = 0;
 
