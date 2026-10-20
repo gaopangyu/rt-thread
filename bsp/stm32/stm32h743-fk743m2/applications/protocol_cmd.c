@@ -322,7 +322,7 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
 
             break;
         }
-        case 0x07: /* 切换控制台。请求：usb|uart|upload；回复空 */
+        case 0x07: /* 切换控制台。请求：usb|uart|net；回复空 */
         {
             char name[16];
 
@@ -339,8 +339,8 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
                 set_console_device(CONSOLE_DEVICE_UART);
             else if (rt_strcmp(name, "usb") == 0)
                 set_console_device(CONSOLE_DEVICE_USB_CDC);
-            else if (rt_strcmp(name, "upload") == 0)
-                set_console_device(CONSOLE_DEVICE_UPLOAD);
+            else if (rt_strcmp(name, "net") == 0)
+                set_console_device(CONSOLE_DEVICE_NET);
             else
             {
                 LOG_W("protocol cmd parse: 0x07 invalid console: %s\r\n", name);

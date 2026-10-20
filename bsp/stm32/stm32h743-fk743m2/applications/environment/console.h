@@ -8,7 +8,7 @@ enum console_device_type
     CONSOLE_DEVICE_NONE = 0,
     CONSOLE_DEVICE_UART,
     CONSOLE_DEVICE_USB_CDC,
-    CONSOLE_DEVICE_UPLOAD,
+    CONSOLE_DEVICE_NET,
     CONSOLE_DEVICE_MAX
 };
 typedef enum console_device_type console_device_type_t;

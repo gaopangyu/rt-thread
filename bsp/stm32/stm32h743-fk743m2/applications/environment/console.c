@@ -22,7 +22,7 @@ extern void usbd_cdc_acm_serial_flush(uint8_t busid);
 #define USB0_FINSH_CDC_NAME "usb-acm0"
 #endif
 
-#define CONSOLE_DEVICE_UPLOAD_NAME "uart1"
+#define CONSOLE_DEVICE_NET_NAME "uart1"
 
 static enum console_device_type console_device = CONSOLE_DEVICE_UART;
 static enum console_device_type console_device_prev = CONSOLE_DEVICE_UART;
@@ -44,7 +44,7 @@ static const char *console_device_name(enum console_device_type device)
     {
     case CONSOLE_DEVICE_UART:    return "uart";
     case CONSOLE_DEVICE_USB_CDC: return "usb";
-    case CONSOLE_DEVICE_UPLOAD:  return "upload";
+    case CONSOLE_DEVICE_NET:     return "net";
     default:                     return "none";
     }
 }
@@ -145,9 +145,9 @@ void set_console_device(enum console_device_type device)
 
             break;
         }
-        case CONSOLE_DEVICE_UPLOAD:
+        case CONSOLE_DEVICE_NET:
         {
-            rt_device_t uart = rt_device_find(CONSOLE_DEVICE_UPLOAD_NAME);
+            rt_device_t uart = rt_device_find(CONSOLE_DEVICE_NET_NAME);
             if (uart == RT_NULL)
                 return;
 
@@ -162,11 +162,11 @@ void set_console_device(enum console_device_type device)
             rt_kprintf("set console device to: upload\r\n");
 
             #if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
-                rt_console_set_device(CONSOLE_DEVICE_UPLOAD_NAME);
+                rt_console_set_device(CONSOLE_DEVICE_NET_NAME);
             #endif
 
             #ifdef RT_USING_FINSH
-                finsh_set_device(CONSOLE_DEVICE_UPLOAD_NAME);
+                finsh_set_device(CONSOLE_DEVICE_NET_NAME);
             #endif
 
             rt_kprintf("set console device from: %s\r\n", console_device_name(console_device));
@@ -295,7 +295,7 @@ static int console_device_from_str(const char *s, enum console_device_type *out)
     }
     if (rt_strcmp(s, "upload") == 0)
     {
-        *out = CONSOLE_DEVICE_UPLOAD;
+        *out = CONSOLE_DEVICE_NET;
         return 0;
     }
 
