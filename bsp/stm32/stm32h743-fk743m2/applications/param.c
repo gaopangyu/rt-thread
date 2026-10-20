@@ -1135,19 +1135,6 @@ static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
     if (err != RT_EOK)
         return err;
 
-    {
-        rt_bool_t skip;
-
-        err = param_apply_host(dst, &skip);
-        if (skip)
-        {
-            LOG_W("ui host id %u unsupported type, skip", host_id);
-            return RT_EOK;
-        }
-        if (err != RT_EOK)
-            return err;
-    }
-
     LOG_I("apply ui host id %u", host_id);
     return RT_EOK;
 }
@@ -2300,37 +2287,6 @@ static rt_err_t param_net_apply_binds(cJSON *root, cJSON *binds, rt_bool_t *touc
     return RT_EOK;
 }
 
-/* 把改过的主机应用到运行时 */
-static rt_err_t param_net_apply_runtime(cJSON *root, const rt_bool_t *touched)
-{
-    int i;
-
-    for (i = 0; i < HOST_MAX; i++)
-    {
-        cJSON *host;
-        rt_bool_t skip;
-        rt_err_t err;
-
-        if (!touched[i])
-            continue;
-
-        host = param_host_by_id(root, (rt_uint32_t)i);
-        err = param_apply_host(host, &skip);
-        if (skip)
-        {
-            LOG_W("hosts id %d unsupported type, skip", i);
-            continue;
-        }
-        if (err != RT_EOK)
-        {
-            LOG_E("hosts id %d net apply failed: %d", i, err);
-            return err;
-        }
-        LOG_I("apply net host id %d", i);
-    }
-
-    return RT_EOK;
-}
 /* ---------- MSH ---------- */
 
 #ifdef RT_USING_FINSH
@@ -2733,7 +2689,7 @@ static rt_err_t param_ui_apply_doc(cJSON *ui, cJSON *file)
         LOG_E("ui param has no host/platform/eth");
         return -RT_EINVAL;
     }
-    return RT_EOK;
+    return param_apply_hosts(file);
 }
 
 /* 写入整份界面参数 */
@@ -2756,7 +2712,7 @@ static rt_err_t param_ui_apply_all_doc(cJSON *ui, cJSON *file)
         LOG_E("ui param has no hosts/platforms/eth");
         return -RT_EINVAL;
     }
-    return RT_EOK;
+    return param_apply_hosts(file);
 }
 
 /* 按选择器把一块转成界面 JSON */
@@ -2849,7 +2805,7 @@ static rt_err_t param_net_apply_doc(cJSON *net, cJSON *file)
     err = param_net_drop_absent(file, net, touched);
     if (err != RT_EOK)
         return err;
-    return param_net_apply_runtime(file, touched);
+    return param_apply_hosts(file);
 }
 
 /* ---------- 对外接口 ---------- */

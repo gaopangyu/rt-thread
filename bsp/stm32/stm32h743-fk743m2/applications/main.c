@@ -76,6 +76,23 @@ int main(void)
 
     print_heap_info();
 
+    rt_pin_mode(GET_PIN(D, 0 ), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 1 ), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(C, 13), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 3 ), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 5 ), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 6 ), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 7 ), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(C, 11), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 8 ), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 9 ), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 10), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 11), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(C, 10), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 13), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(D, 14), PIN_MODE_OUTPUT);
+    rt_pin_mode(GET_PIN(C, 8 ), PIN_MODE_OUTPUT);
+
     while (1) {
 
         // if(rt_pin_read(MP_STAT_PIN) == PIN_LOW)
@@ -91,10 +108,40 @@ int main(void)
 
         // rt_thread_mdelay(1000);
 
-        rt_pin_write(LED0_PIN, PIN_HIGH);
-        rt_thread_mdelay(100);
-        rt_pin_write(LED0_PIN, PIN_LOW);
-        rt_thread_mdelay(100);
+        rt_pin_write(GET_PIN(D, 0 ), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 1 ), PIN_HIGH);
+        rt_pin_write(GET_PIN(C, 13), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 3 ), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 5 ), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 6 ), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 7 ), PIN_HIGH);
+        rt_pin_write(GET_PIN(C, 11), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 8 ), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 9 ), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 10), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 11), PIN_HIGH);
+        rt_pin_write(GET_PIN(C, 10), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 13), PIN_HIGH);
+        rt_pin_write(GET_PIN(D, 14), PIN_HIGH);
+        rt_pin_write(GET_PIN(C, 8 ), PIN_HIGH);
+        rt_thread_mdelay(1000);
+        rt_pin_write(GET_PIN(D, 0 ), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 1 ), PIN_LOW);
+        rt_pin_write(GET_PIN(C, 13), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 3 ), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 5 ), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 6 ), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 7 ), PIN_LOW);
+        rt_pin_write(GET_PIN(C, 11), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 8 ), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 9 ), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 10), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 11), PIN_LOW);
+        rt_pin_write(GET_PIN(C, 10), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 13), PIN_LOW);
+        rt_pin_write(GET_PIN(D, 14), PIN_LOW);
+        rt_pin_write(GET_PIN(C, 8 ), PIN_LOW);
+        rt_thread_mdelay(1000);
         
         // uint16_t illegal_code[] = {0xFFFF, 0xFFFF};
         // void (*func)(void) = (void (*)(void))illegal_code;
