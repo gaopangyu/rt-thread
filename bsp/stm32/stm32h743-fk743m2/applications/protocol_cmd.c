@@ -303,19 +303,20 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
                 break;
             }
 
-            rt_uint8_t host_id = buffer[1];
+            cmd_reply_buffer[0] = cmd | 0x80;
 
+            rt_uint8_t host_id = buffer[1];
             if (host_id >= HOST_MAX
                 || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL
                 || g_host[host_id]->ops->muart_rx_bind_status == RT_NULL)
             {
                 LOG_I("protocol cmd parse: 0x06 invalid args host=%d\r\n",
                         host_id);
-                break;
+                cmd_reply_buffer[1] = 0;
             }
+            else
+                cmd_reply_buffer[1] = g_host[host_id]->ops->muart_rx_bind_status(g_host[host_id]) ? 1 : 0;
 
-            cmd_reply_buffer[0] = cmd | 0x80;
-            cmd_reply_buffer[1] = g_host[host_id]->ops->muart_rx_bind_status(g_host[host_id]) ? 1 : 0;
             reply_len = 2;
             LOG_I("protocol cmd return: 0x06 get bind: %d\r\n", cmd_reply_buffer[1]);
 
