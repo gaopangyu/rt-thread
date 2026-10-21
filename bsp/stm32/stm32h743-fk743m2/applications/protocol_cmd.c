@@ -141,6 +141,7 @@ static void protocol_cmd_recv(void *parameter)
                 cmd_recv_len = tx_custom_obj->txb.len;
 
             rt_memcpy(cmd_recv_buffer, tx_custom_obj->txb.buffer, cmd_recv_len);
+            LOG_HEX("rx", 16, cmd_recv_buffer, cmd_recv_len);
 
             rt_sem_release(obj->recv_sem);
 
@@ -382,8 +383,13 @@ static void protocol_cmd_parse(void *parameter)
             break;
         }
 
-        if( (cmd_reply_len = parse(cmd_recv_buffer, cmd_recv_len)) == 0 )
+        cmd_reply_len = parse(cmd_recv_buffer, cmd_recv_len);
+        if (cmd_reply_len == 0)
+        {
+            rt_kprintf("I/protocol_cmd tx none\n");
             continue;
+        }
+        LOG_HEX("tx", 16, cmd_reply_buffer, cmd_reply_len);
 
         //回复
         if (rt_mutex_take(custom_obj->rxb.bind_mutex, RT_WAITING_FOREVER) != RT_EOK)
