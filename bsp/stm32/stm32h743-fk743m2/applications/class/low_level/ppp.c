@@ -502,7 +502,7 @@ static rt_bool_t ppp_adapter_send_one(struct ppp_adapter *adp, struct ppp_link *
         rt_uint8_t ack;
 
         ppp_link_flush_ack(link);
-        link->ack_status = PPP_PKT_ACK_NORMAL;
+        link->ack_status = PPP_PKT_ACK_RETX;
         if (ppp_adapter_out(adp, link->id, link->seq, RT_FALSE, PPP_PKT_SEND_NORMAL,
                             residue, data, chunk) == 0)
         {

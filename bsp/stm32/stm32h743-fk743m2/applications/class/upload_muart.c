@@ -251,7 +251,7 @@ static void upload_muart_recv(void *parameter)
 
         rt_mutex_release(custom_obj->rxb.bind_mutex);
 
-        if (fail_pre != RT_NULL)
+        if (fail_pre != RT_NULL && rt_strncmp(fail_pre->parent.name, "upload_muart_255", RT_NAME_MAX) != 0)
         {
             LOG_E("%s send to muart failed, unbind %s", rt_obj->name, fail_pre->parent.name);
             bind_delete(fail_pre, custom_obj, RT_TRUE);
