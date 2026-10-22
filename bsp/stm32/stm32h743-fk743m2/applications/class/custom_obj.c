@@ -334,7 +334,7 @@ rt_size_t custom_obj_bind_path_send_bytes(custom_obj_t obj, custom_obj_t parent,
     if (obj->type == Custom_Object_Class_Interface)
         return rt_atomic_load(&bind->ext_send_bytes);
 
-    /* TX root (e.g. protocol_cmd): data flows next -> self, counted in link_recv */
+    /* TX root (e.g. protocol_net_cmd): data flows next -> self, counted in link_recv */
     if (parent == RT_NULL)
         return custom_obj_bind_sum_link_bytes(bind->link_recv_bytes, bind->next_event_mask);
 

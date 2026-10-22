@@ -6,7 +6,7 @@
 #include "lib.h"
 
 #define PROTOCOL_EV1_PARENT_NAME "protocol_ev1_parent"
-#define PROTOCOL_CMD_NAME "protocol_cmd"
+#define PROTOCOL_NET_CMD_NAME "protocol_net_cmd"
 
 struct protocol_obj
 {
