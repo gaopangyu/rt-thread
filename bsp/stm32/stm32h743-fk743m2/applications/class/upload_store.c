@@ -387,8 +387,10 @@ exit:
 
 static rt_size_t upload_store_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end)
 {
-    if (self == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
+    if (buffer == RT_NULL || size == 0)
         return 0;
+    if (self == RT_NULL || event_history == RT_NULL)
+        return event_put_end(buffer, size, is_end);
 
     return store_get_history((upload_store_obj_t)self, buffer, size, event_history, is_end);
 }

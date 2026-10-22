@@ -127,12 +127,18 @@ rt_err_t host_obj_set_param(void *obj, void *cfg, const char *name)
 rt_size_t host_upload_get_history(upload_obj_t obj, rt_uint8_t *buffer, rt_size_t size,
                                   event_history_t event_history, rt_bool_t *is_end)
 {
-    if (obj == RT_NULL || buffer == RT_NULL || size == 0 || event_history == RT_NULL)
-        return 0;
-    if (obj->ops == RT_NULL || obj->ops->get_history == RT_NULL)
-        return 0;
+    rt_size_t n;
 
-    return obj->ops->get_history(obj, buffer, size, event_history, is_end);
+    if (buffer == RT_NULL || size == 0)
+        return 0;
+    if (obj == RT_NULL || event_history == RT_NULL
+        || obj->ops == RT_NULL || obj->ops->get_history == RT_NULL)
+        return event_put_end(buffer, size, is_end);
+
+    n = obj->ops->get_history(obj, buffer, size, event_history, is_end);
+    if (n == 0)
+        return event_put_end(buffer, size, is_end);
+    return n;
 }
 
 void host_parse_rs232(cJSON *obj, struct interface_rs232_config *cfg)

@@ -1053,10 +1053,10 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
     if (is_end != RT_NULL)
         *is_end = RT_FALSE;
 
-    if (obj == RT_NULL || buffer == RT_NULL || size < STORE_EVENT_SIZE || event_history == RT_NULL)
+    if (buffer == RT_NULL || size < STORE_EVENT_SIZE)
         return 0;
-    if (event_history->count == 0)
-        return 0;
+    if (obj == RT_NULL || event_history == RT_NULL || event_history->count == 0)
+        return event_put_end(buffer, size, is_end);
 
     enum event_file_type types[STORE_HISTORY_TYPE_CNT];
     rt_size_t ntype;
@@ -1084,13 +1084,13 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
 
     rt_size_t remain = event_history->count;
     if (obj->ramfs_fd_mutex == RT_NULL || obj->diskfs_fd_mutex == RT_NULL)
-        return 0;
+        return event_put_end(buffer, size, is_end);
     if (rt_mutex_take(obj->ramfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
-        return 0;
+        return event_put_end(buffer, size, is_end);
     if (rt_mutex_take(obj->diskfs_fd_mutex, RT_WAITING_FOREVER) != RT_EOK)
     {
         rt_mutex_release(obj->ramfs_fd_mutex);
-        return 0;
+        return event_put_end(buffer, size, is_end);
     }
 
     rt_size_t offset = 0;
@@ -1138,13 +1138,10 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
         }
     }
 
-    if (remain > 0 && offset + STORE_EVENT_SIZE <= size)
-    {
-        rt_memset(buffer + offset, 0xFF, STORE_EVENT_SIZE);
-        offset += STORE_EVENT_SIZE;
-    }
-    if (is_end != RT_NULL)
-        *is_end = (remain > 0) ? RT_TRUE : RT_FALSE;
+    if (remain > 0)
+        offset += event_put_end(buffer + offset, size - offset, is_end);
+    else if (is_end != RT_NULL)
+        *is_end = RT_FALSE;
 
     rt_mutex_release(obj->diskfs_fd_mutex);
     rt_mutex_release(obj->ramfs_fd_mutex);

@@ -26,3 +26,14 @@ char * event_get_file_name(enum event_file_type type)
         return "other.event";
     }
 }
+
+rt_size_t event_put_end(rt_uint8_t *buffer, rt_size_t size, rt_bool_t *is_end)
+{
+    if (buffer == RT_NULL || size < sizeof(struct event_num_pack))
+        return 0;
+
+    rt_memset(buffer, 0xFF, sizeof(struct event_num_pack));
+    if (is_end != RT_NULL)
+        *is_end = RT_TRUE;
+    return sizeof(struct event_num_pack);
+}

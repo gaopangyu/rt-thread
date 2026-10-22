@@ -51,7 +51,7 @@ static rt_err_t host_std_net_rx_bind_create(host_t self)
 static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end)
 {
     if (self == RT_NULL)
-        return 0;
+        return event_put_end(buffer, size, is_end);
 
     return host_upload_get_history(((host_std_t)self)->upload_store, buffer, size, event_history, is_end);
 }

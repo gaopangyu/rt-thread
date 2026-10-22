@@ -220,39 +220,46 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
 
             /* 布局: [0]=0x03 [1]=host_id [2]=event_type
              *       [3..6]=start_time(u32 LE) [7..10]=end_time(u32 LE) [11]=count */
+            rt_bool_t is_end = RT_FALSE;
+
             if (len < sizeof(struct event_history) + 1)
             {
                 LOG_W("protocol net_cmd parse: 0x03 frame len: %d < sizeof(struct event_history)\r\n", (int)len);
-                break;
+                reply_len = event_put_end(net_cmd_reply_buffer + 1, sizeof(net_cmd_reply_buffer) - 1, &is_end);
             }
-
-            struct event_history event_history;
-            rt_memcpy(&event_history, buffer + 1, sizeof(struct event_history));
-
-            if (event_history.host_id >= HOST_MAX || event_history.count == 0
-                || g_host[event_history.host_id] == RT_NULL || g_host[event_history.host_id]->ops == RT_NULL
-                || g_host[event_history.host_id]->ops->get_history == RT_NULL)
+            else
             {
-                LOG_I("protocol net_cmd parse: 0x03 invalid args host=%d count=%d \r\n",
-                                               event_history.host_id, event_history.count);
-                break;
+                struct event_history event_history;
+                rt_memcpy(&event_history, buffer + 1, sizeof(struct event_history));
+
+                if (event_history.host_id >= HOST_MAX || event_history.count == 0
+                    || g_host[event_history.host_id] == RT_NULL || g_host[event_history.host_id]->ops == RT_NULL
+                    || g_host[event_history.host_id]->ops->get_history == RT_NULL)
+                {
+                    LOG_I("protocol net_cmd parse: 0x03 invalid args host=%d count=%d \r\n",
+                                                   event_history.host_id, event_history.count);
+                    reply_len = event_put_end(net_cmd_reply_buffer + 1, sizeof(net_cmd_reply_buffer) - 1, &is_end);
+                }
+                else
+                {
+                    host = g_host[event_history.host_id];
+                    reply_len = host->ops->get_history(host,
+                                                        net_cmd_reply_buffer + 1,
+                                                        sizeof(net_cmd_reply_buffer) - 1,
+                                                        &event_history,
+                                                        &is_end);
+                    if (reply_len == 0)
+                        reply_len = event_put_end(net_cmd_reply_buffer + 1, sizeof(net_cmd_reply_buffer) - 1, &is_end);
+                    if (is_end && host->ops->net_rx_bind_create != RT_NULL)
+                        host->ops->net_rx_bind_create(host);
+                }
             }
 
-            rt_bool_t is_end = RT_FALSE;
-            host = g_host[event_history.host_id];
-
-            reply_len = host->ops->get_history(host,
-                                                net_cmd_reply_buffer + 1,
-                                                sizeof(net_cmd_reply_buffer) - 1,
-                                                &event_history,
-                                                &is_end);
             if (reply_len > 0)
             {
                 net_cmd_reply_buffer[0] = net_cmd | 0x80;
                 reply_len += 1;
             }
-            if (is_end && host->ops->net_rx_bind_create != RT_NULL)
-                host->ops->net_rx_bind_create(host);
 
             break;
         }

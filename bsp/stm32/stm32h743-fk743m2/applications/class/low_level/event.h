@@ -30,5 +30,6 @@ struct event_history
 typedef struct event_history *event_history_t;
 
 char * event_get_file_name(enum event_file_type type);
+rt_size_t event_put_end(rt_uint8_t *buffer, rt_size_t size, rt_bool_t *is_end);
 
 #endif /* __EVENT_H__ */
