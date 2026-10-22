@@ -1,6 +1,6 @@
 #include "protocol_net_cmd.h"
 #include "bind.h"
-#include "upload_muart.h"
+#include "upload_net.h"
 #include "host.h"
 #include "param.h"
 #include "console.h"
@@ -503,28 +503,28 @@ static int protocol_net_cmd_init(void)
 
     rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_NET_CMD_NAME);
 
-    upload_obj_t muart_parent = (upload_obj_t)rt_object_find(UPLOAD_MUART_PARENT_NAME, RT_Object_Class_Custom);
+    upload_obj_t muart_parent = (upload_obj_t)rt_object_find(UPLOAD_NET_PARENT_NAME, RT_Object_Class_Custom);
     if (muart_parent == RT_NULL || muart_parent->ops == RT_NULL || muart_parent->ops->create == RT_NULL)
     {
-        LOG_E("create error: parent upload muart not found");
+        LOG_E("create error: parent upload net not found");
         goto exit;
     }
 
-    struct upload_muart_config config = { .number = 255 };
-    upload_obj_t upload_muart_255 = muart_parent->ops->create(muart_parent, "upload_muart_255", &config);
-    if (upload_muart_255 == RT_NULL)
+    struct upload_net_config config = { .number = 255 };
+    upload_obj_t upload_net_255 = muart_parent->ops->create(muart_parent, "upload_net_255", &config);
+    if (upload_net_255 == RT_NULL)
     {
-        LOG_E("create error: upload muart 255 create failed");
+        LOG_E("create error: upload net 255 create failed");
         goto exit;
     }
 
-    if (bind_create(custom_obj, (custom_obj_t)upload_muart_255, RT_TRUE) != RT_EOK)
+    if (bind_create(custom_obj, (custom_obj_t)upload_net_255, RT_TRUE) != RT_EOK)
     {
         LOG_E("create error: rx_bind create failed");
         goto exit;
     }
 
-    if (bind_create(custom_obj, (custom_obj_t)upload_muart_255, RT_FALSE) != RT_EOK)
+    if (bind_create(custom_obj, (custom_obj_t)upload_net_255, RT_FALSE) != RT_EOK)
     {
         LOG_E("create error: tx_bind create failed");
         goto exit;

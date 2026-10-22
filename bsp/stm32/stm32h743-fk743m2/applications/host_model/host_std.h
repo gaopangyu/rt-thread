@@ -6,7 +6,7 @@
 #include "class/protocol_ev1.h"
 #include "class/funnel_default.h"
 #include "class/upload_store.h"
-#include "class/upload_muart.h"
+#include "class/upload_net.h"
 #include <cJSON.h>
 
 struct host_std_config

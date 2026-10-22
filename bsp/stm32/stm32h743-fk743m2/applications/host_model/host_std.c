@@ -139,7 +139,7 @@ rt_err_t host_std_create(host_std_config_t config)
     }
 
     if (config->muart_upload_cfg != RT_NULL)
-        host_std->muart_upload = host_create_upload(UPLOAD_MUART_PARENT_NAME, config->host_id,
+        host_std->muart_upload = host_create_upload(UPLOAD_NET_PARENT_NAME, config->host_id,
                                                     'x' - 0x30, config->muart_upload_cfg);
 
 
@@ -175,7 +175,7 @@ static rt_err_t host_std_load_json(cJSON *host_json, host_std_config_t host_std_
                                    struct protocol_ev1_config *crt_protocol_cfg,
                                    struct upload_store_config *store_upload_cfg,
                                    struct funnel_default_config *default_funnel_cfg,
-                                   struct upload_muart_config *muart_upload_cfg)
+                                   struct upload_net_config *muart_upload_cfg)
 {
     rt_uint32_t v;
     cJSON *item;
@@ -296,7 +296,7 @@ rt_err_t host_std_create_from_json(cJSON *host_json)
         .func_id = 0,
         .event_last_num = EVENT_LAST_NUM_DEFAULT
     };
-    struct upload_muart_config muart_upload_cfg = {0};
+    struct upload_net_config muart_upload_cfg = {0};
     struct host_std_config host_std_cfg = {0};
     rt_err_t err;
 
@@ -323,7 +323,7 @@ rt_err_t host_std_set_param_from_json(cJSON *host_json)
         .func_id = 0,
         .event_last_num = EVENT_LAST_NUM_DEFAULT
     };
-    struct upload_muart_config muart_upload_cfg = {0};
+    struct upload_net_config muart_upload_cfg = {0};
     struct host_std_config host_std_cfg = {0};
     host_t host;
     rt_err_t err;

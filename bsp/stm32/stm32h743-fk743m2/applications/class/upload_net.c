@@ -1,7 +1,7 @@
-#include "upload_muart.h"
+#include "upload_net.h"
 #include "custom_obj.h"
 
-#define DBG_TAG "upload_muart"
+#define DBG_TAG "upload_net"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
@@ -11,7 +11,7 @@ static struct rt_semaphore muart_parent_rx_sem;
 static struct ppp_adapter muart_ppp_adapter;
 volatile rt_bool_t muart_parent_idle_flag = RT_TRUE;
 
-static rt_err_t upload_muart_parent_rx_ind(rt_device_t dev, rt_size_t size)
+static rt_err_t upload_net_parent_rx_ind(rt_device_t dev, rt_size_t size)
 {
     UNUSED(dev);
     UNUSED(size);
@@ -21,12 +21,12 @@ static rt_err_t upload_muart_parent_rx_ind(rt_device_t dev, rt_size_t size)
     return RT_EOK;
 }
 
-static void upload_muart_recv_sub_event(void *parameter)
+static void upload_net_recv_sub_event(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    upload_muart_obj_t obj = (upload_muart_obj_t)parameter;
+    upload_net_obj_t obj = (upload_net_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -55,7 +55,7 @@ static void upload_muart_recv_sub_event(void *parameter)
     }
 }
 
-static double_ret upload_muart_set_param(upload_obj_t self, void *config)
+static double_ret upload_net_set_param(upload_obj_t self, void *config)
 {
     double_ret result = {0, 0};
 
@@ -65,9 +65,9 @@ static double_ret upload_muart_set_param(upload_obj_t self, void *config)
         return result;
     }
 
-    upload_muart_config_t cfg = (upload_muart_config_t)config;
-    upload_muart_obj_t obj = (upload_muart_obj_t)self;
-    upload_muart_config_t obj_cfg = &(obj->config);
+    upload_net_config_t cfg = (upload_net_config_t)config;
+    upload_net_obj_t obj = (upload_net_obj_t)self;
+    upload_net_config_t obj_cfg = &(obj->config);
 
     obj_cfg->number = cfg->number;
     obj->link.id = cfg->number;
@@ -76,7 +76,7 @@ static double_ret upload_muart_set_param(upload_obj_t self, void *config)
     return result;
 }
 
-static void upload_muart_parent_recv(void *parameter)
+static void upload_net_parent_recv(void *parameter)
 {
     static uint8_t buf[PPP_PKT_WIRE_MAX * 2];
     static rt_size_t len = 0;
@@ -118,12 +118,12 @@ static void upload_muart_parent_recv(void *parameter)
     }
 }
 
-static rt_ssize_t upload_muart_send(upload_obj_t self, const void *buffer, rt_size_t size)
+static rt_ssize_t upload_net_send(upload_obj_t self, const void *buffer, rt_size_t size)
 {
     if (self == RT_NULL || buffer == RT_NULL || size == 0)
         return 0;
 
-    upload_muart_obj_t obj = (upload_muart_obj_t)self;
+    upload_net_obj_t obj = (upload_net_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -165,16 +165,16 @@ static rt_ssize_t upload_muart_send(upload_obj_t self, const void *buffer, rt_si
     return size;
 }
 
-static rt_err_t upload_muart_handle_rx_bind_pre(upload_obj_t self, const void *buffer, rt_size_t size)
+static rt_err_t upload_net_handle_rx_bind_pre(upload_obj_t self, const void *buffer, rt_size_t size)
 {
-    upload_muart_obj_t obj;
+    upload_net_obj_t obj;
     custom_obj_t custom_obj;
     rt_size_t sent;
 
     if (self == RT_NULL || buffer == RT_NULL || size == 0)
         return -RT_EINVAL;
 
-    obj = (upload_muart_obj_t)self;
+    obj = (upload_net_obj_t)self;
     custom_obj = (custom_obj_t)obj;
     sent = ppp_adapter_send(&muart_ppp_adapter, &obj->link, buffer, size);
     custom_obj_bind_ext_add_send(custom_obj, sent, RT_TRUE);
@@ -182,13 +182,13 @@ static rt_err_t upload_muart_handle_rx_bind_pre(upload_obj_t self, const void *b
     return (sent == size) ? RT_EOK : -RT_ERROR;
 }
 
-/* 绑定侧收包线程：从绑定对象取数据，调用 upload_muart_handle_rx_bind_pre 发出 */
-static void upload_muart_recv(void *parameter)
+/* 绑定侧收包线程：从绑定对象取数据，调用 upload_net_handle_rx_bind_pre 发出 */
+static void upload_net_recv(void *parameter)
 {
     if (parameter == RT_NULL)
         return;
 
-    upload_muart_obj_t obj = (upload_muart_obj_t)parameter;
+    upload_net_obj_t obj = (upload_net_obj_t)parameter;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
     upload_obj_t upload_obj = (upload_obj_t)obj;
@@ -236,7 +236,7 @@ static void upload_muart_recv(void *parameter)
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
 
-            err = upload_muart_handle_rx_bind_pre(upload_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
+            err = upload_net_handle_rx_bind_pre(upload_obj, rx_custom_obj->rxb.buffer, rx_custom_obj->rxb.len);
 
             LOG_I("%s ---> %s send rxb.pub_succ_event: 0x%X\r\n", rt_obj->name, rx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(rx_custom_obj->rxb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
@@ -251,7 +251,7 @@ static void upload_muart_recv(void *parameter)
 
         rt_mutex_release(custom_obj->rxb.bind_mutex);
 
-        if (fail_pre != RT_NULL && rt_strncmp(fail_pre->parent.name, "upload_muart_255", RT_NAME_MAX) != 0)
+        if (fail_pre != RT_NULL && rt_strncmp(fail_pre->parent.name, "upload_net_255", RT_NAME_MAX) != 0)
         {
             LOG_E("%s send to muart failed, unbind %s", rt_obj->name, fail_pre->parent.name);
             bind_delete(fail_pre, custom_obj, RT_TRUE);
@@ -260,9 +260,9 @@ static void upload_muart_recv(void *parameter)
 }
 
 /* 按 uart_id 找到对应通道的 ppp_link */
-static struct ppp_link *upload_muart_ppp_find_link(rt_uint8_t id)
+static struct ppp_link *upload_net_ppp_find_link(rt_uint8_t id)
 {
-    struct upload_muart_obj *node;
+    struct upload_net_obj *node;
     struct ppp_link *link = RT_NULL;
 
     rt_enter_critical();
@@ -280,35 +280,35 @@ static struct ppp_link *upload_muart_ppp_find_link(rt_uint8_t id)
 }
 
 /* PPP 组包完成：把完整消息交给绑定下游 */
-static void upload_muart_ppp_on_data(struct ppp_link *link,
+static void upload_net_ppp_on_data(struct ppp_link *link,
                                      const uint8_t *payload, rt_size_t len)
 {
-    upload_muart_obj_t obj;
+    upload_net_obj_t obj;
 
     if (link == RT_NULL)
         return;
 
-    obj = rt_container_of(link, struct upload_muart_obj, link);
-    upload_muart_send((upload_obj_t)obj, payload, len);
+    obj = rt_container_of(link, struct upload_net_obj, link);
+    upload_net_send((upload_obj_t)obj, payload, len);
 }
 
 static const struct ppp_adapter_ops muart_ppp_ops =
 {
-    .find_link = upload_muart_ppp_find_link,
-    .on_data = upload_muart_ppp_on_data,
+    .find_link = upload_net_ppp_find_link,
+    .on_data = upload_net_ppp_on_data,
 };
 
-static rt_err_t upload_muart_delete(upload_obj_t self)
+static rt_err_t upload_net_delete(upload_obj_t self)
 {
     if (self == RT_NULL) {
         return -RT_EINVAL;
     }
 
-    if (rt_strncmp(self->parent.parent.name, UPLOAD_MUART_PARENT_NAME, RT_NAME_MAX) == 0) {
+    if (rt_strncmp(self->parent.parent.name, UPLOAD_NET_PARENT_NAME, RT_NAME_MAX) == 0) {
         return -RT_EINVAL;
     }
 
-    upload_muart_obj_t obj = (upload_muart_obj_t)self;
+    upload_net_obj_t obj = (upload_net_obj_t)self;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
 
@@ -318,7 +318,7 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
     bind_delete_all_for_obj(custom_obj);
 
     rt_enter_critical();
-    struct upload_muart_obj *muart_obj, *next_muart_obj;
+    struct upload_net_obj *muart_obj, *next_muart_obj;
     rt_list_for_each_entry_safe(muart_obj, next_muart_obj, &muart_link_list, list)
     {
         if(muart_obj == obj)
@@ -392,14 +392,14 @@ static rt_err_t upload_muart_delete(upload_obj_t self)
     return RT_EOK;
 }
 
-static upload_obj_t upload_muart_create(upload_obj_t self, char *name, void *config)
+static upload_obj_t upload_net_create(upload_obj_t self, char *name, void *config)
 {
     if (self == RT_NULL || name == RT_NULL) {
         LOG_E("create error: param");
         return RT_NULL;
     }
 
-    if (rt_strncmp(self->parent.parent.name, UPLOAD_MUART_PARENT_NAME, RT_NAME_MAX) != 0) {
+    if (rt_strncmp(self->parent.parent.name, UPLOAD_NET_PARENT_NAME, RT_NAME_MAX) != 0) {
         LOG_E("create error: invalid parent");
         return RT_NULL;
     }
@@ -410,7 +410,7 @@ static upload_obj_t upload_muart_create(upload_obj_t self, char *name, void *con
         return RT_NULL;
     }
 
-    upload_muart_obj_t obj = rt_malloc(sizeof(struct upload_muart_obj));
+    upload_net_obj_t obj = rt_malloc(sizeof(struct upload_net_obj));
     if (obj == RT_NULL) {
         LOG_E("create error: memory allocation");
         return RT_NULL;
@@ -419,14 +419,14 @@ static upload_obj_t upload_muart_create(upload_obj_t self, char *name, void *con
     custom_obj_t custom_obj = (custom_obj_t)obj;
     upload_obj_t upload_obj = (upload_obj_t)obj;
 
-    rt_memcpy(obj, self, sizeof(struct upload_muart_obj));
+    rt_memcpy(obj, self, sizeof(struct upload_net_obj));
     rt_strncpy(rt_obj->name, name, RT_NAME_MAX - 1);
     rt_obj->name[RT_NAME_MAX - 1] = 0;
 
     if(config == RT_NULL)
         config = &(obj->config);
 
-    double_ret result = upload_muart_set_param(upload_obj, config);
+    double_ret result = upload_net_set_param(upload_obj, config);
     if (result.fail != 0)
     {
         LOG_E("create error: set param");
@@ -436,14 +436,14 @@ static upload_obj_t upload_muart_create(upload_obj_t self, char *name, void *con
     char name_buf[RT_NAME_MAX] = {0};
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_recv");
-    obj->rx_tid = rt_thread_create(name_buf, upload_muart_recv, obj, 2048, CUSTOM_THREAD_PRIORITY, 20);
+    obj->rx_tid = rt_thread_create(name_buf, upload_net_recv, obj, 2048, CUSTOM_THREAD_PRIORITY, 20);
     if (obj->rx_tid == RT_NULL) {
         LOG_E("create error: thread create");
         goto exit;
     }
 
     rt_snprintf(name_buf, sizeof(name_buf) - 1, "%s%s", name, "_rx_sub_event");
-    if((obj->rx_sub_event_tid = rt_thread_create(name_buf, upload_muart_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
+    if((obj->rx_sub_event_tid = rt_thread_create(name_buf, upload_net_recv_sub_event, obj, 1024, CUSTOM_THREAD_PRIORITY - 1, 20)) == RT_NULL) {
         LOG_E("create error: rx sub event thread create");
         goto exit;
     }
@@ -502,11 +502,11 @@ static upload_obj_t upload_muart_create(upload_obj_t self, char *name, void *con
     return upload_obj;
 
 exit:
-    upload_muart_delete(upload_obj);
+    upload_net_delete(upload_obj);
     return RT_NULL;
 }
 
-static rt_size_t upload_muart_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end)
+static rt_size_t upload_net_get_history(upload_obj_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end)
 {
     RT_UNUSED(self);
     RT_UNUSED(buffer);
@@ -517,38 +517,38 @@ static rt_size_t upload_muart_get_history(upload_obj_t self, rt_uint8_t *buffer,
     return 0;
 }
 
-static const struct upload_obj_ops upload_muart_ops =
+static const struct upload_obj_ops upload_net_ops =
 {
-    .create = upload_muart_create,
-    .delete = upload_muart_delete,
-    .set_param = upload_muart_set_param,
-    .get_history = upload_muart_get_history,
+    .create = upload_net_create,
+    .delete = upload_net_delete,
+    .set_param = upload_net_set_param,
+    .get_history = upload_net_get_history,
 };
 
-static rt_err_t  upload_muart_gc(custom_obj_t self)
+static rt_err_t  upload_net_gc(custom_obj_t self)
 {
     if (self == RT_NULL)
         return -RT_EINVAL;
 
     upload_obj_t upload_obj = (upload_obj_t)self;
-    return upload_muart_delete(upload_obj);
+    return upload_net_delete(upload_obj);
 }
 
 static const struct custom_object_ops custom_obj_ops =
 {
-    .gc = upload_muart_gc,
+    .gc = upload_net_gc,
 };
 
 /* 打开 UART、初始化 PPP 适配器、启动 parent_recv 收包线程 */
-static int upload_muart_init(void)
+static int upload_net_init(void)
 {
-    static struct upload_muart_obj object = {0};
-    upload_muart_obj_t obj = &object;
+    static struct upload_net_obj object = {0};
+    upload_net_obj_t obj = &object;
     rt_object_t rt_obj = (rt_object_t)obj;
     custom_obj_t custom_obj = (custom_obj_t)obj;
     upload_obj_t upload_obj = (upload_obj_t)obj;
 
-    if (rt_object_find(UPLOAD_MUART_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
+    if (rt_object_find(UPLOAD_NET_PARENT_NAME, RT_Object_Class_Custom) != RT_NULL)
         return -RT_ERROR;
 
     custom_obj->type = Custom_Object_Class_Upload;
@@ -559,7 +559,7 @@ static int upload_muart_init(void)
 
     custom_obj->ops = &custom_obj_ops;
 
-    upload_obj->ops = &upload_muart_ops;
+    upload_obj->ops = &upload_net_ops;
 
     // rt_pin_mode(GET_PIN(F, 2), PIN_MODE_OUTPUT);
     // rt_pin_write(GET_PIN(F, 2), PIN_HIGH);
@@ -614,22 +614,22 @@ static int upload_muart_init(void)
 
     rt_list_init(&muart_link_list);
 
-    rt_thread_t tid = rt_thread_create("upload_muart_parent_recv",
-                                     upload_muart_parent_recv,
+    rt_thread_t tid = rt_thread_create("upload_net_parent_recv",
+                                     upload_net_parent_recv,
                                      obj,
                                      2048,
                                      CUSTOM_THREAD_PRIORITY,
                                      20);
     if (tid == RT_NULL)
     {
-        LOG_E("init error: failed to create upload_muart_parent_recv thread");
+        LOG_E("init error: failed to create upload_net_parent_recv thread");
         rt_sem_detach(&muart_parent_rx_sem);
         ppp_adapter_deinit(&muart_ppp_adapter);
         return -RT_ERROR;
     }
     rt_thread_startup(tid);
 
-    rt_device_set_rx_indicate(muart_dev, upload_muart_parent_rx_ind);
+    rt_device_set_rx_indicate(muart_dev, upload_net_parent_rx_ind);
 
     if (rt_device_open(muart_dev, RT_DEVICE_OFLAG_RDWR | RT_SERIAL_RX_NON_BLOCKING | RT_SERIAL_TX_BLOCKING) != RT_EOK)
     {
@@ -641,24 +641,24 @@ static int upload_muart_init(void)
         return -RT_ERROR;
     }
 
-    rt_object_init(rt_obj, RT_Object_Class_Custom, UPLOAD_MUART_PARENT_NAME);
+    rt_object_init(rt_obj, RT_Object_Class_Custom, UPLOAD_NET_PARENT_NAME);
 
     return RT_EOK;
 }
 
-INIT_ENV_EXPORT(upload_muart_init);
+INIT_ENV_EXPORT(upload_net_init);
 
-static int cmd_create_upload_muart(int argc, char *argv[])
+static int cmd_create_upload_net(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_upload_muart <name> [-n number]\n");
-        rt_kprintf("Example: create_upload_muart upload_muart_1 -n 1\n");
+        rt_kprintf("Usage: create_upload_net <name> [-n number]\n");
+        rt_kprintf("Example: create_upload_net upload_net_1 -n 1\n");
         return -RT_ERROR;
     }
 
     const char *name = argv[1];
-    rt_err_t err = custom_obj_msh_check_create_name(name, "upload_muart");
+    rt_err_t err = custom_obj_msh_check_create_name(name, "upload_net");
 
     if (err == -RT_EFULL)
     {
@@ -671,15 +671,15 @@ static int cmd_create_upload_muart(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    upload_obj_t parent = (upload_obj_t)rt_object_find(UPLOAD_MUART_PARENT_NAME, RT_Object_Class_Custom);
+    upload_obj_t parent = (upload_obj_t)rt_object_find(UPLOAD_NET_PARENT_NAME, RT_Object_Class_Custom);
     if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
     {
-        rt_kprintf("Parent not ready: %s\n", UPLOAD_MUART_PARENT_NAME);
+        rt_kprintf("Parent not ready: %s\n", UPLOAD_NET_PARENT_NAME);
         return -RT_ERROR;
     }
 
-    struct upload_muart_config *config_ptr = RT_NULL;
-    struct upload_muart_config config = {0};
+    struct upload_net_config *config_ptr = RT_NULL;
+    struct upload_net_config config = {0};
     const char *number_str = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (number_str != RT_NULL)
@@ -690,23 +690,23 @@ static int cmd_create_upload_muart(int argc, char *argv[])
 
     if (parent->ops->create(parent, (char *)name, config_ptr) == RT_NULL)
     {
-        rt_kprintf("Failed to create upload_muart: %s\n", name);
+        rt_kprintf("Failed to create upload_net: %s\n", name);
         return -RT_ERROR;
     }
 
-    rt_kprintf("Created upload_muart: %s\n", name);
+    rt_kprintf("Created upload_net: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_upload_muart, create_upload_muart, Create upload_muart object);
+MSH_CMD_EXPORT_ALIAS(cmd_create_upload_net, create_upload_net, Create upload_net object);
 
-static int cmd_delete_upload_muart(int argc, char *argv[])
+static int cmd_delete_upload_net(int argc, char *argv[])
 {
     const char *name = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_upload_muart -n <name>\n");
-        rt_kprintf("Example: delete_upload_muart -n upload_muart_1\n");
+        rt_kprintf("Usage: delete_upload_net -n <name>\n");
+        rt_kprintf("Example: delete_upload_net -n upload_net_1\n");
         return -RT_ERROR;
     }
 
@@ -725,7 +725,7 @@ static int cmd_delete_upload_muart(int argc, char *argv[])
 
     if (((custom_obj_t)obj)->type != Custom_Object_Class_Upload)
     {
-        rt_kprintf("Not an upload_muart object: %s\n", name);
+        rt_kprintf("Not an upload_net object: %s\n", name);
         return -RT_ERROR;
     }
 
@@ -737,11 +737,11 @@ static int cmd_delete_upload_muart(int argc, char *argv[])
 
     if (obj->ops->delete(obj) != RT_EOK)
     {
-        rt_kprintf("Failed to delete upload_muart: %s\n", name);
+        rt_kprintf("Failed to delete upload_net: %s\n", name);
         return -RT_ERROR;
     }
 
-    rt_kprintf("Deleted upload_muart: %s\n", name);
+    rt_kprintf("Deleted upload_net: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_upload_muart, delete_upload_muart, Delete upload_muart object);
+MSH_CMD_EXPORT_ALIAS(cmd_delete_upload_net, delete_upload_net, Delete upload_net object);

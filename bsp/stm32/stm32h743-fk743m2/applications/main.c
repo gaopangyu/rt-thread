@@ -38,7 +38,7 @@ int main(void)
     #ifdef ULOG_USING_FILTER
         ulog_global_filter_lvl_set(LOG_LVL_DBG);
         ulog_tag_lvl_filter_set("protocol_net_cmd", LOG_LVL_WARNING);
-        ulog_tag_lvl_filter_set("upload_muart", LOG_LVL_WARNING);
+        ulog_tag_lvl_filter_set("upload_net", LOG_LVL_WARNING);
     #endif
 
     // rt_thread_mdelay(500);
@@ -155,35 +155,35 @@ int main(void)
 // create_protocol_ev1 protocol_ev1_1 -l lib010101_tx3016a_crt.so
 // create_protocol_ev1 protocol_ev1_2 -l lib010101_tx3016a_crt.so
 // create_protocol_ev1 protocol_ev1_3 -l lib010101_tx3016a_crt.so
-// create_upload_muart upload_muart_1 -n 1
-// create_upload_muart upload_muart_2 -n 2
-// create_upload_muart upload_muart_3 -n 3
+// create_upload_net upload_net_1 -n 1
+// create_upload_net upload_net_2 -n 2
+// create_upload_net upload_net_3 -n 3
 // create_bind interface_rs232_1 protocol_ev1_1 -r
 // create_bind interface_rs232_1 protocol_ev1_1 -t
 // create_bind interface_rs232_1 protocol_ev1_2 -r
 // create_bind interface_rs232_1 protocol_ev1_3
-// create_bind protocol_ev1_1 upload_muart_1
-// create_bind protocol_ev1_2 upload_muart_2
-// create_bind protocol_ev1_3 upload_muart_3
+// create_bind protocol_ev1_1 upload_net_1
+// create_bind protocol_ev1_2 upload_net_2
+// create_bind protocol_ev1_3 upload_net_3
 
 // 步骤二:
 // create_interface_rs232 interface_rs232_1 -u uart8 -p 80 -r 10240 -d 5120
 // create_protocol_ev1 protocol_ev1_1 -l libtx3016a.so
 // create_protocol_ev1 protocol_ev1_2 -l libtx3016a_1.so
 // create_protocol_ev1 protocol_ev1_3 -l libtx3016a_2.so
-// create_upload_muart upload_muart_1 -n 1
-// create_upload_muart upload_muart_2 -n 2
-// create_upload_muart upload_muart_3 -n 3
+// create_upload_net upload_net_1 -n 1
+// create_upload_net upload_net_2 -n 2
+// create_upload_net upload_net_3 -n 3
 // create_bind interface_rs232_1 protocol_ev1_1 -r
-// create_bind protocol_ev1_1 upload_muart_1 -r
+// create_bind protocol_ev1_1 upload_net_1 -r
 // create_bind interface_rs232_1 protocol_ev1_2 -t
-// create_bind protocol_ev1_2 upload_muart_2 -t
+// create_bind protocol_ev1_2 upload_net_2 -t
 // create_bind interface_rs232_1 protocol_ev1_3 -r -t
-// create_bind protocol_ev1_3 upload_muart_3 -r -t
+// create_bind protocol_ev1_3 upload_net_3 -r -t
 // 步骤三:追加在步骤二后面测试list_bind_path
 // create_interface_rs232 interface_rs232_2 -u uart2 -p 81 -r 10240 -d 5120
 // create_bind interface_rs232_2 protocol_ev1_1
-// create_bind protocol_ev1_1 upload_muart_2
+// create_bind protocol_ev1_1 upload_net_2
 // 步骤四:追加在步骤三后面测试并发
 // create_interface_rs232 interface_rs232_3 -u uart1 -p 77 -r 10240 -d 5120
 // create_bind interface_rs232_3 protocol_ev1_1
@@ -210,11 +210,11 @@ int main(void)
 //777
 // delete_protocol_ev1 -n protocol_ev1_1
 // delete_interface_rs232 -n interface_rs232_1
-// delete_upload_muart -n  upload_muart_1
+// delete_upload_net -n  upload_net_1
 // delete_interface_rs232 -n interface_rs232_2
 // delete_protocol_ev1 -n protocol_ev1_2
-// delete_upload_muart -n  upload_muart_2
-// delete_upload_muart -n  upload_muart_3
+// delete_upload_net -n  upload_net_2
+// delete_upload_net -n  upload_net_3
 // delete_protocol_ev1 -n protocol_ev1_3
 // delete_interface_rs232 -n interface_rs232_3
 
@@ -225,25 +225,25 @@ int main(void)
 // delete_interface_rs232 -n interface_rs232_1
 // delete_interface_rs232 -n interface_rs232_2
 // delete_interface_rs232 -n interface_rs232_3
-// delete_upload_muart -n  upload_muart_1
-// delete_upload_muart -n  upload_muart_2
-// delete_upload_muart -n  upload_muart_3
+// delete_upload_net -n  upload_net_1
+// delete_upload_net -n  upload_net_2
+// delete_upload_net -n  upload_net_3
 
 //555 OK
 // delete_protocol_ev1 -n protocol_ev1_1
 // delete_protocol_ev1 -n protocol_ev1_2
 // delete_protocol_ev1 -n protocol_ev1_3
-// delete_upload_muart -n  upload_muart_1
-// delete_upload_muart -n  upload_muart_2
-// delete_upload_muart -n  upload_muart_3
+// delete_upload_net -n  upload_net_1
+// delete_upload_net -n  upload_net_2
+// delete_upload_net -n  upload_net_3
 // delete_interface_rs232 -n interface_rs232_1
 // delete_interface_rs232 -n interface_rs232_2
 // delete_interface_rs232 -n interface_rs232_3
 
 //444 OK
-// delete_upload_muart -n  upload_muart_1
-// delete_upload_muart -n  upload_muart_2
-// delete_upload_muart -n  upload_muart_3
+// delete_upload_net -n  upload_net_1
+// delete_upload_net -n  upload_net_2
+// delete_upload_net -n  upload_net_3
 // delete_protocol_ev1 -n protocol_ev1_1
 // delete_protocol_ev1 -n protocol_ev1_2
 // delete_protocol_ev1 -n protocol_ev1_3
@@ -252,9 +252,9 @@ int main(void)
 // delete_interface_rs232 -n interface_rs232_3
 
 //333 OK
-// delete_upload_muart -n  upload_muart_1
-// delete_upload_muart -n  upload_muart_2
-// delete_upload_muart -n  upload_muart_3
+// delete_upload_net -n  upload_net_1
+// delete_upload_net -n  upload_net_2
+// delete_upload_net -n  upload_net_3
 // delete_interface_rs232 -n interface_rs232_1
 // delete_interface_rs232 -n interface_rs232_2
 // delete_interface_rs232 -n interface_rs232_3
@@ -266,9 +266,9 @@ int main(void)
 // delete_interface_rs232 -n interface_rs232_1
 // delete_interface_rs232 -n interface_rs232_2
 // delete_interface_rs232 -n interface_rs232_3
-// delete_upload_muart -n  upload_muart_1
-// delete_upload_muart -n  upload_muart_2
-// delete_upload_muart -n  upload_muart_3
+// delete_upload_net -n  upload_net_1
+// delete_upload_net -n  upload_net_2
+// delete_upload_net -n  upload_net_3
 // delete_protocol_ev1 -n protocol_ev1_1
 // delete_protocol_ev1 -n protocol_ev1_2
 // delete_protocol_ev1 -n protocol_ev1_3
@@ -280,9 +280,9 @@ int main(void)
 // delete_protocol_ev1 -n protocol_ev1_1
 // delete_protocol_ev1 -n protocol_ev1_2
 // delete_protocol_ev1 -n protocol_ev1_3
-// delete_upload_muart -n  upload_muart_1
-// delete_upload_muart -n  upload_muart_2
-// delete_upload_muart -n  upload_muart_3
+// delete_upload_net -n  upload_net_1
+// delete_upload_net -n  upload_net_2
+// delete_upload_net -n  upload_net_3
 
 
 
