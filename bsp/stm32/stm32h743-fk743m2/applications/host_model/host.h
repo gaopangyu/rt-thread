@@ -28,9 +28,9 @@ typedef struct host *host_t;
 
 struct host_ops
 {
-    rt_bool_t   (*muart_rx_bind_status)   (host_t self);
-    rt_err_t    (*muart_rx_bind_create)   (host_t self);
-    rt_err_t    (*muart_rx_bind_delete)   (host_t self);
+    rt_bool_t   (*net_rx_bind_status)   (host_t self);
+    rt_err_t    (*net_rx_bind_create)   (host_t self);
+    rt_err_t    (*net_rx_bind_delete)   (host_t self);
     rt_size_t   (*get_history)            (host_t self, rt_uint8_t *buffer, rt_size_t size, event_history_t event_history, rt_bool_t *is_end);
     rt_err_t    (*host_delete)            (host_t self);
 };

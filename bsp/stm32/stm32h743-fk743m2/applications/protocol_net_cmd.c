@@ -251,8 +251,8 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
                 net_cmd_reply_buffer[0] = net_cmd | 0x80;
                 reply_len += 1;
             }
-            if (is_end && host->ops->muart_rx_bind_create != RT_NULL)
-                host->ops->muart_rx_bind_create(host);
+            if (is_end && host->ops->net_rx_bind_create != RT_NULL)
+                host->ops->net_rx_bind_create(host);
 
             break;
         }
@@ -279,15 +279,15 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             host = g_host[host_id];
             if (net_cmd == 0x04)
             {
-                if (host->ops->muart_rx_bind_delete == RT_NULL)
+                if (host->ops->net_rx_bind_delete == RT_NULL)
                     break;
-                host->ops->muart_rx_bind_delete(host);
+                host->ops->net_rx_bind_delete(host);
             }
             else
             {
-                if (host->ops->muart_rx_bind_create == RT_NULL)
+                if (host->ops->net_rx_bind_create == RT_NULL)
                     break;
-                host->ops->muart_rx_bind_create(host);
+                host->ops->net_rx_bind_create(host);
             }
             net_cmd_reply_buffer[0] = net_cmd | 0x80;
             reply_len = 1;
@@ -308,14 +308,14 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             rt_uint8_t host_id = buffer[1];
             if (host_id >= HOST_MAX
                 || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL
-                || g_host[host_id]->ops->muart_rx_bind_status == RT_NULL)
+                || g_host[host_id]->ops->net_rx_bind_status == RT_NULL)
             {
                 LOG_I("protocol net_cmd parse: 0x06 invalid args host=%d\r\n",
                         host_id);
                 net_cmd_reply_buffer[1] = 0;
             }
             else
-                net_cmd_reply_buffer[1] = g_host[host_id]->ops->muart_rx_bind_status(g_host[host_id]) ? 1 : 0;
+                net_cmd_reply_buffer[1] = g_host[host_id]->ops->net_rx_bind_status(g_host[host_id]) ? 1 : 0;
 
             reply_len = 2;
             LOG_I("protocol net_cmd return: 0x06 get bind: %d\r\n", net_cmd_reply_buffer[1]);
@@ -503,15 +503,15 @@ static int protocol_net_cmd_init(void)
 
     rt_object_init(rt_obj, RT_Object_Class_Custom, PROTOCOL_NET_CMD_NAME);
 
-    upload_obj_t muart_parent = (upload_obj_t)rt_object_find(UPLOAD_NET_PARENT_NAME, RT_Object_Class_Custom);
-    if (muart_parent == RT_NULL || muart_parent->ops == RT_NULL || muart_parent->ops->create == RT_NULL)
+    upload_obj_t net_parent = (upload_obj_t)rt_object_find(UPLOAD_NET_PARENT_NAME, RT_Object_Class_Custom);
+    if (net_parent == RT_NULL || net_parent->ops == RT_NULL || net_parent->ops->create == RT_NULL)
     {
         LOG_E("create error: parent upload net not found");
         goto exit;
     }
 
     struct upload_net_config config = { .number = 255 };
-    upload_obj_t upload_net_255 = muart_parent->ops->create(muart_parent, "upload_net_255", &config);
+    upload_obj_t upload_net_255 = net_parent->ops->create(net_parent, "upload_net_255", &config);
     if (upload_net_255 == RT_NULL)
     {
         LOG_E("create error: upload net 255 create failed");

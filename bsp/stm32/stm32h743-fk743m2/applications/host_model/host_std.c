@@ -8,22 +8,22 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-static rt_bool_t host_std_muart_rx_bind_status(host_t self)
+static rt_bool_t host_std_net_rx_bind_status(host_t self)
 {
     if (self == RT_NULL)
         return RT_FALSE;
 
     host_std_t host_std = (host_std_t)self;
 
-    if (host_std->default_funnel == RT_NULL || host_std->muart_upload == RT_NULL)
+    if (host_std->default_funnel == RT_NULL || host_std->net_upload == RT_NULL)
         return RT_FALSE;
 
     return get_bind_status((custom_obj_t)host_std->default_funnel,
-                           (custom_obj_t)host_std->muart_upload,
+                           (custom_obj_t)host_std->net_upload,
                            RT_TRUE);
 }
 
-static rt_err_t host_std_muart_rx_bind_delete(host_t self)
+static rt_err_t host_std_net_rx_bind_delete(host_t self)
 {
     if(self == RT_NULL)
         return -RT_EINVAL;
@@ -31,12 +31,12 @@ static rt_err_t host_std_muart_rx_bind_delete(host_t self)
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
 
-    bind_delete((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload, RT_TRUE);
+    bind_delete((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->net_upload, RT_TRUE);
 
     return RT_EOK;
 }
 
-static rt_err_t host_std_muart_rx_bind_create(host_t self)
+static rt_err_t host_std_net_rx_bind_create(host_t self)
 {
     if(self == RT_NULL)
         return -RT_EINVAL;
@@ -44,7 +44,7 @@ static rt_err_t host_std_muart_rx_bind_create(host_t self)
     host_t host = self;
     host_std_t host_std = (host_std_t)host;
 
-    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload, RT_TRUE);
+    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->net_upload, RT_TRUE);
 
     return RT_EOK;
 }
@@ -68,7 +68,7 @@ static rt_err_t host_std_delete(host_t self)
 
     host_delete_funnel(&host_std->default_funnel);
     host_delete_upload(&host_std->store_upload);
-    host_delete_upload(&host_std->muart_upload);
+    host_delete_upload(&host_std->net_upload);
     host_delete_protocol(&host_std->crt_protocol);
     host_delete_protocol(&host_std->bus_protocol);
     host_delete_interface(&host_std->crt_interface);
@@ -80,9 +80,9 @@ static rt_err_t host_std_delete(host_t self)
 
 static const struct host_ops host_std_ops =
 {
-    .muart_rx_bind_status = host_std_muart_rx_bind_status,
-    .muart_rx_bind_delete = host_std_muart_rx_bind_delete,
-    .muart_rx_bind_create = host_std_muart_rx_bind_create,
+    .net_rx_bind_status = host_std_net_rx_bind_status,
+    .net_rx_bind_delete = host_std_net_rx_bind_delete,
+    .net_rx_bind_create = host_std_net_rx_bind_create,
     .get_history = host_std_get_history,
     .host_delete = host_std_delete,
 };
@@ -138,9 +138,9 @@ rt_err_t host_std_create(host_std_config_t config)
                                                     'x' - 0x30, config->store_upload_cfg);
     }
 
-    if (config->muart_upload_cfg != RT_NULL)
-        host_std->muart_upload = host_create_upload(UPLOAD_NET_PARENT_NAME, config->host_id,
-                                                    'x' - 0x30, config->muart_upload_cfg);
+    if (config->net_upload_cfg != RT_NULL)
+        host_std->net_upload = host_create_upload(UPLOAD_NET_PARENT_NAME, config->host_id,
+                                                    'x' - 0x30, config->net_upload_cfg);
 
 
     bind_create((custom_obj_t)host_std->crt_interface, (custom_obj_t)host_std->crt_protocol, RT_TRUE);
@@ -150,11 +150,11 @@ rt_err_t host_std_create(host_std_config_t config)
     bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->default_funnel, RT_TRUE);
 
     bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->store_upload, RT_TRUE);
-    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload , RT_TRUE);
+    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->net_upload , RT_TRUE);
 
     bind_create((custom_obj_t)host_std->bus_interface, (custom_obj_t)host_std->bus_protocol, RT_FALSE);
     bind_create((custom_obj_t)host_std->bus_protocol, (custom_obj_t)host_std->default_funnel, RT_FALSE);
-    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->muart_upload , RT_FALSE);
+    bind_create((custom_obj_t)host_std->default_funnel, (custom_obj_t)host_std->net_upload , RT_FALSE);
 
     host->ops = (struct host_ops *)&host_std_ops;
 
@@ -175,7 +175,7 @@ static rt_err_t host_std_load_json(cJSON *host_json, host_std_config_t host_std_
                                    struct protocol_ev1_config *crt_protocol_cfg,
                                    struct upload_store_config *store_upload_cfg,
                                    struct funnel_default_config *default_funnel_cfg,
-                                   struct upload_net_config *muart_upload_cfg)
+                                   struct upload_net_config *net_upload_cfg)
 {
     rt_uint32_t v;
     cJSON *item;
@@ -249,12 +249,12 @@ static rt_err_t host_std_load_json(cJSON *host_json, host_std_config_t host_std_
             host_std_cfg->default_funnel_cfg = default_funnel_cfg;
     }
 
-    item = cJSON_GetObjectItemCaseSensitive(host_json, "muart");
+    item = cJSON_GetObjectItemCaseSensitive(host_json, "net");
     if (cJSON_IsObject(item) && json_get_u32(item, "number", &v))
-        muart_upload_cfg->number = (rt_uint8_t)v;
+        net_upload_cfg->number = (rt_uint8_t)v;
     else
-        muart_upload_cfg->number = host_std_cfg->host_id;
-    host_std_cfg->muart_upload_cfg = muart_upload_cfg;
+        net_upload_cfg->number = host_std_cfg->host_id;
+    host_std_cfg->net_upload_cfg = net_upload_cfg;
 
     return RT_EOK;
 }
@@ -278,7 +278,7 @@ static rt_err_t host_std_set_param(host_std_t host_std, host_std_config_t cfg)
         ret = -RT_ERROR;
     if (host_set_upload_param(host_std->store_upload, cfg->store_upload_cfg, "store") != RT_EOK)
         ret = -RT_ERROR;
-    if (host_set_upload_param(host_std->muart_upload, cfg->muart_upload_cfg, "muart") != RT_EOK)
+    if (host_set_upload_param(host_std->net_upload, cfg->net_upload_cfg, "net") != RT_EOK)
         ret = -RT_ERROR;
 
     return ret;
@@ -296,7 +296,7 @@ rt_err_t host_std_create_from_json(cJSON *host_json)
         .func_id = 0,
         .event_last_num = EVENT_LAST_NUM_DEFAULT
     };
-    struct upload_net_config muart_upload_cfg = {0};
+    struct upload_net_config net_upload_cfg = {0};
     struct host_std_config host_std_cfg = {0};
     rt_err_t err;
 
@@ -304,7 +304,7 @@ rt_err_t host_std_create_from_json(cJSON *host_json)
                              &bus_interface_cfg, &crt_interface_cfg,
                              &bus_protocol_cfg, &crt_protocol_cfg,
                              &store_upload_cfg, &default_funnel_cfg,
-                             &muart_upload_cfg);
+                             &net_upload_cfg);
     if (err != RT_EOK)
         return err;
 
@@ -323,7 +323,7 @@ rt_err_t host_std_set_param_from_json(cJSON *host_json)
         .func_id = 0,
         .event_last_num = EVENT_LAST_NUM_DEFAULT
     };
-    struct upload_net_config muart_upload_cfg = {0};
+    struct upload_net_config net_upload_cfg = {0};
     struct host_std_config host_std_cfg = {0};
     host_t host;
     rt_err_t err;
@@ -332,7 +332,7 @@ rt_err_t host_std_set_param_from_json(cJSON *host_json)
                              &bus_interface_cfg, &crt_interface_cfg,
                              &bus_protocol_cfg, &crt_protocol_cfg,
                              &store_upload_cfg, &default_funnel_cfg,
-                             &muart_upload_cfg);
+                             &net_upload_cfg);
     if (err != RT_EOK)
         return err;
 

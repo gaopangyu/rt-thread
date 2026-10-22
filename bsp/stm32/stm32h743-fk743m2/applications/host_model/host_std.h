@@ -25,7 +25,7 @@ struct host_std_config
 
     void *default_funnel_cfg;
     void *store_upload_cfg;
-    void *muart_upload_cfg;
+    void *net_upload_cfg;
 };
 
 typedef struct host_std_config *host_std_config_t;
@@ -40,7 +40,7 @@ struct host_std
     protocol_obj_t bus_protocol;
     funnel_obj_t default_funnel;
     upload_obj_t store_upload;
-    upload_obj_t muart_upload;
+    upload_obj_t net_upload;
 };
 
 typedef struct host_std *host_std_t;

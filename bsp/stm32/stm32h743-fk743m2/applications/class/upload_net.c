@@ -5,18 +5,18 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-static rt_device_t muart_dev = RT_NULL;
-static rt_list_t muart_link_list;
-static struct rt_semaphore muart_parent_rx_sem;
-static struct ppp_adapter muart_ppp_adapter;
-volatile rt_bool_t muart_parent_idle_flag = RT_TRUE;
+static rt_device_t net_dev = RT_NULL;
+static rt_list_t net_link_list;
+static struct rt_semaphore net_parent_rx_sem;
+static struct ppp_adapter net_ppp_adapter;
+volatile rt_bool_t net_parent_idle_flag = RT_TRUE;
 
 static rt_err_t upload_net_parent_rx_ind(rt_device_t dev, rt_size_t size)
 {
     UNUSED(dev);
     UNUSED(size);
 
-    rt_sem_release(&muart_parent_rx_sem);
+    rt_sem_release(&net_parent_rx_sem);
 
     return RT_EOK;
 }
@@ -90,23 +90,23 @@ static void upload_net_parent_recv(void *parameter)
 
     while (1)
     {
-        muart_parent_idle_flag = RT_TRUE;
-        if (rt_sem_take(&muart_parent_rx_sem, RT_WAITING_FOREVER) != RT_EOK)
+        net_parent_idle_flag = RT_TRUE;
+        if (rt_sem_take(&net_parent_rx_sem, RT_WAITING_FOREVER) != RT_EOK)
         {
-            LOG_E("%s take muart_parent_rx_sem error", rt_obj->name);
+            LOG_E("%s take net_parent_rx_sem error", rt_obj->name);
             break;
         }
-        muart_parent_idle_flag = RT_FALSE;
+        net_parent_idle_flag = RT_FALSE;
 
         while (len < sizeof(buf))
         {
-            n = rt_device_read(muart_dev, 0, buf + len, sizeof(buf) - len);
+            n = rt_device_read(net_dev, 0, buf + len, sizeof(buf) - len);
             if (n <= 0)
                 break;
             len += n;
         }
 
-        while (ppp_adapter_recv(&muart_ppp_adapter, buf, &len))
+        while (ppp_adapter_recv(&net_ppp_adapter, buf, &len))
             ;
 
         /* 抽完帧后缓冲仍满：半帧/垃圾占满，丢弃才能继续收 */
@@ -176,7 +176,7 @@ static rt_err_t upload_net_handle_rx_bind_pre(upload_obj_t self, const void *buf
 
     obj = (upload_net_obj_t)self;
     custom_obj = (custom_obj_t)obj;
-    sent = ppp_adapter_send(&muart_ppp_adapter, &obj->link, buffer, size);
+    sent = ppp_adapter_send(&net_ppp_adapter, &obj->link, buffer, size);
     custom_obj_bind_ext_add_send(custom_obj, sent, RT_TRUE);
 
     return (sent == size) ? RT_EOK : -RT_ERROR;
@@ -253,7 +253,7 @@ static void upload_net_recv(void *parameter)
 
         if (fail_pre != RT_NULL && rt_strncmp(fail_pre->parent.name, "upload_net_255", RT_NAME_MAX) != 0)
         {
-            LOG_E("%s send to muart failed, unbind %s", rt_obj->name, fail_pre->parent.name);
+            LOG_E("%s send to net failed, unbind %s", rt_obj->name, fail_pre->parent.name);
             bind_delete(fail_pre, custom_obj, RT_TRUE);
         }
     }
@@ -266,7 +266,7 @@ static struct ppp_link *upload_net_ppp_find_link(rt_uint8_t id)
     struct ppp_link *link = RT_NULL;
 
     rt_enter_critical();
-    rt_list_for_each_entry(node, &muart_link_list, list)
+    rt_list_for_each_entry(node, &net_link_list, list)
     {
         if (node->link.id == id)
         {
@@ -292,7 +292,7 @@ static void upload_net_ppp_on_data(struct ppp_link *link,
     upload_net_send((upload_obj_t)obj, payload, len);
 }
 
-static const struct ppp_adapter_ops muart_ppp_ops =
+static const struct ppp_adapter_ops net_ppp_ops =
 {
     .find_link = upload_net_ppp_find_link,
     .on_data = upload_net_ppp_on_data,
@@ -318,11 +318,11 @@ static rt_err_t upload_net_delete(upload_obj_t self)
     bind_delete_all_for_obj(custom_obj);
 
     rt_enter_critical();
-    struct upload_net_obj *muart_obj, *next_muart_obj;
-    rt_list_for_each_entry_safe(muart_obj, next_muart_obj, &muart_link_list, list)
+    struct upload_net_obj *net_obj, *next_net_obj;
+    rt_list_for_each_entry_safe(net_obj, next_net_obj, &net_link_list, list)
     {
-        if(muart_obj == obj)
-            rt_list_remove(&muart_obj->list);
+        if(net_obj == obj)
+            rt_list_remove(&net_obj->list);
     }
     rt_exit_critical();
 
@@ -337,7 +337,7 @@ static rt_err_t upload_net_delete(upload_obj_t self)
         rt_thread_mdelay(20);
     }
 
-    while(muart_parent_idle_flag == RT_FALSE)
+    while(net_parent_idle_flag == RT_FALSE)
     {
         rt_thread_mdelay(20);
     }
@@ -493,7 +493,7 @@ static upload_obj_t upload_net_create(upload_obj_t self, char *name, void *confi
     rt_thread_startup(obj->rx_sub_event_tid);
 
     rt_enter_critical();
-    rt_list_insert_after(&muart_link_list, &obj->list);
+    rt_list_insert_after(&net_link_list, &obj->list);
     rt_exit_critical();
 
     rt_object_init(rt_obj, RT_Object_Class_Custom, name);
@@ -563,19 +563,19 @@ static int upload_net_init(void)
 
     // rt_pin_mode(GET_PIN(F, 2), PIN_MODE_OUTPUT);
     // rt_pin_write(GET_PIN(F, 2), PIN_HIGH);
-    // muart_dev = rt_device_find("uart3");
+    // net_dev = rt_device_find("uart3");
 
     // rt_pin_mode(GET_PIN(F, 3), PIN_MODE_OUTPUT);
     // rt_pin_write(GET_PIN(F, 3), PIN_HIGH);
-    // muart_dev = rt_device_find("uart6");
+    // net_dev = rt_device_find("uart6");
 
-    muart_dev = rt_device_find("uart5");
-    if (muart_dev == RT_NULL) 
+    net_dev = rt_device_find("uart5");
+    if (net_dev == RT_NULL) 
         return -RT_ERROR;
 
-    if (muart_dev->ref_count != 0)
+    if (net_dev->ref_count != 0)
     {
-        LOG_E("init error: muart_dev ref_count is not 0");
+        LOG_E("init error: net_dev ref_count is not 0");
         return -RT_ERROR;
     }
 
@@ -591,28 +591,28 @@ static int upload_net_init(void)
     #endif
     serial_cfg.tx_bufsz = RT_ALIGN(PPP_PKT_WIRE_MAX, RT_ALIGN_SIZE);
 
-    rt_err_t err = rt_device_control(muart_dev, RT_DEVICE_CTRL_CONFIG, &serial_cfg);
+    rt_err_t err = rt_device_control(net_dev, RT_DEVICE_CTRL_CONFIG, &serial_cfg);
     if (err != RT_EOK) {
         LOG_E("init error: failed to set serial config");
         return -RT_ERROR;
     }
 
-    err = ppp_adapter_init(&muart_ppp_adapter, "muart_ppp_adapter", muart_dev, &muart_ppp_ops);
+    err = ppp_adapter_init(&net_ppp_adapter, "net_ppp_adapter", net_dev, &net_ppp_ops);
     if (err != RT_EOK)
     {
         LOG_E("init error: failed to init ppp adapter");
         return -RT_ERROR;
     }
 
-    err = rt_sem_init(&muart_parent_rx_sem, "muart_parent_rx_sem", 0, RT_IPC_FLAG_FIFO);
+    err = rt_sem_init(&net_parent_rx_sem, "net_parent_rx_sem", 0, RT_IPC_FLAG_FIFO);
     if (err != RT_EOK)    
     {
-        LOG_E("init error: failed to init muart_dev rx semaphore");
-        ppp_adapter_deinit(&muart_ppp_adapter);
+        LOG_E("init error: failed to init net_dev rx semaphore");
+        ppp_adapter_deinit(&net_ppp_adapter);
         return -RT_ERROR;
     }
 
-    rt_list_init(&muart_link_list);
+    rt_list_init(&net_link_list);
 
     rt_thread_t tid = rt_thread_create("upload_net_parent_recv",
                                      upload_net_parent_recv,
@@ -623,20 +623,20 @@ static int upload_net_init(void)
     if (tid == RT_NULL)
     {
         LOG_E("init error: failed to create upload_net_parent_recv thread");
-        rt_sem_detach(&muart_parent_rx_sem);
-        ppp_adapter_deinit(&muart_ppp_adapter);
+        rt_sem_detach(&net_parent_rx_sem);
+        ppp_adapter_deinit(&net_ppp_adapter);
         return -RT_ERROR;
     }
     rt_thread_startup(tid);
 
-    rt_device_set_rx_indicate(muart_dev, upload_net_parent_rx_ind);
+    rt_device_set_rx_indicate(net_dev, upload_net_parent_rx_ind);
 
-    if (rt_device_open(muart_dev, RT_DEVICE_OFLAG_RDWR | RT_SERIAL_RX_NON_BLOCKING | RT_SERIAL_TX_BLOCKING) != RT_EOK)
+    if (rt_device_open(net_dev, RT_DEVICE_OFLAG_RDWR | RT_SERIAL_RX_NON_BLOCKING | RT_SERIAL_TX_BLOCKING) != RT_EOK)
     {
-        LOG_E("init error: failed to open muart_dev");
-        rt_device_set_rx_indicate(muart_dev, RT_NULL);
-        rt_sem_detach(&muart_parent_rx_sem);
-        ppp_adapter_deinit(&muart_ppp_adapter);
+        LOG_E("init error: failed to open net_dev");
+        rt_device_set_rx_indicate(net_dev, RT_NULL);
+        rt_sem_detach(&net_parent_rx_sem);
+        ppp_adapter_deinit(&net_ppp_adapter);
         rt_thread_delete(tid);
         return -RT_ERROR;
     }

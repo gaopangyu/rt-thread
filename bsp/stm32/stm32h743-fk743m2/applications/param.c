@@ -74,7 +74,7 @@ static const char param_mcu_json_default[] =
 "            \"store\": {\r\n"
 "                \"path\": \"xxx\"\r\n"
 "            },\r\n"
-"            \"muart\": {\r\n"
+"            \"net\": {\r\n"
 "                \"number\": 0\r\n"
 "            }\r\n"
 "        },\r\n"
@@ -129,7 +129,7 @@ static const char param_mcu_json_default[] =
 "            \"store\": {\r\n"
 "                \"path\": \"xxx\"\r\n"
 "            },\r\n"
-"            \"muart\": {\r\n"
+"            \"net\": {\r\n"
 "                \"number\": 0\r\n"
 "            }\r\n"
 "        },\r\n"
@@ -184,7 +184,7 @@ static const char param_mcu_json_default[] =
 "            \"store\": {\r\n"
 "                \"path\": \"xxx\"\r\n"
 "            },\r\n"
-"            \"muart\": {\r\n"
+"            \"net\": {\r\n"
 "                \"number\": 0\r\n"
 "            }\r\n"
 "        },\r\n"
@@ -239,7 +239,7 @@ static const char param_mcu_json_default[] =
 "            \"store\": {\r\n"
 "                \"path\": \"xxx\"\r\n"
 "            },\r\n"
-"            \"muart\": {\r\n"
+"            \"net\": {\r\n"
 "                \"number\": 0\r\n"
 "            }\r\n"
 "        }\r\n"
@@ -1512,18 +1512,18 @@ static const char *param_plat_proto(cJSON *plat, rt_uint32_t host_id)
 }
 
 /* 生成串口对象，收发固定为 true */
-static cJSON *param_make_muart(cJSON *host, rt_uint32_t host_id)
+static cJSON *param_make_net(cJSON *host, rt_uint32_t host_id)
 {
     cJSON *iface = cJSON_CreateObject();
-    cJSON *muart;
+    cJSON *net;
     rt_uint32_t number = host_id;
 
     if (iface == RT_NULL)
         return RT_NULL;
 
-    muart = cJSON_GetObjectItemCaseSensitive(host, "muart");
-    if (cJSON_IsObject(muart))
-        json_get_u32(muart, "number", &number);
+    net = cJSON_GetObjectItemCaseSensitive(host, "net");
+    if (cJSON_IsObject(net))
+        json_get_u32(net, "number", &number);
     cJSON_AddNumberToObject(iface, "number", (double)number);
     cJSON_AddItemToObject(iface, "tx_enable", cJSON_CreateBool(1));
     cJSON_AddItemToObject(iface, "rx_enable", cJSON_CreateBool(1));
@@ -1653,7 +1653,7 @@ static cJSON *param_net_from_host(cJSON *root, rt_uint32_t host_id)
         return out;
 
     param_net_name_muart(muart_name, sizeof(muart_name), host_id);
-    iface = param_make_muart(host, host_id);
+    iface = param_make_net(host, host_id);
     if (iface == RT_NULL)
     {
         cJSON_Delete(out);
@@ -2119,9 +2119,9 @@ static rt_err_t param_net_apply_interfaces(cJSON *root, cJSON *interfaces, rt_bo
             return -RT_EINVAL;
         if (json_get_u32(child, "number", &number))
         {
-            cJSON *muart = json_ensure_object(host, "muart");
+            cJSON *net = json_ensure_object(host, "net");
 
-            json_set_item(muart, "number", cJSON_CreateNumber((double)number));
+            json_set_item(net, "number", cJSON_CreateNumber((double)number));
         }
     }
 

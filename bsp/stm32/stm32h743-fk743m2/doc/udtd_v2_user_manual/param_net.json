@@ -84,7 +84,7 @@
             "store": {
                 "path": "xxx"
             },
-            "muart": {
+            "net": {
                 "number": 0
             }
         },
@@ -139,7 +139,7 @@
             "store": {
                 "path": "xxx"
             },
-            "muart": {
+            "net": {
                 "number": 0
             }
         },
@@ -194,7 +194,7 @@
             "store": {
                 "path": "xxx"
             },
-            "muart": {
+            "net": {
                 "number": 0
             }
         },
@@ -249,7 +249,7 @@
             "store": {
                 "path": "xxx"
             },
-            "muart": {
+            "net": {
                 "number": 0
             }
         }
