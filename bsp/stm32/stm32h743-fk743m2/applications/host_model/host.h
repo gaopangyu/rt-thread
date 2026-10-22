@@ -41,20 +41,10 @@ extern char  *g_com[COM_MAX];
 rt_err_t generate_name_from_parent(char *out, rt_size_t out_size, const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id);
 const char *host_protocol_parent_name(const char *protocol_ver);
 
-rt_err_t host_set_interface_param(interface_obj_t obj, void *cfg, const char *name);
-rt_err_t host_set_protocol_param(protocol_obj_t obj, void *cfg, const char *name);
-rt_err_t host_set_funnel_param(funnel_obj_t obj, void *cfg, const char *name);
-rt_err_t host_set_upload_param(upload_obj_t obj, void *cfg, const char *name);
-
-void host_delete_interface(interface_obj_t *obj);
-void host_delete_protocol(protocol_obj_t *obj);
-void host_delete_funnel(funnel_obj_t *obj);
-void host_delete_upload(upload_obj_t *obj);
-
-interface_obj_t host_create_interface(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg);
-protocol_obj_t host_create_protocol(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg);
-funnel_obj_t host_create_funnel(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg);
-upload_obj_t host_create_upload(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg);
+/* interface / protocol / funnel / upload 的对象布局相同，用同一套接口。 */
+void *host_obj_create(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg);
+void host_obj_delete(void *obj);
+rt_err_t host_obj_set_param(void *obj, void *cfg, const char *name);
 
 rt_size_t host_upload_get_history(upload_obj_t obj, rt_uint8_t *buffer, rt_size_t size,
                                   event_history_t event_history, rt_bool_t *is_end);

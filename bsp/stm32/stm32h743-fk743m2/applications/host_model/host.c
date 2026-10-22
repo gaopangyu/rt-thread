@@ -55,147 +55,29 @@ const char *host_protocol_parent_name(const char *protocol_ver)
     return RT_NULL;
 }
 
-rt_err_t host_set_interface_param(interface_obj_t obj, void *cfg, const char *name)
+/* 四类对象都是 custom_obj 后面紧跟 ops，前三个操作签名一致。 */
+struct host_obj
 {
-    double_ret ret;
+    struct custom_obj parent;
+    const struct host_obj_ops *ops;
+};
 
-    if (cfg == RT_NULL)
-        return RT_EOK;
-    if (obj == RT_NULL || obj->ops == RT_NULL || obj->ops->set_param == RT_NULL)
-    {
-        LOG_W("%s set_param skipped", name);
-        return RT_EOK;
-    }
-
-    ret = obj->ops->set_param(obj, cfg);
-    if (ret.fail != 0)
-    {
-        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
-        return -RT_ERROR;
-    }
-
-    LOG_I("%s set_param succ:%d", name, ret.succ);
-    return RT_EOK;
-}
-
-rt_err_t host_set_protocol_param(protocol_obj_t obj, void *cfg, const char *name)
+struct host_obj_ops
 {
-    double_ret ret;
+    void *(*create)(void *self, char *name, void *config);
+    rt_err_t (*delete)(void *self);
+    double_ret (*set_param)(void *self, void *config);
+};
 
-    if (cfg == RT_NULL)
-        return RT_EOK;
-    if (obj == RT_NULL || obj->ops == RT_NULL || obj->ops->set_param == RT_NULL)
-    {
-        LOG_W("%s set_param skipped", name);
-        return RT_EOK;
-    }
-
-    ret = obj->ops->set_param(obj, cfg);
-    if (ret.fail != 0)
-    {
-        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
-        return -RT_ERROR;
-    }
-
-    LOG_I("%s set_param succ:%d", name, ret.succ);
-    return RT_EOK;
-}
-
-rt_err_t host_set_funnel_param(funnel_obj_t obj, void *cfg, const char *name)
+void *host_obj_create(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
 {
-    double_ret ret;
-
-    if (cfg == RT_NULL)
-        return RT_EOK;
-    if (obj == RT_NULL || obj->ops == RT_NULL || obj->ops->set_param == RT_NULL)
-    {
-        LOG_W("%s set_param skipped", name);
-        return RT_EOK;
-    }
-
-    ret = obj->ops->set_param(obj, cfg);
-    if (ret.fail != 0)
-    {
-        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
-        return -RT_ERROR;
-    }
-
-    LOG_I("%s set_param succ:%d", name, ret.succ);
-    return RT_EOK;
-}
-
-rt_err_t host_set_upload_param(upload_obj_t obj, void *cfg, const char *name)
-{
-    double_ret ret;
-
-    if (cfg == RT_NULL)
-        return RT_EOK;
-    if (obj == RT_NULL || obj->ops == RT_NULL || obj->ops->set_param == RT_NULL)
-    {
-        LOG_W("%s set_param skipped", name);
-        return RT_EOK;
-    }
-
-    ret = obj->ops->set_param(obj, cfg);
-    if (ret.fail != 0)
-    {
-        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
-        return -RT_ERROR;
-    }
-
-    LOG_I("%s set_param succ:%d", name, ret.succ);
-    return RT_EOK;
-}
-
-void host_delete_interface(interface_obj_t *obj)
-{
-    if (obj == RT_NULL || *obj == RT_NULL)
-        return;
-
-    if ((*obj)->ops != RT_NULL && (*obj)->ops->delete != RT_NULL)
-        (*obj)->ops->delete(*obj);
-    *obj = RT_NULL;
-}
-
-void host_delete_protocol(protocol_obj_t *obj)
-{
-    if (obj == RT_NULL || *obj == RT_NULL)
-        return;
-
-    if ((*obj)->ops != RT_NULL && (*obj)->ops->delete != RT_NULL)
-        (*obj)->ops->delete(*obj);
-    *obj = RT_NULL;
-}
-
-void host_delete_funnel(funnel_obj_t *obj)
-{
-    if (obj == RT_NULL || *obj == RT_NULL)
-        return;
-
-    if ((*obj)->ops != RT_NULL && (*obj)->ops->delete != RT_NULL)
-        (*obj)->ops->delete(*obj);
-    *obj = RT_NULL;
-}
-
-void host_delete_upload(upload_obj_t *obj)
-{
-    if (obj == RT_NULL || *obj == RT_NULL)
-        return;
-
-    if ((*obj)->ops != RT_NULL && (*obj)->ops->delete != RT_NULL)
-        (*obj)->ops->delete(*obj);
-    *obj = RT_NULL;
-}
-
-interface_obj_t host_create_interface(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
-{
-    interface_obj_t parent;
+    struct host_obj *parent;
     char name[RT_NAME_MAX];
 
     if (parent_name == RT_NULL || cfg == RT_NULL)
         return RT_NULL;
 
-    parent = (interface_obj_t)rt_object_find(parent_name, RT_Object_Class_Custom);
+    parent = (struct host_obj *)rt_object_find(parent_name, RT_Object_Class_Custom);
     if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
         return RT_NULL;
     if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
@@ -204,55 +86,42 @@ interface_obj_t host_create_interface(const char *parent_name, rt_uint8_t host_i
     return parent->ops->create(parent, name, cfg);
 }
 
-protocol_obj_t host_create_protocol(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
+void host_obj_delete(void *obj)
 {
-    protocol_obj_t parent;
-    char name[RT_NAME_MAX];
+    void **slot = obj;
+    struct host_obj *self;
 
-    if (parent_name == RT_NULL || cfg == RT_NULL)
-        return RT_NULL;
+    if (slot == RT_NULL || *slot == RT_NULL)
+        return;
 
-    parent = (protocol_obj_t)rt_object_find(parent_name, RT_Object_Class_Custom);
-    if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
-        return RT_NULL;
-    if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
-        return RT_NULL;
-
-    return parent->ops->create(parent, name, cfg);
+    self = *slot;
+    if (self->ops != RT_NULL && self->ops->delete != RT_NULL)
+        self->ops->delete(self);
+    *slot = RT_NULL;
 }
 
-funnel_obj_t host_create_funnel(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
+rt_err_t host_obj_set_param(void *obj, void *cfg, const char *name)
 {
-    funnel_obj_t parent;
-    char name[RT_NAME_MAX];
+    struct host_obj *self = obj;
+    double_ret ret;
 
-    if (parent_name == RT_NULL || cfg == RT_NULL)
-        return RT_NULL;
+    if (cfg == RT_NULL)
+        return RT_EOK;
+    if (self == RT_NULL || self->ops == RT_NULL || self->ops->set_param == RT_NULL)
+    {
+        LOG_W("%s set_param skipped", name);
+        return RT_EOK;
+    }
 
-    parent = (funnel_obj_t)rt_object_find(parent_name, RT_Object_Class_Custom);
-    if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
-        return RT_NULL;
-    if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
-        return RT_NULL;
+    ret = self->ops->set_param(self, cfg);
+    if (ret.fail != 0)
+    {
+        LOG_E("%s set_param fail:%d succ:%d", name, ret.fail, ret.succ);
+        return -RT_ERROR;
+    }
 
-    return parent->ops->create(parent, name, cfg);
-}
-
-upload_obj_t host_create_upload(const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id, void *cfg)
-{
-    upload_obj_t parent;
-    char name[RT_NAME_MAX];
-
-    if (parent_name == RT_NULL || cfg == RT_NULL)
-        return RT_NULL;
-
-    parent = (upload_obj_t)rt_object_find(parent_name, RT_Object_Class_Custom);
-    if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
-        return RT_NULL;
-    if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
-        return RT_NULL;
-
-    return parent->ops->create(parent, name, cfg);
+    LOG_I("%s set_param succ:%d", name, ret.succ);
+    return RT_EOK;
 }
 
 rt_size_t host_upload_get_history(upload_obj_t obj, rt_uint8_t *buffer, rt_size_t size,

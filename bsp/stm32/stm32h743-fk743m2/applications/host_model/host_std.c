@@ -66,13 +66,13 @@ static rt_err_t host_std_delete(host_t self)
 
     g_host[host->id] = RT_NULL;
 
-    host_delete_funnel(&host_std->funnel_default);
-    host_delete_upload(&host_std->upload_store);
-    host_delete_upload(&host_std->upload_net);
-    host_delete_protocol(&host_std->protocol_crt);
-    host_delete_protocol(&host_std->protocol_bus);
-    host_delete_interface(&host_std->interface_crt);
-    host_delete_interface(&host_std->interface_bus);
+    host_obj_delete(&host_std->funnel_default);
+    host_obj_delete(&host_std->upload_store);
+    host_obj_delete(&host_std->upload_net);
+    host_obj_delete(&host_std->protocol_crt);
+    host_obj_delete(&host_std->protocol_bus);
+    host_obj_delete(&host_std->interface_crt);
+    host_obj_delete(&host_std->interface_bus);
 
     rt_free(host_std);
     return RT_EOK;
@@ -113,20 +113,20 @@ rt_err_t host_std_create(host_std_config_t config)
         LOG_W("host_std %d unsupported protocol_ver: %s", config->host_id, config->protocol_ver);
 
     if (config->interface_crt_cfg != RT_NULL)
-        host_std->interface_crt = host_create_interface(g_com[config->crt_com_id], config->host_id,
-                                                        config->crt_com_id, config->interface_crt_cfg);
+        host_std->interface_crt = host_obj_create(g_com[config->crt_com_id], config->host_id,
+                                               config->crt_com_id, config->interface_crt_cfg);
     if (config->interface_bus_cfg != RT_NULL)
-        host_std->interface_bus = host_create_interface(g_com[config->bus_com_id], config->host_id,
-                                                        config->bus_com_id, config->interface_bus_cfg);
+        host_std->interface_bus = host_obj_create(g_com[config->bus_com_id], config->host_id,
+                                               config->bus_com_id, config->interface_bus_cfg);
     if (config->protocol_crt_cfg != RT_NULL && host_std->interface_crt != RT_NULL)
-        host_std->protocol_crt = host_create_protocol(protocol_parent_name, config->host_id,
-                                                      config->crt_com_id, config->protocol_crt_cfg);
+        host_std->protocol_crt = host_obj_create(protocol_parent_name, config->host_id,
+                                              config->crt_com_id, config->protocol_crt_cfg);
     if (config->protocol_bus_cfg != RT_NULL && host_std->interface_bus != RT_NULL)
-        host_std->protocol_bus = host_create_protocol(protocol_parent_name, config->host_id,
-                                                      config->bus_com_id, config->protocol_bus_cfg);
+        host_std->protocol_bus = host_obj_create(protocol_parent_name, config->host_id,
+                                              config->bus_com_id, config->protocol_bus_cfg);
     if (config->funnel_default_cfg != RT_NULL)
-        host_std->funnel_default = host_create_funnel(FUNNEL_DEFAULT_PARENT_NAME, config->host_id,
-                                                      'x' - 0x30, config->funnel_default_cfg);
+        host_std->funnel_default = host_obj_create(FUNNEL_DEFAULT_PARENT_NAME, config->host_id,
+                                                'x' - 0x30, config->funnel_default_cfg);
 
     if (config->upload_store_cfg != RT_NULL)
     {
@@ -134,13 +134,13 @@ rt_err_t host_std_create(host_std_config_t config)
 
         rt_strncpy(store_cfg->dir, config->protocol_ver, sizeof(store_cfg->dir) - 1);
         store_cfg->dir[sizeof(store_cfg->dir) - 1] = '\0';
-        host_std->upload_store = host_create_upload(UPLOAD_STORE_PARENT_NAME, config->host_id,
-                                                    'x' - 0x30, config->upload_store_cfg);
+        host_std->upload_store = host_obj_create(UPLOAD_STORE_PARENT_NAME, config->host_id,
+                                              'x' - 0x30, config->upload_store_cfg);
     }
 
     if (config->upload_net_cfg != RT_NULL)
-        host_std->upload_net = host_create_upload(UPLOAD_NET_PARENT_NAME, config->host_id,
-                                                    'x' - 0x30, config->upload_net_cfg);
+        host_std->upload_net = host_obj_create(UPLOAD_NET_PARENT_NAME, config->host_id,
+                                            'x' - 0x30, config->upload_net_cfg);
 
 
     bind_create((custom_obj_t)host_std->interface_crt, (custom_obj_t)host_std->protocol_crt, RT_TRUE);
@@ -266,19 +266,19 @@ static rt_err_t host_std_set_param(host_std_t host_std, host_std_config_t cfg)
     if (host_std == RT_NULL || cfg == RT_NULL)
         return -RT_EINVAL;
 
-    if (host_set_interface_param(host_std->interface_crt, cfg->interface_crt_cfg, "interface_crt") != RT_EOK)
+    if (host_obj_set_param(host_std->interface_crt, cfg->interface_crt_cfg, "interface_crt") != RT_EOK)
         ret = -RT_ERROR;
-    if (host_set_interface_param(host_std->interface_bus, cfg->interface_bus_cfg, "interface_bus") != RT_EOK)
+    if (host_obj_set_param(host_std->interface_bus, cfg->interface_bus_cfg, "interface_bus") != RT_EOK)
         ret = -RT_ERROR;
-    if (host_set_protocol_param(host_std->protocol_crt, cfg->protocol_crt_cfg, "protocol_crt") != RT_EOK)
+    if (host_obj_set_param(host_std->protocol_crt, cfg->protocol_crt_cfg, "protocol_crt") != RT_EOK)
         ret = -RT_ERROR;
-    if (host_set_protocol_param(host_std->protocol_bus, cfg->protocol_bus_cfg, "protocol_bus") != RT_EOK)
+    if (host_obj_set_param(host_std->protocol_bus, cfg->protocol_bus_cfg, "protocol_bus") != RT_EOK)
         ret = -RT_ERROR;
-    if (host_set_funnel_param(host_std->funnel_default, cfg->funnel_default_cfg, "funnel_default") != RT_EOK)
+    if (host_obj_set_param(host_std->funnel_default, cfg->funnel_default_cfg, "funnel_default") != RT_EOK)
         ret = -RT_ERROR;
-    if (host_set_upload_param(host_std->upload_store, cfg->upload_store_cfg, "upload_store") != RT_EOK)
+    if (host_obj_set_param(host_std->upload_store, cfg->upload_store_cfg, "upload_store") != RT_EOK)
         ret = -RT_ERROR;
-    if (host_set_upload_param(host_std->upload_net, cfg->upload_net_cfg, "upload_net") != RT_EOK)
+    if (host_obj_set_param(host_std->upload_net, cfg->upload_net_cfg, "upload_net") != RT_EOK)
         ret = -RT_ERROR;
 
     return ret;
