@@ -34,7 +34,7 @@ static const char param_mcu_json_default[] =
 "            \"local_num\": 0,\r\n"
 "            \"keyboard_addr\": 0,\r\n"
 "            \"key_addr\": 0,\r\n"
-"            \"crt_interface\": {\r\n"
+"            \"interface_crt\": {\r\n"
 "                \"id\": 0,\r\n"
 "                \"uart_name\": \"uartx\",\r\n"
 "                \"baud_rate\": 115200,\r\n"
@@ -48,10 +48,10 @@ static const char param_mcu_json_default[] =
 "                \"rx_en_pin\": 80,\r\n"
 "                \"term_switch\": false\r\n"
 "            },\r\n"
-"            \"crt_protocol\": {\r\n"
+"            \"protocol_crt\": {\r\n"
 "                \"lib_name\": \"xxx_crt.so\"\r\n"
 "            },\r\n"
-"            \"bus_interface\": {\r\n"
+"            \"interface_bus\": {\r\n"
 "                \"id\": 0,\r\n"
 "                \"uart_name\": \"uartx\",\r\n"
 "                \"baud_rate\": 115200,\r\n"
@@ -65,16 +65,16 @@ static const char param_mcu_json_default[] =
 "                \"rx_en_pin\": 80,\r\n"
 "                \"term_switch\": false\r\n"
 "            },\r\n"
-"            \"bus_protocol\": {\r\n"
+"            \"protocol_bus\": {\r\n"
 "                \"lib_name\": \"xxx_bus.so\"\r\n"
 "            },\r\n"
-"            \"funnel\": {\r\n"
+"            \"funnel_default\": {\r\n"
 "                \"func_id\": 0\r\n"
 "            },\r\n"
-"            \"store\": {\r\n"
+"            \"upload_store\": {\r\n"
 "                \"path\": \"xxx\"\r\n"
 "            },\r\n"
-"            \"net\": {\r\n"
+"            \"upload_net\": {\r\n"
 "                \"number\": 0\r\n"
 "            }\r\n"
 "        },\r\n"
@@ -89,7 +89,7 @@ static const char param_mcu_json_default[] =
 "            \"local_num\": 0,\r\n"
 "            \"keyboard_addr\": 0,\r\n"
 "            \"key_addr\": 0,\r\n"
-"            \"crt_interface\": {\r\n"
+"            \"interface_crt\": {\r\n"
 "                \"id\": 0,\r\n"
 "                \"uart_name\": \"uartx\",\r\n"
 "                \"baud_rate\": 115200,\r\n"
@@ -103,10 +103,10 @@ static const char param_mcu_json_default[] =
 "                \"rx_en_pin\": 80,\r\n"
 "                \"term_switch\": false\r\n"
 "            },\r\n"
-"            \"crt_protocol\": {\r\n"
+"            \"protocol_crt\": {\r\n"
 "                \"lib_name\": \"xxx_crt.so\"\r\n"
 "            },\r\n"
-"            \"bus_interface\": {\r\n"
+"            \"interface_bus\": {\r\n"
 "                \"id\": 0,\r\n"
 "                \"uart_name\": \"uartx\",\r\n"
 "                \"baud_rate\": 115200,\r\n"
@@ -120,16 +120,16 @@ static const char param_mcu_json_default[] =
 "                \"rx_en_pin\": 80,\r\n"
 "                \"term_switch\": false\r\n"
 "            },\r\n"
-"            \"bus_protocol\": {\r\n"
+"            \"protocol_bus\": {\r\n"
 "                \"lib_name\": \"xxx_bus.so\"\r\n"
 "            },\r\n"
-"            \"funnel\": {\r\n"
+"            \"funnel_default\": {\r\n"
 "                \"func_id\": 0\r\n"
 "            },\r\n"
-"            \"store\": {\r\n"
+"            \"upload_store\": {\r\n"
 "                \"path\": \"xxx\"\r\n"
 "            },\r\n"
-"            \"net\": {\r\n"
+"            \"upload_net\": {\r\n"
 "                \"number\": 0\r\n"
 "            }\r\n"
 "        },\r\n"
@@ -144,7 +144,7 @@ static const char param_mcu_json_default[] =
 "            \"local_num\": 0,\r\n"
 "            \"keyboard_addr\": 0,\r\n"
 "            \"key_addr\": 0,\r\n"
-"            \"crt_interface\": {\r\n"
+"            \"interface_crt\": {\r\n"
 "                \"id\": 0,\r\n"
 "                \"uart_name\": \"uartx\",\r\n"
 "                \"baud_rate\": 115200,\r\n"
@@ -158,10 +158,10 @@ static const char param_mcu_json_default[] =
 "                \"rx_en_pin\": 80,\r\n"
 "                \"term_switch\": false\r\n"
 "            },\r\n"
-"            \"crt_protocol\": {\r\n"
+"            \"protocol_crt\": {\r\n"
 "                \"lib_name\": \"xxx_crt.so\"\r\n"
 "            },\r\n"
-"            \"bus_interface\": {\r\n"
+"            \"interface_bus\": {\r\n"
 "                \"id\": 0,\r\n"
 "                \"uart_name\": \"uartx\",\r\n"
 "                \"baud_rate\": 115200,\r\n"
@@ -175,16 +175,16 @@ static const char param_mcu_json_default[] =
 "                \"rx_en_pin\": 80,\r\n"
 "                \"term_switch\": false\r\n"
 "            },\r\n"
-"            \"bus_protocol\": {\r\n"
+"            \"protocol_bus\": {\r\n"
 "                \"lib_name\": \"xxx_bus.so\"\r\n"
 "            },\r\n"
-"            \"funnel\": {\r\n"
+"            \"funnel_default\": {\r\n"
 "                \"func_id\": 0\r\n"
 "            },\r\n"
-"            \"store\": {\r\n"
+"            \"upload_store\": {\r\n"
 "                \"path\": \"xxx\"\r\n"
 "            },\r\n"
-"            \"net\": {\r\n"
+"            \"upload_net\": {\r\n"
 "                \"number\": 0\r\n"
 "            }\r\n"
 "        },\r\n"
@@ -199,7 +199,7 @@ static const char param_mcu_json_default[] =
 "            \"local_num\": 0,\r\n"
 "            \"keyboard_addr\": 0,\r\n"
 "            \"key_addr\": 0,\r\n"
-"            \"crt_interface\": {\r\n"
+"            \"interface_crt\": {\r\n"
 "                \"id\": 0,\r\n"
 "                \"uart_name\": \"uartx\",\r\n"
 "                \"baud_rate\": 115200,\r\n"
@@ -213,10 +213,10 @@ static const char param_mcu_json_default[] =
 "                \"rx_en_pin\": 80,\r\n"
 "                \"term_switch\": false\r\n"
 "            },\r\n"
-"            \"crt_protocol\": {\r\n"
+"            \"protocol_crt\": {\r\n"
 "                \"lib_name\": \"xxx_crt.so\"\r\n"
 "            },\r\n"
-"            \"bus_interface\": {\r\n"
+"            \"interface_bus\": {\r\n"
 "                \"id\": 0,\r\n"
 "                \"uart_name\": \"uartx\",\r\n"
 "                \"baud_rate\": 115200,\r\n"
@@ -230,16 +230,16 @@ static const char param_mcu_json_default[] =
 "                \"rx_en_pin\": 80,\r\n"
 "                \"term_switch\": false\r\n"
 "            },\r\n"
-"            \"bus_protocol\": {\r\n"
+"            \"protocol_bus\": {\r\n"
 "                \"lib_name\": \"xxx_bus.so\"\r\n"
 "            },\r\n"
-"            \"funnel\": {\r\n"
+"            \"funnel_default\": {\r\n"
 "                \"func_id\": 0\r\n"
 "            },\r\n"
-"            \"store\": {\r\n"
+"            \"upload_store\": {\r\n"
 "                \"path\": \"xxx\"\r\n"
 "            },\r\n"
-"            \"net\": {\r\n"
+"            \"upload_net\": {\r\n"
 "                \"number\": 0\r\n"
 "            }\r\n"
 "        }\r\n"
@@ -1107,8 +1107,8 @@ static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
 
     param_copy_keys(dst, ui_host, copy_keys, sizeof(copy_keys) / sizeof(copy_keys[0]));
 
-    json_merge_nested(dst, ui_host, "crt_interface");
-    json_merge_nested(dst, ui_host, "bus_interface");
+    json_merge_nested(dst, ui_host, "interface_crt");
+    json_merge_nested(dst, ui_host, "interface_bus");
 
     item = cJSON_GetObjectItemCaseSensitive(ui_host, "host_type");
     if (cJSON_IsString(item) && item->valuestring != RT_NULL)
@@ -1118,15 +1118,15 @@ static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
 
         json_set_string(dst, "host_type", item->valuestring);
 
-        nested = json_ensure_object(dst, "crt_protocol");
+        nested = json_ensure_object(dst, "protocol_crt");
         rt_snprintf(lib_name, sizeof(lib_name), "%s_crt.so", item->valuestring);
         json_set_string(nested, "lib_name", lib_name);
 
-        nested = json_ensure_object(dst, "bus_protocol");
+        nested = json_ensure_object(dst, "protocol_bus");
         rt_snprintf(lib_name, sizeof(lib_name), "%s_bus.so", item->valuestring);
         json_set_string(nested, "lib_name", lib_name);
 
-        nested = json_ensure_object(dst, "store");
+        nested = json_ensure_object(dst, "upload_store");
         json_set_string(nested, "path", item->valuestring);
     }
 
@@ -1213,9 +1213,9 @@ static cJSON *param_file_to_ui_host(cJSON *root, cJSON *host)
     if (ui == RT_NULL)
         return RT_NULL;
 
-    crt = param_pick_object(cJSON_GetObjectItemCaseSensitive(host, "crt_interface"),
+    crt = param_pick_object(cJSON_GetObjectItemCaseSensitive(host, "interface_crt"),
                             crt_keys, sizeof(crt_keys) / sizeof(crt_keys[0]));
-    bus = param_pick_object(cJSON_GetObjectItemCaseSensitive(host, "bus_interface"),
+    bus = param_pick_object(cJSON_GetObjectItemCaseSensitive(host, "interface_bus"),
                             bus_keys, sizeof(bus_keys) / sizeof(bus_keys[0]));
     json_get_u32(host, "id", &host_id);
     platform = cJSON_CreateArray();
@@ -1235,8 +1235,8 @@ static cJSON *param_file_to_ui_host(cJSON *root, cJSON *host)
         cJSON_AddItemToArray(platform, cJSON_CreateBool(param_data_source_on(plat, host_id)));
     }
 
-    json_set_item(ui, "crt_interface", crt);
-    json_set_item(ui, "bus_interface", bus);
+    json_set_item(ui, "interface_crt", crt);
+    json_set_item(ui, "interface_bus", bus);
     json_set_item(ui, "platform", platform);
     return ui;
 }
@@ -1521,7 +1521,7 @@ static cJSON *param_make_net(cJSON *host, rt_uint32_t host_id)
     if (iface == RT_NULL)
         return RT_NULL;
 
-    net = cJSON_GetObjectItemCaseSensitive(host, "net");
+    net = cJSON_GetObjectItemCaseSensitive(host, "upload_net");
     if (cJSON_IsObject(net))
         json_get_u32(net, "number", &number);
     cJSON_AddNumberToObject(iface, "number", (double)number);
@@ -2119,7 +2119,7 @@ static rt_err_t param_net_apply_interfaces(cJSON *root, cJSON *interfaces, rt_bo
             return -RT_EINVAL;
         if (json_get_u32(child, "number", &number))
         {
-            cJSON *net = json_ensure_object(host, "net");
+            cJSON *net = json_ensure_object(host, "upload_net");
 
             json_set_item(net, "number", cJSON_CreateNumber((double)number));
         }
@@ -2514,9 +2514,9 @@ static int cmd_set_param(int argc, char **argv)
     if (argc < 4)
     {
         rt_kprintf("Usage: set_param <hosts[id]|platforms[id]|eth> [keys...] <key> <value>\n");
-        rt_kprintf("Example: set_param hosts[0] crt_interface uart_name uart0\n");
+        rt_kprintf("Example: set_param hosts[0] interface_crt uart_name uart0\n");
         rt_kprintf("         set_param eth dhcp false\n");
-        rt_kprintf("         set_param hosts[0] crt_interface uart_name null\n");
+        rt_kprintf("         set_param hosts[0] interface_crt uart_name null\n");
         return -RT_ERROR;
     }
 
@@ -2584,7 +2584,7 @@ static int cmd_set_param(int argc, char **argv)
     cJSON_Delete(root);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_set_param, set_param, Set param: set_param hosts[0] crt_interface uart_name uart0);
+MSH_CMD_EXPORT_ALIAS(cmd_set_param, set_param, Set param: set_param hosts[0] interface_crt uart_name uart0);
 #endif
 
 /* 有该字段才写入，并记为已处理 */

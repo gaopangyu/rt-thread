@@ -44,7 +44,7 @@
             "local_num": 0,
             "keyboard_addr": 0,
             "key_addr": 0,
-            "crt_interface": {
+            "interface_crt": {
                 "id": 0,
                 "uart_name": "uartx",
                 "baud_rate": 115200,
@@ -58,10 +58,10 @@
                 "rx_en_pin": 80,
                 "term_switch": false
             },
-            "crt_protocol": {
+            "protocol_crt": {
                 "lib_name": "xxx_crt.so"
             },
-            "bus_interface": {
+            "interface_bus": {
                 "id": 0,
                 "uart_name": "uartx",
                 "baud_rate": 115200,
@@ -75,16 +75,16 @@
                 "rx_en_pin": 80,
                 "term_switch": false
             },
-            "bus_protocol": {
+            "protocol_bus": {
                 "lib_name": "xxx_bus.so"
             },
-            "funnel": {
+            "funnel_default": {
                 "func_id": 0
             },
-            "store": {
+            "upload_store": {
                 "path": "xxx"
             },
-            "net": {
+            "upload_net": {
                 "number": 0
             }
         },
@@ -99,7 +99,7 @@
             "local_num": 0,
             "keyboard_addr": 0,
             "key_addr": 0,
-            "crt_interface": {
+            "interface_crt": {
                 "id": 0,
                 "uart_name": "uartx",
                 "baud_rate": 115200,
@@ -113,10 +113,10 @@
                 "rx_en_pin": 80,
                 "term_switch": false
             },
-            "crt_protocol": {
+            "protocol_crt": {
                 "lib_name": "xxx_crt.so"
             },
-            "bus_interface": {
+            "interface_bus": {
                 "id": 0,
                 "uart_name": "uartx",
                 "baud_rate": 115200,
@@ -130,16 +130,16 @@
                 "rx_en_pin": 80,
                 "term_switch": false
             },
-            "bus_protocol": {
+            "protocol_bus": {
                 "lib_name": "xxx_bus.so"
             },
-            "funnel": {
+            "funnel_default": {
                 "func_id": 0
             },
-            "store": {
+            "upload_store": {
                 "path": "xxx"
             },
-            "net": {
+            "upload_net": {
                 "number": 0
             }
         },
@@ -154,7 +154,7 @@
             "local_num": 0,
             "keyboard_addr": 0,
             "key_addr": 0,
-            "crt_interface": {
+            "interface_crt": {
                 "id": 0,
                 "uart_name": "uartx",
                 "baud_rate": 115200,
@@ -168,10 +168,10 @@
                 "rx_en_pin": 80,
                 "term_switch": false
             },
-            "crt_protocol": {
+            "protocol_crt": {
                 "lib_name": "xxx_crt.so"
             },
-            "bus_interface": {
+            "interface_bus": {
                 "id": 0,
                 "uart_name": "uartx",
                 "baud_rate": 115200,
@@ -185,16 +185,16 @@
                 "rx_en_pin": 80,
                 "term_switch": false
             },
-            "bus_protocol": {
+            "protocol_bus": {
                 "lib_name": "xxx_bus.so"
             },
-            "funnel": {
+            "funnel_default": {
                 "func_id": 0
             },
-            "store": {
+            "upload_store": {
                 "path": "xxx"
             },
-            "net": {
+            "upload_net": {
                 "number": 0
             }
         },
@@ -209,7 +209,7 @@
             "local_num": 0,
             "keyboard_addr": 0,
             "key_addr": 0,
-            "crt_interface": {
+            "interface_crt": {
                 "id": 0,
                 "uart_name": "uartx",
                 "baud_rate": 115200,
@@ -223,10 +223,10 @@
                 "rx_en_pin": 80,
                 "term_switch": false
             },
-            "crt_protocol": {
+            "protocol_crt": {
                 "lib_name": "xxx_crt.so"
             },
-            "bus_interface": {
+            "interface_bus": {
                 "id": 0,
                 "uart_name": "uartx",
                 "baud_rate": 115200,
@@ -240,16 +240,16 @@
                 "rx_en_pin": 80,
                 "term_switch": false
             },
-            "bus_protocol": {
+            "protocol_bus": {
                 "lib_name": "xxx_bus.so"
             },
-            "funnel": {
+            "funnel_default": {
                 "func_id": 0
             },
-            "store": {
+            "upload_store": {
                 "path": "xxx"
             },
-            "net": {
+            "upload_net": {
                 "number": 0
             }
         }

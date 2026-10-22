@@ -16,16 +16,16 @@ struct host_std_config
     char protocol_ver[RT_NAME_MAX];
 
     rt_uint8_t crt_com_id;
-    void *crt_interface_cfg;
-    void *crt_protocol_cfg;
+    void *interface_crt_cfg;
+    void *protocol_crt_cfg;
 
     rt_uint8_t bus_com_id;
-    void *bus_interface_cfg;
-    void *bus_protocol_cfg;
+    void *interface_bus_cfg;
+    void *protocol_bus_cfg;
 
-    void *default_funnel_cfg;
-    void *store_upload_cfg;
-    void *net_upload_cfg;
+    void *funnel_default_cfg;
+    void *upload_store_cfg;
+    void *upload_net_cfg;
 };
 
 typedef struct host_std_config *host_std_config_t;
@@ -34,13 +34,13 @@ struct host_std
 {
     struct host parent;
 
-    interface_obj_t crt_interface;
-    protocol_obj_t crt_protocol;
-    interface_obj_t bus_interface;
-    protocol_obj_t bus_protocol;
-    funnel_obj_t default_funnel;
-    upload_obj_t store_upload;
-    upload_obj_t net_upload;
+    interface_obj_t interface_crt;
+    protocol_obj_t protocol_crt;
+    interface_obj_t interface_bus;
+    protocol_obj_t protocol_bus;
+    funnel_obj_t funnel_default;
+    upload_obj_t upload_store;
+    upload_obj_t upload_net;
 };
 
 typedef struct host_std *host_std_t;
