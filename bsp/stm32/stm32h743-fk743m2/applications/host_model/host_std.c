@@ -18,7 +18,7 @@ static rt_bool_t host_std_net_rx_bind_status(host_t self)
     if (host_std->funnel_default == RT_NULL || host_std->upload_net == RT_NULL)
         return RT_FALSE;
 
-    return get_bind_status((custom_obj_t)host_std->funnel_default,
+    return bind_get_status((custom_obj_t)host_std->funnel_default,
                            (custom_obj_t)host_std->upload_net,
                            RT_TRUE);
 }

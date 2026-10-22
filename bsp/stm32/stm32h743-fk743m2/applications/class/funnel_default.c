@@ -95,7 +95,7 @@ static double_ret funnel_default_set_param(funnel_obj_t self, void *config){
     return result;
 }
 
-rt_uint32_t get_event_last_num(event_last_num_t event_last_num, enum event_file_type type)
+rt_uint32_t funnel_get_event_last_num(event_last_num_t event_last_num, enum event_file_type type)
 {
     switch (type & 0x0F)
     {
@@ -112,7 +112,7 @@ rt_uint32_t get_event_last_num(event_last_num_t event_last_num, enum event_file_
     }
 }
 
-void set_event_last_num(event_last_num_t event_last_num, enum event_file_type type, rt_uint32_t number)
+void funnel_set_event_last_num(event_last_num_t event_last_num, enum event_file_type type, rt_uint32_t number)
 {
     switch (type & 0x0F)
     {
@@ -149,7 +149,7 @@ static rt_err_t funnel_default_handle_rx_bind_pre(funnel_default_obj_t obj,
     }
 
     enum event_file_type file_type = (enum event_file_type)(((event_pack_t)buffer)->event_type);
-    rt_uint32_t last_num = get_event_last_num(&obj->event_last_num, file_type);
+    rt_uint32_t last_num = funnel_get_event_last_num(&obj->event_last_num, file_type);
     rt_memcpy(new_buffer, &last_num, 4);
     rt_memcpy(new_buffer + 4, buffer, len);
 
@@ -173,7 +173,7 @@ static rt_err_t funnel_default_handle_rx_bind_pre(funnel_default_obj_t obj,
         LOG_E("%s send rx_pub_event error: %d/%d\r\n", rt_obj->name, custom_obj->rxb.pub_event, custom_obj->rxb.next_event_mask);
     }
 
-    set_event_last_num(&obj->event_last_num, file_type, last_num + 1);
+    funnel_set_event_last_num(&obj->event_last_num, file_type, last_num + 1);
 
     rt_free(new_buffer);
     custom_obj->rxb.buffer = RT_NULL;

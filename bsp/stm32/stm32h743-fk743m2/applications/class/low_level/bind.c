@@ -182,7 +182,7 @@ rt_err_t bind_delete(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
     return RT_EOK;
 }
 
-rt_bool_t get_bind_status(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_rx)
+rt_bool_t bind_get_status(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_rx)
 {
     rt_bool_t bound = RT_FALSE;
 

@@ -41,7 +41,7 @@ struct funnel_default_obj
 };
 typedef struct funnel_default_obj *funnel_default_obj_t;
 
-rt_uint32_t get_event_last_num(event_last_num_t event_last_num, enum event_file_type type);
-void set_event_last_num(event_last_num_t event_last_num, enum event_file_type type, rt_uint32_t number);
+rt_uint32_t funnel_get_event_last_num(event_last_num_t event_last_num, enum event_file_type type);
+void funnel_set_event_last_num(event_last_num_t event_last_num, enum event_file_type type, rt_uint32_t number);
 
 #endif /* __FUNNEL_DEFAULT_H__ */

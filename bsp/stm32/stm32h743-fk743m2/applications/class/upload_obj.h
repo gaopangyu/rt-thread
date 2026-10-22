@@ -12,7 +12,7 @@
 
 #define UPLOAD_NET_PARENT_NAME    "upload_net_parent"
 #define UPLOAD_STORE_PARENT_NAME    "upload_store_parent"
-#define UPLOAD_SCREEN_PARENT_NAME   "upload_screen_parent"
+#define UPLOAD_UI_PARENT_NAME   "upload_ui_parent"
 
 struct upload_obj
 {

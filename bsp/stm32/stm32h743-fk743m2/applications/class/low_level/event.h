@@ -29,6 +29,6 @@ struct event_history
 }__attribute__((packed));
 typedef struct event_history *event_history_t;
 
-char * get_file_name(enum event_file_type type);
+char * event_get_file_name(enum event_file_type type);
 
 #endif /* __EVENT_H__ */

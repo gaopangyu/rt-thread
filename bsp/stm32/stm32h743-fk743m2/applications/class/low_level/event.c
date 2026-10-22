@@ -1,6 +1,6 @@
 #include "event.h"
 
-char * get_file_name(enum event_file_type type)
+char * event_get_file_name(enum event_file_type type)
 {
     switch (type & 0x0F)
     {

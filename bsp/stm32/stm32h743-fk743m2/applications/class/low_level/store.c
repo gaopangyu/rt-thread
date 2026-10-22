@@ -1096,7 +1096,7 @@ rt_size_t store_get_history(upload_store_obj_t obj, rt_uint8_t *buffer, rt_size_
     rt_size_t offset = 0;
     for (i = 0; i < ntype && remain > 0; i++)
     {
-        const char *fname = get_file_name(types[i]);
+        const char *fname = event_get_file_name(types[i]);
         rt_uint32_t cursor;
         rt_uint32_t date = event_history->date;
         rt_uint32_t day;
@@ -1225,7 +1225,7 @@ rt_err_t store_get_event_last_num(const char *dir, const char *path, event_last_
 
     for (i = 0; i < STORE_HISTORY_TYPE_CNT; i++)
     {
-        const char *fname = get_file_name(store_history_types[i]);
+        const char *fname = event_get_file_name(store_history_types[i]);
         rt_uint32_t date;
         rt_uint32_t number;
 
@@ -1235,7 +1235,7 @@ rt_err_t store_get_event_last_num(const char *dir, const char *path, event_last_
         if (store_read_last_number(ramfs_path, diskfs_path, date, fname, &number) != 0)
             continue;
 
-        set_event_last_num(out, store_history_types[i], number + 1);
+        funnel_set_event_last_num(out, store_history_types[i], number + 1);
     }
 
     LOG_I("next event num: reset=%u fire=%u monitor=%u fault=%u action=%u linkage=%u mask=%u other=%u ctrl=%u",
