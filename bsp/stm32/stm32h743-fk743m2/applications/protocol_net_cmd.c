@@ -176,7 +176,7 @@ static void protocol_net_cmd_parse(void *parameter)
 
         LOG_HEX("protocol_net_cmd recv", 16, net_cmd_recv_buffer, net_cmd_recv_len);
 
-        net_cmd_reply_len = cmd_parse(net_cmd_recv_buffer, net_cmd_recv_len,
+        net_cmd_reply_len = cmd_parse(CMD_OBJ_NET, net_cmd_recv_buffer, net_cmd_recv_len,
                                      net_cmd_reply_buffer, sizeof(net_cmd_reply_buffer));
         if (net_cmd_reply_len == 0)
         {

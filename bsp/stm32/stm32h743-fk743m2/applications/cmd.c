@@ -10,13 +10,14 @@
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
-rt_size_t cmd_parse(rt_uint8_t *buffer, rt_size_t len, rt_uint8_t *reply, rt_size_t reply_size)
+rt_size_t cmd_parse(enum cmd_obj_type obj_type, rt_uint8_t *buffer, rt_size_t len,
+                    rt_uint8_t *reply, rt_size_t reply_size)
 {
     rt_uint8_t net_cmd;
     rt_size_t reply_len = 0;
     host_t host;
 
-    if (buffer == RT_NULL || len == 0 || reply == RT_NULL || reply_size == 0)
+    if (obj_type >= CMD_OBJ_MAX || buffer == RT_NULL || len == 0 || reply == RT_NULL || reply_size == 0)
         return 0;
 
     /* bit7：0 请求，1 回复。这里只处理请求。 */
@@ -27,12 +28,15 @@ rt_size_t cmd_parse(rt_uint8_t *buffer, rt_size_t len, rt_uint8_t *reply, rt_siz
 
     switch (net_cmd)
     {
-        case 0x01: /* 获取参数。请求：无选择器；回复：整份合宙 JSON */
+        case 0x01: /* 获取参数。请求：无选择器；回复：按对象类型导出的整份 JSON */
         {
-            LOG_I("protocol net_cmd parse: 0x01 get param\r\n");
-            reply_len = param_get_all_to_net(PARAM_FILE_PATH, (char *)reply + 1, reply_size - 1);
+            LOG_I("cmd parse: 0x01 get param obj=%d\r\n", obj_type);
+            if (obj_type == CMD_OBJ_UI)
+                reply_len = param_get_all_to_ui(PARAM_FILE_PATH, (char *)reply + 1, reply_size - 1);
+            else
+                reply_len = param_get_all_to_net(PARAM_FILE_PATH, (char *)reply + 1, reply_size - 1);
             if (reply_len == 0)
-                LOG_W("protocol net_cmd parse: 0x01 get net param failed\r\n");
+                LOG_W("cmd parse: 0x01 get param failed obj=%d\r\n", obj_type);
             else
             {
                 reply[0] = net_cmd | 0x80;
@@ -40,12 +44,12 @@ rt_size_t cmd_parse(rt_uint8_t *buffer, rt_size_t len, rt_uint8_t *reply, rt_siz
             }
             break;
         }
-        case 0x02: /* 设置参数。请求：整份合宙 JSON；回复：成功条数 + 失败条数 */
+        case 0x02: /* 设置参数。请求：按对象类型的整份 JSON；回复：成功条数 + 失败条数 */
         {
             char *json;
             rt_err_t err;
 
-            LOG_I("protocol net_cmd parse: 0x02 set param\r\n");
+            LOG_I("cmd parse: 0x02 set param obj=%d\r\n", obj_type);
             if (len < 2)
             {
                 LOG_W("protocol net_cmd parse: 0x02 frame len: %d\r\n", (int)len);
@@ -58,7 +62,10 @@ rt_size_t cmd_parse(rt_uint8_t *buffer, rt_size_t len, rt_uint8_t *reply, rt_siz
 
             rt_memcpy(json, buffer + 1, len - 1);
             json[len - 1] = '\0';
-            err = param_set_all_from_net(json);
+            if (obj_type == CMD_OBJ_UI)
+                err = param_set_all_from_ui(json);
+            else
+                err = param_set_all_from_net(json);
             rt_free(json);
 
             reply[0] = net_cmd | 0x80;
