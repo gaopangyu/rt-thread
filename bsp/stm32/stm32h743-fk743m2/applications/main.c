@@ -151,138 +151,138 @@ int main(void)
 
 // 测试示例:
 // 步骤一：
-// create_interface_rs232 interface_rs232_1 -u uart8 -p 80
-// create_protocol_ev1 protocol_ev1_1 -l lib010101_tx3016a_crt.so
-// create_protocol_ev1 protocol_ev1_2 -l lib010101_tx3016a_crt.so
-// create_protocol_ev1 protocol_ev1_3 -l lib010101_tx3016a_crt.so
-// create_upload_net upload_net_1 -n 1
-// create_upload_net upload_net_2 -n 2
-// create_upload_net upload_net_3 -n 3
-// create_bind interface_rs232_1 protocol_ev1_1 -r
-// create_bind interface_rs232_1 protocol_ev1_1 -t
-// create_bind interface_rs232_1 protocol_ev1_2 -r
-// create_bind interface_rs232_1 protocol_ev1_3
-// create_bind protocol_ev1_1 upload_net_1
-// create_bind protocol_ev1_2 upload_net_2
-// create_bind protocol_ev1_3 upload_net_3
+// interface_rs232_create interface_rs232_1 -u uart8 -p 80
+// protocol_ev1_create protocol_ev1_1 -l lib010101_tx3016a_crt.so
+// protocol_ev1_create protocol_ev1_2 -l lib010101_tx3016a_crt.so
+// protocol_ev1_create protocol_ev1_3 -l lib010101_tx3016a_crt.so
+// upload_net_create upload_net_1 -n 1
+// upload_net_create upload_net_2 -n 2
+// upload_net_create upload_net_3 -n 3
+// bind_create interface_rs232_1 protocol_ev1_1 -r
+// bind_create interface_rs232_1 protocol_ev1_1 -t
+// bind_create interface_rs232_1 protocol_ev1_2 -r
+// bind_create interface_rs232_1 protocol_ev1_3
+// bind_create protocol_ev1_1 upload_net_1
+// bind_create protocol_ev1_2 upload_net_2
+// bind_create protocol_ev1_3 upload_net_3
 
 // 步骤二:
-// create_interface_rs232 interface_rs232_1 -u uart8 -p 80 -r 10240 -d 5120
-// create_protocol_ev1 protocol_ev1_1 -l libtx3016a.so
-// create_protocol_ev1 protocol_ev1_2 -l libtx3016a_1.so
-// create_protocol_ev1 protocol_ev1_3 -l libtx3016a_2.so
-// create_upload_net upload_net_1 -n 1
-// create_upload_net upload_net_2 -n 2
-// create_upload_net upload_net_3 -n 3
-// create_bind interface_rs232_1 protocol_ev1_1 -r
-// create_bind protocol_ev1_1 upload_net_1 -r
-// create_bind interface_rs232_1 protocol_ev1_2 -t
-// create_bind protocol_ev1_2 upload_net_2 -t
-// create_bind interface_rs232_1 protocol_ev1_3 -r -t
-// create_bind protocol_ev1_3 upload_net_3 -r -t
-// 步骤三:追加在步骤二后面测试list_bind_path
-// create_interface_rs232 interface_rs232_2 -u uart2 -p 81 -r 10240 -d 5120
-// create_bind interface_rs232_2 protocol_ev1_1
-// create_bind protocol_ev1_1 upload_net_2
+// interface_rs232_create interface_rs232_1 -u uart8 -p 80 -r 10240 -d 5120
+// protocol_ev1_create protocol_ev1_1 -l libtx3016a.so
+// protocol_ev1_create protocol_ev1_2 -l libtx3016a_1.so
+// protocol_ev1_create protocol_ev1_3 -l libtx3016a_2.so
+// upload_net_create upload_net_1 -n 1
+// upload_net_create upload_net_2 -n 2
+// upload_net_create upload_net_3 -n 3
+// bind_create interface_rs232_1 protocol_ev1_1 -r
+// bind_create protocol_ev1_1 upload_net_1 -r
+// bind_create interface_rs232_1 protocol_ev1_2 -t
+// bind_create protocol_ev1_2 upload_net_2 -t
+// bind_create interface_rs232_1 protocol_ev1_3 -r -t
+// bind_create protocol_ev1_3 upload_net_3 -r -t
+// 步骤三:追加在步骤二后面测试bind_path_list
+// interface_rs232_create interface_rs232_2 -u uart2 -p 81 -r 10240 -d 5120
+// bind_create interface_rs232_2 protocol_ev1_1
+// bind_create protocol_ev1_1 upload_net_2
 // 步骤四:追加在步骤三后面测试并发
-// create_interface_rs232 interface_rs232_3 -u uart1 -p 77 -r 10240 -d 5120
-// create_bind interface_rs232_3 protocol_ev1_1
+// interface_rs232_create interface_rs232_3 -u uart1 -p 77 -r 10240 -d 5120
+// bind_create interface_rs232_3 protocol_ev1_1
 
 
 
 // 测试日志系统
-// create_interface_rs232 interface_rs232_1 -u uart8 -p 80 -r 10240 -d 5120
-// create_protocol_ev1 protocol_ev1_1 -l libtx3016a.so
-// create_upload_store upload_store_1 -d ev1 -p tx3016a
-// create_bind interface_rs232_1 protocol_ev1_1
-// create_bind protocol_ev1_1 upload_store_1
-// delete_upload_store -n upload_store_1
+// interface_rs232_create interface_rs232_1 -u uart8 -p 80 -r 10240 -d 5120
+// protocol_ev1_create protocol_ev1_1 -l libtx3016a.so
+// upload_store_create upload_store_1 -d ev1 -p tx3016a
+// bind_create interface_rs232_1 protocol_ev1_1
+// bind_create protocol_ev1_1 upload_store_1
+// upload_store_delete -n upload_store_1
 
 // 测试屏幕
-// create_interface_rs232 interface_rs232_1 -u uart8 -p 80 -r 10240 -d 5120
-// create_protocol_ev1 protocol_ev1_1 -l libtx3016a.so
+// interface_rs232_create interface_rs232_1 -u uart8 -p 80 -r 10240 -d 5120
+// protocol_ev1_create protocol_ev1_1 -l libtx3016a.so
 // create_upload_screen upload_screen_1 -u uart2 -p 80 -r 10240 -d 5120
-// create_bind interface_rs232_1 protocol_ev1_1
-// create_bind protocol_ev1_1 upload_screen_1
+// bind_create interface_rs232_1 protocol_ev1_1
+// bind_create protocol_ev1_1 upload_screen_1
 // delete_upload_screen -n upload_screen_1
 
 
 //777
-// delete_protocol_ev1 -n protocol_ev1_1
-// delete_interface_rs232 -n interface_rs232_1
-// delete_upload_net -n  upload_net_1
-// delete_interface_rs232 -n interface_rs232_2
-// delete_protocol_ev1 -n protocol_ev1_2
-// delete_upload_net -n  upload_net_2
-// delete_upload_net -n  upload_net_3
-// delete_protocol_ev1 -n protocol_ev1_3
-// delete_interface_rs232 -n interface_rs232_3
+// protocol_ev1_delete -n protocol_ev1_1
+// interface_rs232_delete -n interface_rs232_1
+// upload_net_delete -n  upload_net_1
+// interface_rs232_delete -n interface_rs232_2
+// protocol_ev1_delete -n protocol_ev1_2
+// upload_net_delete -n  upload_net_2
+// upload_net_delete -n  upload_net_3
+// protocol_ev1_delete -n protocol_ev1_3
+// interface_rs232_delete -n interface_rs232_3
 
 //666 OK
-// delete_protocol_ev1 -n protocol_ev1_1
-// delete_protocol_ev1 -n protocol_ev1_2
-// delete_protocol_ev1 -n protocol_ev1_3
-// delete_interface_rs232 -n interface_rs232_1
-// delete_interface_rs232 -n interface_rs232_2
-// delete_interface_rs232 -n interface_rs232_3
-// delete_upload_net -n  upload_net_1
-// delete_upload_net -n  upload_net_2
-// delete_upload_net -n  upload_net_3
+// protocol_ev1_delete -n protocol_ev1_1
+// protocol_ev1_delete -n protocol_ev1_2
+// protocol_ev1_delete -n protocol_ev1_3
+// interface_rs232_delete -n interface_rs232_1
+// interface_rs232_delete -n interface_rs232_2
+// interface_rs232_delete -n interface_rs232_3
+// upload_net_delete -n  upload_net_1
+// upload_net_delete -n  upload_net_2
+// upload_net_delete -n  upload_net_3
 
 //555 OK
-// delete_protocol_ev1 -n protocol_ev1_1
-// delete_protocol_ev1 -n protocol_ev1_2
-// delete_protocol_ev1 -n protocol_ev1_3
-// delete_upload_net -n  upload_net_1
-// delete_upload_net -n  upload_net_2
-// delete_upload_net -n  upload_net_3
-// delete_interface_rs232 -n interface_rs232_1
-// delete_interface_rs232 -n interface_rs232_2
-// delete_interface_rs232 -n interface_rs232_3
+// protocol_ev1_delete -n protocol_ev1_1
+// protocol_ev1_delete -n protocol_ev1_2
+// protocol_ev1_delete -n protocol_ev1_3
+// upload_net_delete -n  upload_net_1
+// upload_net_delete -n  upload_net_2
+// upload_net_delete -n  upload_net_3
+// interface_rs232_delete -n interface_rs232_1
+// interface_rs232_delete -n interface_rs232_2
+// interface_rs232_delete -n interface_rs232_3
 
 //444 OK
-// delete_upload_net -n  upload_net_1
-// delete_upload_net -n  upload_net_2
-// delete_upload_net -n  upload_net_3
-// delete_protocol_ev1 -n protocol_ev1_1
-// delete_protocol_ev1 -n protocol_ev1_2
-// delete_protocol_ev1 -n protocol_ev1_3
-// delete_interface_rs232 -n interface_rs232_1
-// delete_interface_rs232 -n interface_rs232_2
-// delete_interface_rs232 -n interface_rs232_3
+// upload_net_delete -n  upload_net_1
+// upload_net_delete -n  upload_net_2
+// upload_net_delete -n  upload_net_3
+// protocol_ev1_delete -n protocol_ev1_1
+// protocol_ev1_delete -n protocol_ev1_2
+// protocol_ev1_delete -n protocol_ev1_3
+// interface_rs232_delete -n interface_rs232_1
+// interface_rs232_delete -n interface_rs232_2
+// interface_rs232_delete -n interface_rs232_3
 
 //333 OK
-// delete_upload_net -n  upload_net_1
-// delete_upload_net -n  upload_net_2
-// delete_upload_net -n  upload_net_3
-// delete_interface_rs232 -n interface_rs232_1
-// delete_interface_rs232 -n interface_rs232_2
-// delete_interface_rs232 -n interface_rs232_3
-// delete_protocol_ev1 -n protocol_ev1_1
-// delete_protocol_ev1 -n protocol_ev1_2
-// delete_protocol_ev1 -n protocol_ev1_3
+// upload_net_delete -n  upload_net_1
+// upload_net_delete -n  upload_net_2
+// upload_net_delete -n  upload_net_3
+// interface_rs232_delete -n interface_rs232_1
+// interface_rs232_delete -n interface_rs232_2
+// interface_rs232_delete -n interface_rs232_3
+// protocol_ev1_delete -n protocol_ev1_1
+// protocol_ev1_delete -n protocol_ev1_2
+// protocol_ev1_delete -n protocol_ev1_3
 
 //222 OK
-// delete_interface_rs232 -n interface_rs232_1
-// delete_interface_rs232 -n interface_rs232_2
-// delete_interface_rs232 -n interface_rs232_3
-// delete_upload_net -n  upload_net_1
-// delete_upload_net -n  upload_net_2
-// delete_upload_net -n  upload_net_3
-// delete_protocol_ev1 -n protocol_ev1_1
-// delete_protocol_ev1 -n protocol_ev1_2
-// delete_protocol_ev1 -n protocol_ev1_3
+// interface_rs232_delete -n interface_rs232_1
+// interface_rs232_delete -n interface_rs232_2
+// interface_rs232_delete -n interface_rs232_3
+// upload_net_delete -n  upload_net_1
+// upload_net_delete -n  upload_net_2
+// upload_net_delete -n  upload_net_3
+// protocol_ev1_delete -n protocol_ev1_1
+// protocol_ev1_delete -n protocol_ev1_2
+// protocol_ev1_delete -n protocol_ev1_3
 
 //111 OK
-// delete_interface_rs232 -n interface_rs232_1
-// delete_interface_rs232 -n interface_rs232_2
-// delete_interface_rs232 -n interface_rs232_3
-// delete_protocol_ev1 -n protocol_ev1_1
-// delete_protocol_ev1 -n protocol_ev1_2
-// delete_protocol_ev1 -n protocol_ev1_3
-// delete_upload_net -n  upload_net_1
-// delete_upload_net -n  upload_net_2
-// delete_upload_net -n  upload_net_3
+// interface_rs232_delete -n interface_rs232_1
+// interface_rs232_delete -n interface_rs232_2
+// interface_rs232_delete -n interface_rs232_3
+// protocol_ev1_delete -n protocol_ev1_1
+// protocol_ev1_delete -n protocol_ev1_2
+// protocol_ev1_delete -n protocol_ev1_3
+// upload_net_delete -n  upload_net_1
+// upload_net_delete -n  upload_net_2
+// upload_net_delete -n  upload_net_3
 
 
 

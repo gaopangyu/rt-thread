@@ -648,12 +648,12 @@ static int upload_net_init(void)
 
 INIT_ENV_EXPORT(upload_net_init);
 
-static int cmd_create_upload_net(int argc, char *argv[])
+static int cmd_upload_net_create(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_upload_net <name> [-n number]\n");
-        rt_kprintf("Example: create_upload_net upload_net_1 -n 1\n");
+        rt_kprintf("Usage: upload_net_create <name> [-n number]\n");
+        rt_kprintf("Example: upload_net_create upload_net_1 -n 1\n");
         return -RT_ERROR;
     }
 
@@ -697,16 +697,16 @@ static int cmd_create_upload_net(int argc, char *argv[])
     rt_kprintf("Created upload_net: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_upload_net, create_upload_net, Create upload_net object);
+MSH_CMD_EXPORT_ALIAS(cmd_upload_net_create, upload_net_create, Create upload_net object);
 
-static int cmd_delete_upload_net(int argc, char *argv[])
+static int cmd_upload_net_delete(int argc, char *argv[])
 {
     const char *name = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_upload_net -n <name>\n");
-        rt_kprintf("Example: delete_upload_net -n upload_net_1\n");
+        rt_kprintf("Usage: upload_net_delete -n <name>\n");
+        rt_kprintf("Example: upload_net_delete -n upload_net_1\n");
         return -RT_ERROR;
     }
 
@@ -744,4 +744,4 @@ static int cmd_delete_upload_net(int argc, char *argv[])
     rt_kprintf("Deleted upload_net: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_upload_net, delete_upload_net, Delete upload_net object);
+MSH_CMD_EXPORT_ALIAS(cmd_upload_net_delete, upload_net_delete, Delete upload_net object);

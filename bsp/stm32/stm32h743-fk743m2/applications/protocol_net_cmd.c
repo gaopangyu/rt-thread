@@ -343,11 +343,11 @@ static rt_size_t parse(rt_uint8_t *buffer, rt_size_t len)
             rt_memcpy(name, buffer + 1, len - 1);
             name[len - 1] = '\0';
             if (rt_strcmp(name, "uart") == 0)
-                set_console_device(CONSOLE_DEVICE_UART);
+                console_device_set(CONSOLE_DEVICE_UART);
             else if (rt_strcmp(name, "usb") == 0)
-                set_console_device(CONSOLE_DEVICE_USB_CDC);
+                console_device_set(CONSOLE_DEVICE_USB_CDC);
             else if (rt_strcmp(name, "net") == 0)
-                set_console_device(CONSOLE_DEVICE_NET);
+                console_device_set(CONSOLE_DEVICE_NET);
             else
             {
                 LOG_W("protocol net_cmd parse: 0x07 invalid console: %s\r\n", name);

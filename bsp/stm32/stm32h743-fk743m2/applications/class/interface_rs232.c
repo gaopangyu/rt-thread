@@ -611,12 +611,12 @@ static int interface_rs232_init(void)
 
 INIT_ENV_EXPORT(interface_rs232_init);
 
-static int cmd_create_interface_rs232(int argc, char *argv[])
+static int cmd_interface_rs232_create(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_interface_rs232 <name> [-u uart] [-b baud] [-p rx_en_pin] [-r rx_bufsz] [-d dma_ping_bufsz] [-t tx_bufsz]\n");
-        rt_kprintf("Example: create_interface_rs232 interface_rs232_1 -u vuart1 -b 115200\n");
+        rt_kprintf("Usage: interface_rs232_create <name> [-u uart] [-b baud] [-p rx_en_pin] [-r rx_bufsz] [-d dma_ping_bufsz] [-t tx_bufsz]\n");
+        rt_kprintf("Example: interface_rs232_create interface_rs232_1 -u vuart1 -b 115200\n");
         return -RT_ERROR;
     }
 
@@ -687,16 +687,16 @@ static int cmd_create_interface_rs232(int argc, char *argv[])
     rt_kprintf("Created interface_rs232: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_interface_rs232, create_interface_rs232, Create interface_rs232 object);
+MSH_CMD_EXPORT_ALIAS(cmd_interface_rs232_create, interface_rs232_create, Create interface_rs232 object);
 
-static int cmd_delete_interface_rs232(int argc, char *argv[])
+static int cmd_interface_rs232_delete(int argc, char *argv[])
 {
     const char *name = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_interface_rs232 -n <name>\n");
-        rt_kprintf("Example: delete_interface_rs232 -n interface_rs232_1\n");
+        rt_kprintf("Usage: interface_rs232_delete -n <name>\n");
+        rt_kprintf("Example: interface_rs232_delete -n interface_rs232_1\n");
         return -RT_ERROR;
     }
 
@@ -734,5 +734,5 @@ static int cmd_delete_interface_rs232(int argc, char *argv[])
     rt_kprintf("Deleted interface_rs232: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_interface_rs232, delete_interface_rs232, Delete interface_rs232 object);
+MSH_CMD_EXPORT_ALIAS(cmd_interface_rs232_delete, interface_rs232_delete, Delete interface_rs232 object);
 

@@ -91,7 +91,7 @@ static void console_unbind_usb_cdc(void)
 #endif
 }
 
-void set_console_device(enum console_device_type device)
+void console_device_set(enum console_device_type device)
 {
     switch (device) {
         case CONSOLE_DEVICE_UART:
@@ -183,7 +183,7 @@ void set_console_device(enum console_device_type device)
         console_usb_auto_ok = (device == CONSOLE_DEVICE_USB_CDC) ? RT_TRUE : RT_FALSE;
 }
 
-enum console_device_type get_console_device(void)
+enum console_device_type console_device_get(void)
 {
     return console_device;
 }
@@ -222,7 +222,7 @@ static void console_usb_monitor(void *parameter)
                     prev = CONSOLE_DEVICE_UART;
                 LOG_I("usb disconnected, console -> prev");
                 console_set_by_monitor = RT_TRUE;
-                set_console_device(prev);
+                console_device_set(prev);
                 console_set_by_monitor = RT_FALSE;
             }
             console_usb_auto_ok = RT_TRUE;
@@ -246,7 +246,7 @@ static void console_usb_monitor(void *parameter)
                 continue;
             LOG_I("usb dtr, console -> usb_cdc");
             console_set_by_monitor = RT_TRUE;
-            set_console_device(CONSOLE_DEVICE_USB_CDC);
+            console_device_set(CONSOLE_DEVICE_USB_CDC);
             console_set_by_monitor = RT_FALSE;
             console_usb_last_sof = rt_tick_get();
         }
@@ -307,40 +307,40 @@ static int console_device_from_str(const char *s, enum console_device_type *out)
     return 0;
 }
 
-static int cmd_get_console_device(int argc, char **argv)
+static int cmd_console_device_get(int argc, char **argv)
 {
     enum console_device_type device;
 
     RT_UNUSED(argc);
     RT_UNUSED(argv);
 
-    device = get_console_device();
+    device = console_device_get();
     rt_kprintf("console: %s (%d)\n", console_device_name(device), (int)device);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_get_console_device, get_console_device, Show console device);
+MSH_CMD_EXPORT_ALIAS(cmd_console_device_get, console_device_get, Show console device);
 
-static int cmd_set_console_device(int argc, char **argv)
+static int cmd_console_device_set(int argc, char **argv)
 {
     enum console_device_type device;
 
     if (argc < 2)
     {
-        rt_kprintf("Usage: set_console_device <uart|usb|upload>\n");
+        rt_kprintf("Usage: console_device_set <uart|usb|upload>\n");
         return -RT_ERROR;
     }
 
     if (console_device_from_str(argv[1], &device) != 0)
     {
         rt_kprintf("Invalid console device: %s\n", argv[1]);
-        rt_kprintf("Usage: set_console_device <uart|usb|upload>\n");
+        rt_kprintf("Usage: console_device_set <uart|usb|upload>\n");
         return -RT_ERROR;
     }
 
-    set_console_device(device);
-    device = get_console_device();
+    console_device_set(device);
+    device = console_device_get();
     rt_kprintf("console: %s (%d)\n", console_device_name(device), (int)device);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_set_console_device, set_console_device, Set console device: uart|usb|upload);
+MSH_CMD_EXPORT_ALIAS(cmd_console_device_set, console_device_set, Set console device: uart|usb|upload);
 #endif

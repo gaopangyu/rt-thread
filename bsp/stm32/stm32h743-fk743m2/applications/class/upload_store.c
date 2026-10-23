@@ -444,12 +444,12 @@ static int upload_store_init(void)
 
 INIT_ENV_EXPORT(upload_store_init);
 
-static int cmd_create_upload_store(int argc, char *argv[])
+static int cmd_upload_store_create(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_upload_store <name> -d <dir> -p <path>\n");
-        rt_kprintf("Example: create_upload_store upload_store_1 -d event -p site1\n");
+        rt_kprintf("Usage: upload_store_create <name> -d <dir> -p <path>\n");
+        rt_kprintf("Example: upload_store_create upload_store_1 -d event -p site1\n");
         return -RT_ERROR;
     }
 
@@ -478,8 +478,8 @@ static int cmd_create_upload_store(int argc, char *argv[])
     const char *path = custom_obj_msh_get_opt(argc, argv, "p");
     if (dir == RT_NULL || dir[0] == '\0' || path == RT_NULL || path[0] == '\0')
     {
-        rt_kprintf("Usage: create_upload_store <name> -d <dir> -p <path>\n");
-        rt_kprintf("Example: create_upload_store upload_store_1 -d event -p site1\n");
+        rt_kprintf("Usage: upload_store_create <name> -d <dir> -p <path>\n");
+        rt_kprintf("Example: upload_store_create upload_store_1 -d event -p site1\n");
         return -RT_ERROR;
     }
 
@@ -498,16 +498,16 @@ static int cmd_create_upload_store(int argc, char *argv[])
     rt_kprintf("Created upload_store: %s dir=%s path=%s\n", name, config.dir, config.path);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_upload_store, create_upload_store, Create upload_store object);
+MSH_CMD_EXPORT_ALIAS(cmd_upload_store_create, upload_store_create, Create upload_store object);
 
-static int cmd_delete_upload_store(int argc, char *argv[])
+static int cmd_upload_store_delete(int argc, char *argv[])
 {
     const char *name = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_upload_store -n <name>\n");
-        rt_kprintf("Example: delete_upload_store -n upload_store_1\n");
+        rt_kprintf("Usage: upload_store_delete -n <name>\n");
+        rt_kprintf("Example: upload_store_delete -n upload_store_1\n");
         return -RT_ERROR;
     }
 
@@ -545,4 +545,4 @@ static int cmd_delete_upload_store(int argc, char *argv[])
     rt_kprintf("Deleted upload_store: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_upload_store, delete_upload_store, Delete upload_store object);
+MSH_CMD_EXPORT_ALIAS(cmd_upload_store_delete, upload_store_delete, Delete upload_store object);

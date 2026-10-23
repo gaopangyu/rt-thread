@@ -598,12 +598,12 @@ static int protocol_ev1_init(void)
 
 INIT_ENV_EXPORT(protocol_ev1_init);
 
-static int cmd_create_protocol_ev1(int argc, char *argv[])
+static int cmd_protocol_ev1_create(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_protocol_ev1 <name> [-l lib_name]\n");
-        rt_kprintf("Example: create_protocol_ev1 protocol_ev1_1 -l 208\n");
+        rt_kprintf("Usage: protocol_ev1_create <name> [-l lib_name]\n");
+        rt_kprintf("Example: protocol_ev1_create protocol_ev1_1 -l 208\n");
         return -RT_ERROR;
     }
 
@@ -647,16 +647,16 @@ static int cmd_create_protocol_ev1(int argc, char *argv[])
     rt_kprintf("Created protocol_ev1: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_protocol_ev1, create_protocol_ev1, Create protocol_ev1 object);
+MSH_CMD_EXPORT_ALIAS(cmd_protocol_ev1_create, protocol_ev1_create, Create protocol_ev1 object);
 
-static int cmd_delete_protocol_ev1(int argc, char *argv[])
+static int cmd_protocol_ev1_delete(int argc, char *argv[])
 {
     const char *name = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_protocol_ev1 -n <name>\n");
-        rt_kprintf("Example: delete_protocol_ev1 -n protocol_ev1_1\n");
+        rt_kprintf("Usage: protocol_ev1_delete -n <name>\n");
+        rt_kprintf("Example: protocol_ev1_delete -n protocol_ev1_1\n");
         return -RT_ERROR;
     }
 
@@ -694,4 +694,4 @@ static int cmd_delete_protocol_ev1(int argc, char *argv[])
     rt_kprintf("Deleted protocol_ev1: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_protocol_ev1, delete_protocol_ev1, Delete protocol_ev1 object);
+MSH_CMD_EXPORT_ALIAS(cmd_protocol_ev1_delete, protocol_ev1_delete, Delete protocol_ev1 object);

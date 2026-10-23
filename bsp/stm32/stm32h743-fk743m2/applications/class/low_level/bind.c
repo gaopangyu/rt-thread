@@ -325,7 +325,7 @@ static void bind_msh_parse_rt_flags(int argc, char *argv[], rt_bool_t *do_rx, rt
     }
 }
 
-static int cmd_create_bind(int argc, char *argv[])
+static int cmd_bind_create(int argc, char *argv[])
 {
     const char *pre_obj_name;
     const char *next_obj_name;
@@ -335,7 +335,7 @@ static int cmd_create_bind(int argc, char *argv[])
 
     if (argc < 3)
     {
-        rt_kprintf("Usage: create_bind <pre_obj_name> <next_obj_name> [-r] [-t]\n");
+        rt_kprintf("Usage: bind_create <pre_obj_name> <next_obj_name> [-r] [-t]\n");
         rt_kprintf("  -r  create rx bind only (pre ---> next)\n");
         rt_kprintf("  -t  create tx bind only (pre <--- next)\n");
         rt_kprintf("  default: both rx and tx\n");
@@ -346,7 +346,7 @@ static int cmd_create_bind(int argc, char *argv[])
     next_obj_name = custom_obj_msh_get_pos(argc, argv, 1, "rt");
     if (pre_obj_name == RT_NULL || next_obj_name == RT_NULL)
     {
-        rt_kprintf("Usage: create_bind <pre_obj_name> <next_obj_name> [-r] [-t]\n");
+        rt_kprintf("Usage: bind_create <pre_obj_name> <next_obj_name> [-r] [-t]\n");
         return -RT_ERROR;
     }
 
@@ -390,9 +390,9 @@ static int cmd_create_bind(int argc, char *argv[])
 
     return err;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_bind, create_bind, Create bind: create_bind <pre> <next> [-r] [-t]);
+MSH_CMD_EXPORT_ALIAS(cmd_bind_create, bind_create, Create bind: bind_create <pre> <next> [-r] [-t]);
 
-static int cmd_delete_bind(int argc, char *argv[])
+static int cmd_bind_delete(int argc, char *argv[])
 {
     const char *pre_obj_name;
     const char *next_obj_name;
@@ -402,7 +402,7 @@ static int cmd_delete_bind(int argc, char *argv[])
 
     if (argc < 3)
     {
-        rt_kprintf("Usage: delete_bind <pre_obj_name> <next_obj_name> [-r] [-t]\n");
+        rt_kprintf("Usage: bind_delete <pre_obj_name> <next_obj_name> [-r] [-t]\n");
         rt_kprintf("  -r  delete rx bind only (pre ---> next)\n");
         rt_kprintf("  -t  delete tx bind only (pre <--- next)\n");
         rt_kprintf("  default: both rx and tx\n");
@@ -413,7 +413,7 @@ static int cmd_delete_bind(int argc, char *argv[])
     next_obj_name = custom_obj_msh_get_pos(argc, argv, 1, "rt");
     if (pre_obj_name == RT_NULL || next_obj_name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_bind <pre_obj_name> <next_obj_name> [-r] [-t]\n");
+        rt_kprintf("Usage: bind_delete <pre_obj_name> <next_obj_name> [-r] [-t]\n");
         return -RT_ERROR;
     }
 
@@ -460,7 +460,7 @@ static int cmd_delete_bind(int argc, char *argv[])
 
     return err;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_bind, delete_bind, Delete bind: delete_bind <pre> <next> [-r] [-t]);
+MSH_CMD_EXPORT_ALIAS(cmd_bind_delete, bind_delete, Delete bind: bind_delete <pre> <next> [-r] [-t]);
 
 #define BIND_PATH_MAX_DEPTH   16
 #define BIND_PATH_PREFIX_MAX  128
@@ -772,7 +772,7 @@ static int bind_path_list_by_type(enum custom_object_class_type type, const char
     return RT_EOK;
 }
 
-static int cmd_list_bind_path(int argc, char *argv[])
+static int cmd_bind_path_list(int argc, char *argv[])
 {
     enum custom_object_class_type type;
     custom_obj_t obj;
@@ -793,4 +793,4 @@ static int cmd_list_bind_path(int argc, char *argv[])
     bind_path_print_one(obj);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_list_bind_path, list_bind_path, List bind paths: list_bind_path [obj|interface|protocol|upload]);
+MSH_CMD_EXPORT_ALIAS(cmd_bind_path_list, bind_path_list, List bind paths: bind_path_list [obj|interface|protocol|upload]);

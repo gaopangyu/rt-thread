@@ -574,12 +574,12 @@ static int funnel_default_init(void)
 
 INIT_ENV_EXPORT(funnel_default_init);
 
-static int cmd_create_funnel_default(int argc, char *argv[])
+static int cmd_funnel_default_create(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        rt_kprintf("Usage: create_funnel_default <name> [-l lib_name]\n");
-        rt_kprintf("Example: create_funnel_default funnel_default_1 -l 208\n");
+        rt_kprintf("Usage: funnel_default_create <name> [-l lib_name]\n");
+        rt_kprintf("Example: funnel_default_create funnel_default_1 -l 208\n");
         return -RT_ERROR;
     }
 
@@ -623,16 +623,16 @@ static int cmd_create_funnel_default(int argc, char *argv[])
     rt_kprintf("Created funnel_default: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_create_funnel_default, create_funnel_default, Create funnel_default object);
+MSH_CMD_EXPORT_ALIAS(cmd_funnel_default_create, funnel_default_create, Create funnel_default object);
 
-static int cmd_delete_funnel_default(int argc, char *argv[])
+static int cmd_funnel_default_delete(int argc, char *argv[])
 {
     const char *name = custom_obj_msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
-        rt_kprintf("Usage: delete_funnel_default -n <name>\n");
-        rt_kprintf("Example: delete_funnel_default -n funnel_default_1\n");
+        rt_kprintf("Usage: funnel_default_delete -n <name>\n");
+        rt_kprintf("Example: funnel_default_delete -n funnel_default_1\n");
         return -RT_ERROR;
     }
 
@@ -670,4 +670,4 @@ static int cmd_delete_funnel_default(int argc, char *argv[])
     rt_kprintf("Deleted funnel_default: %s\n", name);
     return RT_EOK;
 }
-MSH_CMD_EXPORT_ALIAS(cmd_delete_funnel_default, delete_funnel_default, Delete funnel_default object);
+MSH_CMD_EXPORT_ALIAS(cmd_funnel_default_delete, funnel_default_delete, Delete funnel_default object);
