@@ -1,4 +1,5 @@
 #include "bind.h"
+#include "msh_util.h"
 
 #define DBG_TAG "bind"
 #define DBG_LVL DBG_LOG
@@ -315,8 +316,8 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
 static void bind_msh_parse_rt_flags(int argc, char *argv[], rt_bool_t *do_rx, rt_bool_t *do_tx)
 {
-    *do_rx = custom_obj_msh_has_opt(argc, argv, "r");
-    *do_tx = custom_obj_msh_has_opt(argc, argv, "t");
+    *do_rx = msh_has_opt(argc, argv, "r");
+    *do_tx = msh_has_opt(argc, argv, "t");
 
     if (!*do_rx && !*do_tx)
     {
@@ -342,8 +343,8 @@ static int cmd_bind_create(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    pre_obj_name = custom_obj_msh_get_pos(argc, argv, 0, "rt");
-    next_obj_name = custom_obj_msh_get_pos(argc, argv, 1, "rt");
+    pre_obj_name = msh_get_pos(argc, argv, 0, "rt");
+    next_obj_name = msh_get_pos(argc, argv, 1, "rt");
     if (pre_obj_name == RT_NULL || next_obj_name == RT_NULL)
     {
         rt_kprintf("Usage: bind_create <pre_obj_name> <next_obj_name> [-r] [-t]\n");
@@ -409,8 +410,8 @@ static int cmd_bind_delete(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    pre_obj_name = custom_obj_msh_get_pos(argc, argv, 0, "rt");
-    next_obj_name = custom_obj_msh_get_pos(argc, argv, 1, "rt");
+    pre_obj_name = msh_get_pos(argc, argv, 0, "rt");
+    next_obj_name = msh_get_pos(argc, argv, 1, "rt");
     if (pre_obj_name == RT_NULL || next_obj_name == RT_NULL)
     {
         rt_kprintf("Usage: bind_delete <pre_obj_name> <next_obj_name> [-r] [-t]\n");

@@ -1,5 +1,12 @@
 #include "json_util.h"
 
+#include <stdlib.h>
+#include <string.h>
+
+#define DBG_TAG "json"
+#define DBG_LVL DBG_LOG
+#include <rtdbg.h>
+
 rt_bool_t json_get_u32(cJSON *obj, const char *key, rt_uint32_t *out)
 {
     cJSON *item;
@@ -149,4 +156,122 @@ cJSON *json_array_find_by_id(cJSON *arr, rt_uint32_t id)
     }
 
     return RT_NULL;
+}
+
+void json_copy_keys(cJSON *dst, cJSON *src, const char * const *keys, rt_size_t n)
+{
+    rt_size_t i;
+
+    for (i = 0; i < n; i++)
+        json_copy_key(dst, src, keys[i]);
+}
+
+cJSON *json_pick_object(cJSON *src, const char * const *keys, rt_size_t n)
+{
+    cJSON *dst = cJSON_CreateObject();
+
+    if (dst == RT_NULL)
+        return RT_NULL;
+
+    json_copy_keys(dst, src, keys, n);
+    return dst;
+}
+
+rt_size_t json_print(cJSON *obj, char *out, rt_size_t out_sz)
+{
+    char *printed;
+    rt_size_t n;
+
+    if (obj == RT_NULL || out == RT_NULL || out_sz == 0)
+        return 0;
+
+    printed = cJSON_PrintUnformatted(obj);
+    if (printed == RT_NULL)
+        return 0;
+
+    n = rt_strlen(printed);
+    if (n == 0 || n >= out_sz)
+    {
+        LOG_E("json size %u", (unsigned)n);
+        cJSON_free(printed);
+        return 0;
+    }
+
+    rt_memcpy(out, printed, n);
+    cJSON_free(printed);
+    return n;
+}
+
+cJSON *json_wrap(const char *key, cJSON *child)
+{
+    cJSON *wrap;
+
+    if (child == RT_NULL)
+        return RT_NULL;
+
+    wrap = cJSON_CreateObject();
+    if (wrap == RT_NULL)
+    {
+        cJSON_Delete(child);
+        return RT_NULL;
+    }
+
+    cJSON_AddItemToObject(wrap, key, child);
+    return wrap;
+}
+
+rt_bool_t json_is_off(cJSON *item)
+{
+    return cJSON_IsNull(item) || cJSON_IsFalse(item);
+}
+
+void json_drop_empty(cJSON *obj, const char *key)
+{
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(obj, key);
+
+    if (item == RT_NULL)
+        return;
+    if ((cJSON_IsObject(item) || cJSON_IsArray(item)) && item->child == RT_NULL)
+        cJSON_DeleteItemFromObject(obj, key);
+}
+
+cJSON *json_from_text(cJSON *old_item, const char *s)
+{
+    char *end;
+    double d;
+
+    if (s == RT_NULL)
+        return RT_NULL;
+
+    if (old_item != RT_NULL)
+    {
+        if (cJSON_IsBool(old_item))
+        {
+            if (rt_strcmp(s, "true") == 0 || rt_strcmp(s, "1") == 0)
+                return cJSON_CreateBool(1);
+            if (rt_strcmp(s, "false") == 0 || rt_strcmp(s, "0") == 0)
+                return cJSON_CreateBool(0);
+            return RT_NULL;
+        }
+        if (cJSON_IsNumber(old_item))
+        {
+            d = strtod(s, &end);
+            if (end == s || *end != '\0')
+                return RT_NULL;
+            return cJSON_CreateNumber(d);
+        }
+        if (cJSON_IsString(old_item))
+            return cJSON_CreateString(s);
+    }
+
+    if (rt_strcmp(s, "true") == 0)
+        return cJSON_CreateBool(1);
+    if (rt_strcmp(s, "false") == 0)
+        return cJSON_CreateBool(0);
+
+    d = strtod(s, &end);
+    if (end != s && *end == '\0')
+        return cJSON_CreateNumber(d);
+
+    return cJSON_CreateString(s);
 }

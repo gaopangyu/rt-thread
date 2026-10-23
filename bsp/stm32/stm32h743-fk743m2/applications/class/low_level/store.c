@@ -1,6 +1,7 @@
 #include "store.h"
 #include "upload_store.h"
 #include "upload_obj.h"
+#include "msh_util.h"
 
 #include <fcntl.h>
 #include <dirent.h>
@@ -1245,22 +1246,6 @@ rt_err_t store_get_event_last_num(const char *dir, const char *path, event_last_
 ///////////////////////////////////////////// msh cmd /////////////////////////////////////////////
 #define STORE_MSH_HISTORY_MAX   16
 
-static int store_msh_parse_u32(const char *s, rt_uint32_t *out)
-{
-    char *end = RT_NULL;
-    unsigned long v;
-
-    if (s == RT_NULL || s[0] == '\0' || out == RT_NULL)
-        return -1;
-
-    v = strtoul(s, &end, 0);
-    if (end == s || *end != '\0')
-        return -1;
-
-    *out = (rt_uint32_t)v;
-    return 0;
-}
-
 static int store_msh_parse_type(const char *s, rt_uint8_t *out)
 {
     static const struct
@@ -1298,7 +1283,7 @@ static int store_msh_parse_type(const char *s, rt_uint8_t *out)
         }
     }
 
-    if (store_msh_parse_u32(s, &v) != 0 || v > 0x0Fu)
+    if (msh_parse_u32(s, &v) != 0 || v > 0x0Fu)
         return -1;
     *out = (rt_uint8_t)v;
     return 0;
@@ -1384,7 +1369,7 @@ static int cmd_store_get_history(int argc, char **argv)
     rt_size_t n;
     rt_size_t i;
 
-    if (custom_obj_msh_has_opt(argc, argv, "h"))
+    if (msh_has_opt(argc, argv, "h"))
     {
         rt_kprintf("Usage: store_get_history [-n <obj>] [-t <type>] [-c <count>] [-d <date>] [-i <index>]\n");
         rt_kprintf("  -n  upload_store name (omit: first upload_store)\n");
@@ -1396,18 +1381,18 @@ static int cmd_store_get_history(int argc, char **argv)
         return RT_EOK;
     }
 
-    name = custom_obj_msh_get_opt(argc, argv, "n");
-    type_s = custom_obj_msh_get_opt(argc, argv, "t");
-    count_s = custom_obj_msh_get_opt(argc, argv, "c");
-    date_s = custom_obj_msh_get_opt(argc, argv, "d");
-    index_s = custom_obj_msh_get_opt(argc, argv, "i");
+    name = msh_get_opt(argc, argv, "n");
+    type_s = msh_get_opt(argc, argv, "t");
+    count_s = msh_get_opt(argc, argv, "c");
+    date_s = msh_get_opt(argc, argv, "d");
+    index_s = msh_get_opt(argc, argv, "i");
 
     if (store_msh_parse_type(type_s, &type) != 0)
     {
         rt_kprintf("Invalid type: %s\n", type_s);
         return -RT_ERROR;
     }
-    if (count_s != RT_NULL && (store_msh_parse_u32(count_s, &count) != 0 || count == 0))
+    if (count_s != RT_NULL && (msh_parse_u32(count_s, &count) != 0 || count == 0))
     {
         rt_kprintf("Invalid count: %s\n", count_s);
         return -RT_ERROR;
@@ -1421,7 +1406,7 @@ static int cmd_store_get_history(int argc, char **argv)
             date = STORE_DATE_LATEST;
         else if (rt_strcmp(date_s, "all") == 0)
             date = STORE_DATE_ALL;
-        else if (store_msh_parse_u32(date_s, &date) != 0)
+        else if (msh_parse_u32(date_s, &date) != 0)
         {
             rt_kprintf("Invalid date: %s\n", date_s);
             return -RT_ERROR;
@@ -1432,7 +1417,7 @@ static int cmd_store_get_history(int argc, char **argv)
     {
         if (rt_strcmp(index_s, "last") == 0)
             index = STORE_INDEX_LAST;
-        else if (store_msh_parse_u32(index_s, &index) != 0)
+        else if (msh_parse_u32(index_s, &index) != 0)
         {
             rt_kprintf("Invalid index: %s\n", index_s);
             return -RT_ERROR;

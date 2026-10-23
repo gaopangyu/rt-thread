@@ -14,5 +14,12 @@ void json_copy_key(cJSON *dst, cJSON *src, const char *key);
 void json_merge_object(cJSON *dst, cJSON *src);
 void json_merge_nested(cJSON *dst, cJSON *src, const char *key);
 cJSON *json_array_find_by_id(cJSON *arr, rt_uint32_t id);
+void json_copy_keys(cJSON *dst, cJSON *src, const char * const *keys, rt_size_t n);
+cJSON *json_pick_object(cJSON *src, const char * const *keys, rt_size_t n);
+rt_size_t json_print(cJSON *obj, char *out, rt_size_t out_sz);
+cJSON *json_wrap(const char *key, cJSON *child);
+rt_bool_t json_is_off(cJSON *item);
+void json_drop_empty(cJSON *obj, const char *key);
+cJSON *json_from_text(cJSON *old_item, const char *s);
 
 #endif /* __JSON_UTIL_H__ */

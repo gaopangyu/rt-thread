@@ -2,6 +2,7 @@
 #include "protocol_ev1.h"
 #include "bind.h"
 #include "event.h"
+#include "msh_util.h"
 
 #define DBG_TAG "protocol_ev1"
 #define DBG_LVL DBG_LOG
@@ -608,7 +609,7 @@ static int cmd_protocol_ev1_create(int argc, char *argv[])
     }
 
     const char *name = argv[1];
-    rt_err_t err = custom_obj_msh_check_create_name(name, "protocol_ev1");
+    rt_err_t err = msh_check_create_name(name, "protocol_ev1");
 
     if (err == -RT_EFULL)
     {
@@ -630,7 +631,7 @@ static int cmd_protocol_ev1_create(int argc, char *argv[])
 
     struct protocol_ev1_config *config_ptr = RT_NULL;
     struct protocol_ev1_config config = {0};
-    const char *lib_name = custom_obj_msh_get_opt(argc, argv, "l");
+    const char *lib_name = msh_get_opt(argc, argv, "l");
 
     if (lib_name != RT_NULL)
     {
@@ -651,7 +652,7 @@ MSH_CMD_EXPORT_ALIAS(cmd_protocol_ev1_create, protocol_ev1_create, Create protoc
 
 static int cmd_protocol_ev1_delete(int argc, char *argv[])
 {
-    const char *name = custom_obj_msh_get_opt(argc, argv, "n");
+    const char *name = msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
@@ -660,7 +661,7 @@ static int cmd_protocol_ev1_delete(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    if (custom_obj_msh_check_delete_name(name) != RT_EOK)
+    if (msh_check_delete_name(name) != RT_EOK)
     {
         rt_kprintf("Invalid name: %s\n", name);
         return -RT_ERROR;

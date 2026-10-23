@@ -1,5 +1,6 @@
 #include "upload_net.h"
 #include "custom_obj.h"
+#include "msh_util.h"
 
 #define DBG_TAG "upload_net"
 #define DBG_LVL DBG_LOG
@@ -658,7 +659,7 @@ static int cmd_upload_net_create(int argc, char *argv[])
     }
 
     const char *name = argv[1];
-    rt_err_t err = custom_obj_msh_check_create_name(name, "upload_net");
+    rt_err_t err = msh_check_create_name(name, "upload_net");
 
     if (err == -RT_EFULL)
     {
@@ -680,7 +681,7 @@ static int cmd_upload_net_create(int argc, char *argv[])
 
     struct upload_net_config *config_ptr = RT_NULL;
     struct upload_net_config config = {0};
-    const char *number_str = custom_obj_msh_get_opt(argc, argv, "n");
+    const char *number_str = msh_get_opt(argc, argv, "n");
 
     if (number_str != RT_NULL)
     {
@@ -701,7 +702,7 @@ MSH_CMD_EXPORT_ALIAS(cmd_upload_net_create, upload_net_create, Create upload_net
 
 static int cmd_upload_net_delete(int argc, char *argv[])
 {
-    const char *name = custom_obj_msh_get_opt(argc, argv, "n");
+    const char *name = msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
@@ -710,7 +711,7 @@ static int cmd_upload_net_delete(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    if (custom_obj_msh_check_delete_name(name) != RT_EOK)
+    if (msh_check_delete_name(name) != RT_EOK)
     {
         rt_kprintf("Invalid name: %s\n", name);
         return -RT_ERROR;

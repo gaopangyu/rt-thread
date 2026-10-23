@@ -706,72 +706,6 @@ static rt_err_t param_set_data_source(cJSON *plat, rt_uint32_t host_id, rt_bool_
     return RT_EOK;
 }
 
-/* 按字段名从 src 拷到 dst */
-static void param_copy_keys(cJSON *dst, cJSON *src, const char * const *keys, rt_size_t n)
-{
-    rt_size_t i;
-
-    for (i = 0; i < n; i++)
-        json_copy_key(dst, src, keys[i]);
-}
-
-/* 只取出指定字段，组成新对象 */
-static cJSON *param_pick_object(cJSON *src, const char * const *keys, rt_size_t n)
-{
-    cJSON *dst = cJSON_CreateObject();
-
-    if (dst == RT_NULL)
-        return RT_NULL;
-
-    param_copy_keys(dst, src, keys, n);
-    return dst;
-}
-
-/* 把 JSON 写成无格式字符串到缓冲区 */
-static rt_size_t param_print_json(cJSON *obj, char *out, rt_size_t out_sz)
-{
-    char *printed;
-    rt_size_t n;
-
-    if (obj == RT_NULL || out == RT_NULL || out_sz == 0)
-        return 0;
-
-    printed = cJSON_PrintUnformatted(obj);
-    if (printed == RT_NULL)
-        return 0;
-
-    n = rt_strlen(printed);
-    if (n == 0 || n >= out_sz)
-    {
-        LOG_E("param json size %u", (unsigned)n);
-        cJSON_free(printed);
-        return 0;
-    }
-
-    rt_memcpy(out, printed, n);
-    cJSON_free(printed);
-    return n;
-}
-
-/* 用 key 包一层对象，失败时释放 child */
-static cJSON *param_wrap(const char *key, cJSON *child)
-{
-    cJSON *wrap;
-
-    if (child == RT_NULL)
-        return RT_NULL;
-
-    wrap = cJSON_CreateObject();
-    if (wrap == RT_NULL)
-    {
-        cJSON_Delete(child);
-        return RT_NULL;
-    }
-
-    cJSON_AddItemToObject(wrap, key, child);
-    return wrap;
-}
-
 /* 写到缓冲区后释放对象 */
 static rt_size_t param_send_json(cJSON *obj, char *out, rt_size_t out_sz)
 {
@@ -780,7 +714,7 @@ static rt_size_t param_send_json(cJSON *obj, char *out, rt_size_t out_sz)
     if (obj == RT_NULL)
         return 0;
 
-    n = param_print_json(obj, out, out_sz);
+    n = json_print(obj, out, out_sz);
     cJSON_Delete(obj);
     return n;
 }
@@ -1105,7 +1039,7 @@ static rt_err_t param_ui_apply_host(cJSON *root, cJSON *ui_host)
     if (dst == RT_NULL)
         return -RT_EINVAL;
 
-    param_copy_keys(dst, ui_host, copy_keys, sizeof(copy_keys) / sizeof(copy_keys[0]));
+    json_copy_keys(dst, ui_host, copy_keys, sizeof(copy_keys) / sizeof(copy_keys[0]));
 
     json_merge_nested(dst, ui_host, "interface_crt");
     json_merge_nested(dst, ui_host, "interface_bus");
@@ -1163,7 +1097,7 @@ static rt_err_t param_ui_apply_platform(cJSON *root, cJSON *ui_platform)
     if (dst == RT_NULL)
         return -RT_EINVAL;
 
-    param_copy_keys(dst, ui_platform, param_ui_plat_keys,
+    json_copy_keys(dst, ui_platform, param_ui_plat_keys,
                     sizeof(param_ui_plat_keys) / sizeof(param_ui_plat_keys[0]));
 
     LOG_I("apply ui platform id %u", platform_id);
@@ -1209,13 +1143,13 @@ static cJSON *param_file_to_ui_host(cJSON *root, cJSON *host)
     rt_uint32_t host_id = 0;
     int i;
 
-    ui = param_pick_object(host, host_keys, sizeof(host_keys) / sizeof(host_keys[0]));
+    ui = json_pick_object(host, host_keys, sizeof(host_keys) / sizeof(host_keys[0]));
     if (ui == RT_NULL)
         return RT_NULL;
 
-    crt = param_pick_object(cJSON_GetObjectItemCaseSensitive(host, "interface_crt"),
+    crt = json_pick_object(cJSON_GetObjectItemCaseSensitive(host, "interface_crt"),
                             crt_keys, sizeof(crt_keys) / sizeof(crt_keys[0]));
-    bus = param_pick_object(cJSON_GetObjectItemCaseSensitive(host, "interface_bus"),
+    bus = json_pick_object(cJSON_GetObjectItemCaseSensitive(host, "interface_bus"),
                             bus_keys, sizeof(bus_keys) / sizeof(bus_keys[0]));
     json_get_u32(host, "id", &host_id);
     platform = cJSON_CreateArray();
@@ -1323,7 +1257,7 @@ static cJSON *param_file_to_ui_all(cJSON *root)
 
         if (!cJSON_IsObject(plat))
             continue;
-        ui = param_pick_object(plat, param_ui_plat_keys,
+        ui = json_pick_object(plat, param_ui_plat_keys,
                                sizeof(param_ui_plat_keys) / sizeof(param_ui_plat_keys[0]));
         if (ui == RT_NULL)
             goto fail;
@@ -1533,7 +1467,7 @@ static cJSON *param_make_net(cJSON *host, rt_uint32_t host_id)
 /* 从平台取出 socket 字段，缺的补默认值 */
 static cJSON *param_make_socket(cJSON *plat)
 {
-    cJSON *sock = param_pick_object(plat, param_socket_keys,
+    cJSON *sock = json_pick_object(plat, param_socket_keys,
                                     sizeof(param_socket_keys) / sizeof(param_socket_keys[0]));
 
     if (sock == RT_NULL)
@@ -1545,12 +1479,6 @@ static cJSON *param_make_socket(cJSON *plat)
     if (cJSON_GetObjectItemCaseSensitive(sock, "adapter") == RT_NULL)
         cJSON_AddItemToObject(sock, "adapter", cJSON_CreateNumber(1));
     return sock;
-}
-
-/* null 或 false 表示关闭 */
-static rt_bool_t param_json_off(cJSON *item)
-{
-    return cJSON_IsNull(item) || cJSON_IsFalse(item);
 }
 
 /* 名字解析结果转错误码，不认识则跳过 */
@@ -1779,18 +1707,7 @@ static cJSON *param_net_from_eth(cJSON *root)
         dup = cJSON_Duplicate(eth, 1);
     else
         dup = cJSON_CreateObject();
-    return param_wrap("eth", dup);
-}
-
-/* 空对象或空数组不放进合宙 JSON */
-static void param_drop_empty(cJSON *obj, const char *key)
-{
-    cJSON *item = cJSON_GetObjectItemCaseSensitive(obj, key);
-
-    if (item == RT_NULL)
-        return;
-    if ((cJSON_IsObject(item) || cJSON_IsArray(item)) && item->child == RT_NULL)
-        cJSON_DeleteItemFromObject(obj, key);
+    return json_wrap("eth", dup);
 }
 
 /* 合成一份合宙参数，hosts 与参数文件里的 hosts 相同 */
@@ -1900,10 +1817,10 @@ static cJSON *param_net_from_all(cJSON *root)
         cJSON_AddItemToObject(out, "hosts", dup);
     }
 
-    param_drop_empty(out, "protocols");
-    param_drop_empty(out, "sockets");
-    param_drop_empty(out, "binds");
-    param_drop_empty(out, "interfaces");
+    json_drop_empty(out, "protocols");
+    json_drop_empty(out, "sockets");
+    json_drop_empty(out, "binds");
+    json_drop_empty(out, "interfaces");
     cJSON_AddItemToObject(out, "clear", cJSON_CreateBool(1));
     return out;
 }
@@ -2103,7 +2020,7 @@ static rt_err_t param_net_apply_interfaces(cJSON *root, cJSON *interfaces, rt_bo
         if (host == RT_NULL)
             return -RT_EINVAL;
 
-        if (param_json_off(child))
+        if (json_is_off(child))
         {
             if (param_net_set_switch(root, host_id, RT_FALSE, touched) != RT_EOK)
                 return -RT_EINVAL;
@@ -2184,7 +2101,7 @@ static rt_err_t param_net_apply_sockets(cJSON *root, cJSON *sockets)
         if (plat == RT_NULL)
             return -RT_EINVAL;
 
-        if (param_json_off(child))
+        if (json_is_off(child))
         {
             if (param_set_data_source(plat, host_id, RT_FALSE) != RT_EOK)
                 return -RT_EINVAL;
@@ -2198,7 +2115,7 @@ static rt_err_t param_net_apply_sockets(cJSON *root, cJSON *sockets)
 
         if (param_set_data_source(plat, host_id, RT_TRUE) != RT_EOK)
             return -RT_EINVAL;
-        param_copy_keys(plat, child, param_socket_keys,
+        json_copy_keys(plat, child, param_socket_keys,
                         sizeof(param_socket_keys) / sizeof(param_socket_keys[0]));
     }
 
@@ -2327,48 +2244,6 @@ static cJSON *param_child(cJSON *cur, const char *tok)
     return RT_NULL;
 }
 
-/* 按原字段类型把字符串转成 JSON 值 */
-static cJSON *param_make_value(cJSON *old_item, const char *s)
-{
-    char *end;
-    double d;
-
-    if (s == RT_NULL)
-        return RT_NULL;
-
-    if (old_item != RT_NULL)
-    {
-        if (cJSON_IsBool(old_item))
-        {
-            if (rt_strcmp(s, "true") == 0 || rt_strcmp(s, "1") == 0)
-                return cJSON_CreateBool(1);
-            if (rt_strcmp(s, "false") == 0 || rt_strcmp(s, "0") == 0)
-                return cJSON_CreateBool(0);
-            return RT_NULL;
-        }
-        if (cJSON_IsNumber(old_item))
-        {
-            d = strtod(s, &end);
-            if (end == s || *end != '\0')
-                return RT_NULL;
-            return cJSON_CreateNumber(d);
-        }
-        if (cJSON_IsString(old_item))
-            return cJSON_CreateString(s);
-    }
-
-    if (rt_strcmp(s, "true") == 0)
-        return cJSON_CreateBool(1);
-    if (rt_strcmp(s, "false") == 0)
-        return cJSON_CreateBool(0);
-
-    d = strtod(s, &end);
-    if (end != s && *end == '\0')
-        return cJSON_CreateNumber(d);
-
-    return cJSON_CreateString(s);
-}
-
 /* 改对象字段或数组元素 */
 static rt_err_t param_set_leaf(cJSON *parent, const char *tok, const char *value_str)
 {
@@ -2411,7 +2286,7 @@ static rt_err_t param_set_leaf(cJSON *parent, const char *tok, const char *value
             return -RT_EINVAL;
 
         old = cJSON_GetArrayItem(parent, (int)v);
-        neu = param_make_value(old, value_str);
+        neu = json_from_text(old, value_str);
         if (neu == RT_NULL)
             return -RT_EINVAL;
         cJSON_ReplaceItemInArray(parent, (int)v, neu);
@@ -2425,7 +2300,7 @@ static rt_err_t param_set_leaf(cJSON *parent, const char *tok, const char *value
         return -RT_EINVAL;
 
     old = cJSON_GetObjectItemCaseSensitive(parent, name);
-    neu = param_make_value(old, value_str);
+    neu = json_from_text(old, value_str);
     if (neu == RT_NULL)
         return -RT_EINVAL;
 
@@ -2723,18 +2598,18 @@ static cJSON *param_section_to_ui(cJSON *root, cJSON *section, const char *key)
     if (rt_strcmp(key, "host") == 0)
         ui = param_file_to_ui_host(root, section);
     else if (rt_strcmp(key, "platform") == 0)
-        ui = param_pick_object(section, param_ui_plat_keys,
+        ui = json_pick_object(section, param_ui_plat_keys,
                                sizeof(param_ui_plat_keys) / sizeof(param_ui_plat_keys[0]));
     else
         ui = cJSON_Duplicate(section, 1);
-    return param_wrap(key, ui);
+    return json_wrap(key, ui);
 }
 
 /* 按选择器原样包一层 */
 static cJSON *param_section_dup(cJSON *root, cJSON *section, const char *key)
 {
     (void)root;
-    return param_wrap(key, cJSON_Duplicate(section, 1));
+    return json_wrap(key, cJSON_Duplicate(section, 1));
 }
 
 /* 写入整份合宙参数 */

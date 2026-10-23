@@ -48,42 +48,6 @@ static void custom_obj_bind_add_ext(custom_obj_t obj, rt_size_t len, rt_bool_t i
     rt_atomic_add(is_recv ? &bind->ext_recv_bytes : &bind->ext_send_bytes, len);
 }
 
-static int custom_obj_msh_find_opt(int argc, char *argv[], const char *opt)
-{
-    rt_size_t opt_len;
-    int i;
-
-    if (opt == RT_NULL || opt[0] == '\0')
-        return -1;
-
-    opt_len = rt_strlen(opt);
-    for (i = 1; i < argc; i++)
-    {
-        const char *arg = argv[i];
-
-        if (arg[0] == '-' && rt_strncmp(arg + 1, opt, opt_len) == 0 && arg[opt_len + 1] == '\0')
-            return i;
-    }
-
-    return -1;
-}
-
-static rt_bool_t custom_obj_msh_is_flag_only_opt(const char *arg, const char *flag_only_opts)
-{
-    const char *p;
-
-    if (arg == RT_NULL || arg[0] != '-' || arg[1] == '\0' || arg[2] != '\0' || flag_only_opts == RT_NULL)
-        return RT_FALSE;
-
-    for (p = flag_only_opts; *p != '\0'; p++)
-    {
-        if (arg[1] == *p)
-            return RT_TRUE;
-    }
-
-    return RT_FALSE;
-}
-
 rt_err_t custom_obj_apply_event_flag(custom_obj_t self)
 {
     int i;
@@ -149,75 +113,6 @@ custom_obj_t custom_obj_get_by_event_flag(struct custom_obj **obj_list, rt_uint3
     rt_exit_critical();
 
     return RT_NULL;
-}
-
-const char *custom_obj_msh_get_opt(int argc, char *argv[], const char *opt)
-{
-    int index = custom_obj_msh_find_opt(argc, argv, opt);
-
-    if (index < 0 || index + 1 >= argc)
-        return RT_NULL;
-
-    return argv[index + 1];
-}
-
-rt_bool_t custom_obj_msh_has_opt(int argc, char *argv[], const char *opt)
-{
-    return custom_obj_msh_find_opt(argc, argv, opt) >= 0;
-}
-
-const char *custom_obj_msh_get_pos(int argc, char *argv[], int index, const char *flag_only_opts)
-{
-    int pos = 0;
-    int i;
-
-    for (i = 1; i < argc; i++)
-    {
-        if (custom_obj_msh_is_flag_only_opt(argv[i], flag_only_opts))
-            continue;
-
-        if (argv[i][0] == '-' && argv[i][1] != '\0' && flag_only_opts != RT_NULL)
-        {
-            if (i + 1 < argc)
-                i++;
-            continue;
-        }
-
-        if (pos == index)
-            return argv[i];
-
-        pos++;
-    }
-
-    return RT_NULL;
-}
-
-rt_err_t custom_obj_msh_check_create_name(const char *name, const char *type_prefix)
-{
-    rt_size_t prefix_len;
-
-    if (name == RT_NULL || type_prefix == RT_NULL)
-        return -RT_EINVAL;
-
-    prefix_len = rt_strlen(type_prefix);
-    if (rt_strncmp(name, type_prefix, prefix_len) != 0)
-        return -RT_EINVAL;
-
-    if (rt_object_find(name, RT_Object_Class_Custom) != RT_NULL)
-        return -RT_EFULL;
-
-    return RT_EOK;
-}
-
-rt_err_t custom_obj_msh_check_delete_name(const char *name)
-{
-    if (name == RT_NULL || name[0] == '\0')
-        return -RT_EINVAL;
-
-    if (rt_object_find(name, RT_Object_Class_Custom) == RT_NULL)
-        return -RT_EINVAL;
-
-    return RT_EOK;
 }
 
 void custom_obj_bind_add_ext_recv(custom_obj_t obj, rt_size_t len, rt_bool_t is_rx)

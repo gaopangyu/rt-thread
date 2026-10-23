@@ -7,6 +7,7 @@
 #include "upload_store.h"
 #include "bind.h"
 #include "store.h"
+#include "msh_util.h"
 
 #define DBG_TAG "upload_store"
 #define DBG_LVL DBG_LOG
@@ -454,7 +455,7 @@ static int cmd_upload_store_create(int argc, char *argv[])
     }
 
     const char *name = argv[1];
-    rt_err_t err = custom_obj_msh_check_create_name(name, "upload_store");
+    rt_err_t err = msh_check_create_name(name, "upload_store");
 
     if (err == -RT_EFULL)
     {
@@ -474,8 +475,8 @@ static int cmd_upload_store_create(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    const char *dir = custom_obj_msh_get_opt(argc, argv, "d");
-    const char *path = custom_obj_msh_get_opt(argc, argv, "p");
+    const char *dir = msh_get_opt(argc, argv, "d");
+    const char *path = msh_get_opt(argc, argv, "p");
     if (dir == RT_NULL || dir[0] == '\0' || path == RT_NULL || path[0] == '\0')
     {
         rt_kprintf("Usage: upload_store_create <name> -d <dir> -p <path>\n");
@@ -502,7 +503,7 @@ MSH_CMD_EXPORT_ALIAS(cmd_upload_store_create, upload_store_create, Create upload
 
 static int cmd_upload_store_delete(int argc, char *argv[])
 {
-    const char *name = custom_obj_msh_get_opt(argc, argv, "n");
+    const char *name = msh_get_opt(argc, argv, "n");
 
     if (name == RT_NULL)
     {
@@ -511,7 +512,7 @@ static int cmd_upload_store_delete(int argc, char *argv[])
         return -RT_ERROR;
     }
 
-    if (custom_obj_msh_check_delete_name(name) != RT_EOK)
+    if (msh_check_delete_name(name) != RT_EOK)
     {
         rt_kprintf("Invalid name: %s\n", name);
         return -RT_ERROR;
