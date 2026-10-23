@@ -3,20 +3,109 @@
 #include "param.h"
 #include "console.h"
 #include "event.h"
+#include "json_util.h"
 
 #include <string.h>
+
+#define CMD_LINK_STATUS     254
+#define CMD_LINK_ALL        255
 
 #define DBG_TAG "cmd"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
+static rt_size_t cmd_reply_result(rt_uint8_t *reply, rt_size_t reply_size, rt_uint8_t cmd, rt_bool_t ok)
+{
+    if (reply_size < 2)
+        return 0;
+
+    reply[0] = cmd | 0x80;
+    reply[1] = ok ? 1 : 0;
+    return 2;
+}
+
+static rt_bool_t cmd_link_bound(rt_uint8_t link_id)
+{
+    if (link_id < HOST_MAX)
+    {
+        host_t host = g_host[link_id];
+
+        if (host == RT_NULL || host->ops == RT_NULL || host->ops->net_rx_bind_status == RT_NULL)
+            return RT_FALSE;
+        return host->ops->net_rx_bind_status(host);
+    }
+
+    if (link_id == CMD_LINK_ALL)
+    {
+        custom_obj_t cmd_obj = (custom_obj_t)rt_object_find(PROTOCOL_NET_CMD_NAME, RT_Object_Class_Custom);
+        custom_obj_t net = (custom_obj_t)rt_object_find("upload_net_255", RT_Object_Class_Custom);
+
+        return bind_get_status(cmd_obj, net, RT_TRUE);
+    }
+
+    if (link_id == CMD_LINK_STATUS)
+    {
+        custom_obj_t net = (custom_obj_t)rt_object_find("upload_net_254", RT_Object_Class_Custom);
+
+        if (net == RT_NULL)
+            return RT_FALSE;
+        return net->rxb.pre_event_mask != 0;
+    }
+
+    return RT_FALSE;
+}
+
+static void cmd_bind_add(cJSON *arr, rt_uint8_t link_id)
+{
+    cJSON *item;
+
+    if (arr == RT_NULL)
+        return;
+
+    item = cJSON_CreateObject();
+    if (item == RT_NULL)
+        return;
+
+    cJSON_AddNumberToObject(item, "link_id", link_id);
+    cJSON_AddItemToObject(item, "status", cJSON_CreateBool(cmd_link_bound(link_id) ? 1 : 0));
+    cJSON_AddItemToArray(arr, item);
+}
+
+static rt_size_t cmd_reply_bind(rt_uint8_t *reply, rt_size_t reply_size, rt_uint8_t cmd, rt_uint8_t link_id)
+{
+    cJSON *arr;
+    rt_size_t n;
+    rt_uint8_t id;
+
+    if (reply_size < 2)
+        return 0;
+
+    arr = cJSON_CreateArray();
+    if (arr == RT_NULL)
+        return 0;
+
+    if (link_id == CMD_LINK_ALL)
+    {
+        for (id = 0; id < HOST_MAX; id++)
+            cmd_bind_add(arr, id);
+        cmd_bind_add(arr, CMD_LINK_STATUS);
+        cmd_bind_add(arr, CMD_LINK_ALL);
+    }
+    else
+        cmd_bind_add(arr, link_id);
+
+    n = json_print(arr, (char *)reply + 1, reply_size - 1);
+    cJSON_Delete(arr);
+    if (n == 0)
+        return 0;
+
+    reply[0] = cmd | 0x80;
+    return n + 1;
+}
+
 rt_size_t cmd_parse(enum cmd_obj_type obj_type, rt_uint8_t *buffer, rt_size_t len,
                     rt_uint8_t *reply, rt_size_t reply_size)
 {
-    rt_uint8_t net_cmd;
-    rt_size_t reply_len = 0;
-    host_t host;
-
     if (obj_type >= CMD_OBJ_MAX || buffer == RT_NULL || len == 0 || reply == RT_NULL || reply_size == 0)
         return 0;
 
@@ -24,69 +113,104 @@ rt_size_t cmd_parse(enum cmd_obj_type obj_type, rt_uint8_t *buffer, rt_size_t le
     if (buffer[0] & 0x80)
         return 0;
 
-    net_cmd = buffer[0] & 0x7F;
+    rt_size_t reply_len = 0;
+    host_t host;
+    rt_uint8_t cmd = buffer[0] & 0x7F;
 
-    switch (net_cmd)
+    switch (cmd)
     {
-        case 0x01: /* 获取参数。请求：无选择器；回复：按对象类型导出的整份 JSON */
+        case CMD_GET_PARAM:
         {
-            LOG_I("cmd parse: 0x01 get param obj=%d\r\n", obj_type);
-            if (obj_type == CMD_OBJ_UI)
+            char selector[32];
+
+            LOG_I("cmd parse: get param obj=%d\r\n", obj_type);
+            if (len < 2 || len - 1 >= sizeof(selector))
+            {
+                LOG_W("cmd parse: get param frame len: %d\r\n", (int)len);
+                break;
+            }
+
+            rt_memcpy(selector, buffer + 1, len - 1);
+            selector[len - 1] = '\0';
+
+            /* net 只接受 all；ui 还可按 hosts[id]、platforms[id]、eth 取一块 */
+            if (obj_type == CMD_OBJ_NET)
+            {
+                if (rt_strcmp(selector, "all") != 0)
+                {
+                    LOG_W("cmd parse: get param net selector: %s\r\n", selector);
+                    break;
+                }
+                reply_len = param_get_all_to_net(PARAM_FILE_PATH, (char *)reply + 1, reply_size - 1);
+            }
+            else if (rt_strcmp(selector, "all") == 0)
                 reply_len = param_get_all_to_ui(PARAM_FILE_PATH, (char *)reply + 1, reply_size - 1);
             else
-                reply_len = param_get_all_to_net(PARAM_FILE_PATH, (char *)reply + 1, reply_size - 1);
+                reply_len = param_get_to_ui(PARAM_FILE_PATH, selector, (char *)reply + 1, reply_size - 1);
+
             if (reply_len == 0)
-                LOG_W("cmd parse: 0x01 get param failed obj=%d\r\n", obj_type);
+                LOG_W("cmd parse: get param failed obj=%d selector=%s\r\n", obj_type, selector);
             else
             {
-                reply[0] = net_cmd | 0x80;
+                reply[0] = cmd | 0x80;
                 reply_len += 1;
             }
             break;
         }
-        case 0x02: /* 设置参数。请求：按对象类型的整份 JSON；回复：成功条数 + 失败条数 */
+        case CMD_SET_PARAM:
         {
-            char *json;
+            char *json = RT_NULL;
             rt_err_t err;
 
-            LOG_I("cmd parse: 0x02 set param obj=%d\r\n", obj_type);
-            if (len < 2)
+            LOG_I("cmd parse: set param obj=%d\r\n", obj_type);
+            err = -RT_ERROR;
+            if (len < 2 || reply_size < 3)
+                LOG_W("cmd parse: set param frame len: %d\r\n", (int)len);
+            else if ((json = rt_malloc(len)) == RT_NULL)
+                LOG_W("cmd parse: set param alloc failed\r\n");
+            else
             {
-                LOG_W("protocol net_cmd parse: 0x02 frame len: %d\r\n", (int)len);
-                break;
+                rt_memcpy(json, buffer + 1, len - 1);
+                json[len - 1] = '\0';
+                if (obj_type == CMD_OBJ_NET)
+                    err = param_set_all_from_net(json);
+                else
+                {
+                    cJSON *doc = cJSON_Parse(json);
+
+                    /* ui 整份用 hosts/platforms；单块用 host/platform/eth */
+                    if (doc != RT_NULL &&
+                        (cJSON_GetObjectItemCaseSensitive(doc, "hosts") != RT_NULL ||
+                         cJSON_GetObjectItemCaseSensitive(doc, "platforms") != RT_NULL))
+                        err = param_set_all_from_ui(json);
+                    else
+                        err = param_set_from_ui(json);
+                    cJSON_Delete(doc);
+                }
+                rt_free(json);
             }
 
-            json = rt_malloc(len);
-            if (json == RT_NULL)
-                break;
-
-            rt_memcpy(json, buffer + 1, len - 1);
-            json[len - 1] = '\0';
-            if (obj_type == CMD_OBJ_UI)
-                err = param_set_all_from_ui(json);
-            else
-                err = param_set_all_from_net(json);
-            rt_free(json);
-
-            reply[0] = net_cmd | 0x80;
-            reply[1] = (err == RT_EOK) ? 1 : 0;
-            reply[2] = (err == RT_EOK) ? 0 : 1;
-            reply_len = 3;
-            LOG_I("protocol net_cmd return: 0x02 set param succ=%d fail=%d\r\n",
-                  reply[1], reply[2]);
+            if (reply_size >= 3)
+            {
+                reply[0] = cmd | 0x80;
+                reply[1] = (err == RT_EOK) ? 1 : 0;
+                reply[2] = (err == RT_EOK) ? 0 : 1;
+                reply_len = 3;
+                LOG_I("cmd return: set param succ=%d fail=%d\r\n",
+                      reply[1], reply[2]);
+            }
             break;
         }
-        case 0x03: /* 获取历史报文 */
+        case CMD_GET_HISTORY:
         {
-            LOG_I("protocol net_cmd parse: 0x03 get history messages\r\n");
+            LOG_I("cmd parse: get history messages\r\n");
 
-            /* 布局: [0]=0x03 [1]=host_id [2]=event_type
-             *       [3..6]=start_time(u32 LE) [7..10]=end_time(u32 LE) [11]=count */
+            /* 请求体为 struct event_history，回复为 32 字节事件数组 */
             rt_bool_t is_end = RT_FALSE;
 
             if (len < sizeof(struct event_history) + 1)
             {
-                LOG_W("protocol net_cmd parse: 0x03 frame len: %d < sizeof(struct event_history)\r\n", (int)len);
+                LOG_W("cmd parse: get history frame len: %d < sizeof(struct event_history)\r\n", (int)len);
                 reply_len = event_put_end(reply + 1, reply_size - 1, &is_end);
             }
             else
@@ -98,7 +222,7 @@ rt_size_t cmd_parse(enum cmd_obj_type obj_type, rt_uint8_t *buffer, rt_size_t le
                     || g_host[event_history.host_id] == RT_NULL || g_host[event_history.host_id]->ops == RT_NULL
                     || g_host[event_history.host_id]->ops->get_history == RT_NULL)
                 {
-                    LOG_I("protocol net_cmd parse: 0x03 invalid args host=%d count=%d \r\n",
+                    LOG_I("cmd parse: get history invalid args host=%d count=%d \r\n",
                                                    event_history.host_id, event_history.count);
                     reply_len = event_put_end(reply + 1, reply_size - 1, &is_end);
                 }
@@ -119,21 +243,23 @@ rt_size_t cmd_parse(enum cmd_obj_type obj_type, rt_uint8_t *buffer, rt_size_t le
 
             if (reply_len > 0)
             {
-                reply[0] = net_cmd | 0x80;
+                reply[0] = cmd | 0x80;
                 reply_len += 1;
             }
 
             break;
         }
-        case 0x04: /* 删除绑定。请求：host_id；回复空 */
-        case 0x05: /* 创建绑定。请求：host_id；回复空 */
+        case CMD_DELETE_BIND:
+        case CMD_CREATE_BIND:
         {
             rt_uint8_t host_id;
+            rt_err_t err = -RT_ERROR;
 
-            LOG_I("protocol net_cmd parse: 0x%02X %s bind\r\n", net_cmd, net_cmd == 0x04 ? "delete" : "create");
+            LOG_I("cmd parse: %s bind\r\n", cmd == CMD_DELETE_BIND ? "delete" : "create");
             if (len < 2)
             {
-                LOG_W("protocol net_cmd parse: 0x%02X frame len: %d < 2\r\n", net_cmd, (int)len);
+                LOG_W("cmd parse: bind frame len: %d < 2\r\n", (int)len);
+                reply_len = cmd_reply_result(reply, reply_size, cmd, RT_FALSE);
                 break;
             }
 
@@ -141,88 +267,80 @@ rt_size_t cmd_parse(enum cmd_obj_type obj_type, rt_uint8_t *buffer, rt_size_t le
             if (host_id >= HOST_MAX
                 || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL)
             {
-                LOG_I("protocol net_cmd parse: 0x%02X invalid host=%d\r\n", net_cmd, host_id);
+                LOG_I("cmd parse: bind invalid host=%d\r\n", host_id);
+                reply_len = cmd_reply_result(reply, reply_size, cmd, RT_FALSE);
                 break;
             }
 
             host = g_host[host_id];
-            if (net_cmd == 0x04)
+            if (cmd == CMD_DELETE_BIND)
             {
-                if (host->ops->net_rx_bind_delete == RT_NULL)
-                    break;
-                host->ops->net_rx_bind_delete(host);
+                if (host->ops->net_rx_bind_delete != RT_NULL)
+                    err = host->ops->net_rx_bind_delete(host);
             }
-            else
-            {
-                if (host->ops->net_rx_bind_create == RT_NULL)
-                    break;
-                host->ops->net_rx_bind_create(host);
-            }
-            reply[0] = net_cmd | 0x80;
-            reply_len = 1;
+            else if (host->ops->net_rx_bind_create != RT_NULL)
+                err = host->ops->net_rx_bind_create(host);
+
+            reply_len = cmd_reply_result(reply, reply_size, cmd, err == RT_EOK);
+            if (reply_len >= 2)
+                LOG_I("cmd return: %s bind: %d\r\n",
+                      cmd == CMD_DELETE_BIND ? "delete" : "create", reply[1]);
             break;
         }
-        case 0x06: /* 获取绑定状态。请求：host_id；回复：0 未绑定 / 1 已绑定 */
+        case CMD_GET_BIND:
         {
-            LOG_I("protocol net_cmd parse: 0x06 get bind\r\n");
+            rt_uint8_t link_id;
 
+            LOG_I("cmd parse: get bind\r\n");
             if (len < 2)
             {
-                LOG_W("protocol net_cmd parse: 0x06 frame len: %d < 2\r\n", (int)len);
+                LOG_W("cmd parse: get bind frame len: %d < 2\r\n", (int)len);
                 break;
             }
 
-            reply[0] = net_cmd | 0x80;
-
-            rt_uint8_t host_id = buffer[1];
-            if (host_id >= HOST_MAX
-                || g_host[host_id] == RT_NULL || g_host[host_id]->ops == RT_NULL
-                || g_host[host_id]->ops->net_rx_bind_status == RT_NULL)
-            {
-                LOG_I("protocol net_cmd parse: 0x06 invalid args host=%d\r\n",
-                        host_id);
-                reply[1] = 0;
-            }
-            else
-                reply[1] = g_host[host_id]->ops->net_rx_bind_status(g_host[host_id]) ? 1 : 0;
-
-            reply_len = 2;
-            LOG_I("protocol net_cmd return: 0x06 get bind: %d\r\n", reply[1]);
-
+            /* 0~3 主机链路，254 状态链路，255 全部链路 */
+            link_id = buffer[1];
+            reply_len = cmd_reply_bind(reply, reply_size, cmd, link_id);
+            LOG_I("cmd return: get bind link=%d len=%d\r\n", link_id, (int)reply_len);
             break;
         }
-        case 0x07: /* 切换控制台。请求：usb|uart|net；回复空 */
+        case CMD_SWITCH_CONSOLE:
         {
             char name[16];
+            rt_bool_t ok = RT_FALSE;
 
-            LOG_I("protocol net_cmd parse: 0x07 switch console\r\n");
+            LOG_I("cmd parse: switch console\r\n");
             if (len < 2 || len - 1 >= sizeof(name))
-            {
-                LOG_W("protocol net_cmd parse: 0x07 frame len: %d\r\n", (int)len);
-                break;
-            }
-
-            rt_memcpy(name, buffer + 1, len - 1);
-            name[len - 1] = '\0';
-            if (rt_strcmp(name, "uart") == 0)
-                console_device_set(CONSOLE_DEVICE_UART);
-            else if (rt_strcmp(name, "usb") == 0)
-                console_device_set(CONSOLE_DEVICE_USB_CDC);
-            else if (rt_strcmp(name, "net") == 0)
-                console_device_set(CONSOLE_DEVICE_NET);
+                LOG_W("cmd parse: switch console frame len: %d\r\n", (int)len);
             else
             {
-                LOG_W("protocol net_cmd parse: 0x07 invalid console: %s\r\n", name);
-                break;
+                rt_memcpy(name, buffer + 1, len - 1);
+                name[len - 1] = '\0';
+                if (rt_strcmp(name, "uart") == 0)
+                {
+                    console_device_set(CONSOLE_DEVICE_UART);
+                    ok = RT_TRUE;
+                }
+                else if (rt_strcmp(name, "usb") == 0)
+                {
+                    console_device_set(CONSOLE_DEVICE_USB_CDC);
+                    ok = RT_TRUE;
+                }
+                else if (rt_strcmp(name, "net") == 0)
+                {
+                    console_device_set(CONSOLE_DEVICE_NET);
+                    ok = RT_TRUE;
+                }
+                else
+                    LOG_W("cmd parse: switch console invalid: %s\r\n", name);
             }
 
-            reply[0] = net_cmd | 0x80;
-            reply_len = 1;
+            reply_len = cmd_reply_result(reply, reply_size, cmd, ok);
             break;
         }
         default:
         {
-            LOG_E("protocol net_cmd parse: unknown command: 0x%02X\r\n", buffer[0]);
+            LOG_E("protocol cmd parse: unknown command: 0x%02X\r\n", buffer[0]);
             break;
         }
     }
