@@ -2,12 +2,6 @@
 #define __HOST_STD_H__
 
 #include "host.h"
-#include "class/interface_rs232.h"
-#include "class/protocol_ev1.h"
-#include "class/funnel_default.h"
-#include "class/upload_store.h"
-#include "class/upload_net.h"
-#include <cJSON.h>
 
 struct host_std_config
 {

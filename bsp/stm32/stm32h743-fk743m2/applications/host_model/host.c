@@ -26,7 +26,7 @@ char *g_com[COM_MAX] =
     RT_NULL,
 };
 
-rt_err_t generate_name_from_parent(char *out, rt_size_t out_size, const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id)
+rt_err_t host_get_name_from_parent(char *out, rt_size_t out_size, const char *parent_name, rt_uint8_t host_id, rt_uint8_t sub_id)
 {
     if(out == RT_NULL || out_size == 0 || parent_name == RT_NULL)
         return -RT_EINVAL;
@@ -44,7 +44,7 @@ rt_err_t generate_name_from_parent(char *out, rt_size_t out_size, const char *pa
     return RT_EOK;
 }
 
-const char *host_protocol_parent_name(const char *protocol_ver)
+const char *host_get_parent_name_from_protocol(const char *protocol_ver)
 {
     if (protocol_ver == RT_NULL || protocol_ver[0] == '\0')
         return RT_NULL;
@@ -80,7 +80,7 @@ void *host_obj_create(const char *parent_name, rt_uint8_t host_id, rt_uint8_t su
     parent = (struct host_obj *)rt_object_find(parent_name, RT_Object_Class_Custom);
     if (parent == RT_NULL || parent->ops == RT_NULL || parent->ops->create == RT_NULL)
         return RT_NULL;
-    if (generate_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
+    if (host_get_name_from_parent(name, sizeof(name), parent_name, host_id, sub_id) != RT_EOK)
         return RT_NULL;
 
     return parent->ops->create(parent, name, cfg);
@@ -124,7 +124,7 @@ rt_err_t host_obj_set_param(void *obj, void *cfg, const char *name)
     return RT_EOK;
 }
 
-rt_size_t host_upload_get_history(upload_obj_t obj, rt_uint8_t *buffer, rt_size_t size,
+rt_size_t host_get_history(upload_obj_t obj, rt_uint8_t *buffer, rt_size_t size,
                                   event_history_t event_history, rt_bool_t *is_end)
 {
     rt_size_t n;
@@ -141,7 +141,7 @@ rt_size_t host_upload_get_history(upload_obj_t obj, rt_uint8_t *buffer, rt_size_
     return n;
 }
 
-void host_parse_rs232(cJSON *obj, struct interface_rs232_config *cfg)
+void host_parse_cfg_rs232(cJSON *obj, struct interface_rs232_config *cfg)
 {
     rt_uint32_t v;
 
@@ -170,7 +170,7 @@ void host_parse_rs232(cJSON *obj, struct interface_rs232_config *cfg)
         cfg->rx_en_pin = (rt_base_t)v;
 }
 
-void host_parse_protocol_ev1(cJSON *obj, struct protocol_ev1_config *cfg)
+void host_parse_cfg_protocol_ev1(cJSON *obj, struct protocol_ev1_config *cfg)
 {
     if (obj == RT_NULL || cfg == RT_NULL)
         return;
@@ -178,7 +178,7 @@ void host_parse_protocol_ev1(cJSON *obj, struct protocol_ev1_config *cfg)
     json_copy_str(cfg->lib_name, sizeof(cfg->lib_name), obj, "lib_name");
 }
 
-void host_parse_store(cJSON *obj, struct upload_store_config *cfg)
+void host_parse_cfg_store(cJSON *obj, struct upload_store_config *cfg)
 {
     if (obj == RT_NULL || cfg == RT_NULL)
         return;

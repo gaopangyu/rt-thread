@@ -53,7 +53,7 @@ static rt_size_t host_std_get_history(host_t self, rt_uint8_t *buffer, rt_size_t
     if (self == RT_NULL)
         return event_put_end(buffer, size, is_end);
 
-    return host_upload_get_history(((host_std_t)self)->upload_store, buffer, size, event_history, is_end);
+    return host_get_history(((host_std_t)self)->upload_store, buffer, size, event_history, is_end);
 }
 
 static rt_err_t host_std_delete(host_t self)
@@ -107,7 +107,7 @@ rt_err_t host_std_create(host_std_config_t config)
     host->id = config->host_id;
     host->type = HOST_TYPE_STD;
 
-    const char *protocol_parent_name = host_protocol_parent_name(config->protocol_ver);
+    const char *protocol_parent_name = host_get_parent_name_from_protocol(config->protocol_ver);
 
     if (protocol_parent_name == RT_NULL)
         LOG_W("host_std %d unsupported protocol_ver: %s", config->host_id, config->protocol_ver);
@@ -200,14 +200,14 @@ static rt_err_t host_std_load_json(cJSON *host_json, host_std_config_t host_std_
     {
         if (json_get_u32(item, "id", &v))
             host_std_cfg->crt_com_id = (rt_uint8_t)v;
-        host_parse_rs232(item, interface_crt_cfg);
+        host_parse_cfg_rs232(item, interface_crt_cfg);
         host_std_cfg->interface_crt_cfg = interface_crt_cfg;
     }
 
     item = cJSON_GetObjectItemCaseSensitive(host_json, "protocol_crt");
     if (cJSON_IsObject(item))
     {
-        host_parse_protocol_ev1(item, protocol_crt_cfg);
+        host_parse_cfg_protocol_ev1(item, protocol_crt_cfg);
         host_std_cfg->protocol_crt_cfg = protocol_crt_cfg;
     }
 
@@ -216,14 +216,14 @@ static rt_err_t host_std_load_json(cJSON *host_json, host_std_config_t host_std_
     {
         if (json_get_u32(item, "id", &v))
             host_std_cfg->bus_com_id = (rt_uint8_t)v;
-        host_parse_rs232(item, interface_bus_cfg);
+        host_parse_cfg_rs232(item, interface_bus_cfg);
         host_std_cfg->interface_bus_cfg = interface_bus_cfg;
     }
 
     item = cJSON_GetObjectItemCaseSensitive(host_json, "protocol_bus");
     if (cJSON_IsObject(item))
     {
-        host_parse_protocol_ev1(item, protocol_bus_cfg);
+        host_parse_cfg_protocol_ev1(item, protocol_bus_cfg);
         host_std_cfg->protocol_bus_cfg = protocol_bus_cfg;
     }
 
@@ -238,7 +238,7 @@ static rt_err_t host_std_load_json(cJSON *host_json, host_std_config_t host_std_
     item = cJSON_GetObjectItemCaseSensitive(host_json, "upload_store");
     if (cJSON_IsObject(item))
     {
-        host_parse_store(item, upload_store_cfg);
+        host_parse_cfg_store(item, upload_store_cfg);
         rt_strncpy(upload_store_cfg->dir, host_std_cfg->protocol_ver,
                    sizeof(upload_store_cfg->dir) - 1);
         upload_store_cfg->dir[sizeof(upload_store_cfg->dir) - 1] = '\0';
