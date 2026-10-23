@@ -3,6 +3,8 @@
 
 #include "protocol_obj.h"
 
+#define UPLOAD_NET_LINK_CMD    49
+
 struct protocol_net_cmd_obj
 {
     struct protocol_obj    parent;

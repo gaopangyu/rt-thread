@@ -18,7 +18,7 @@ enum cmd_type
     CMD_GET_HISTORY    = 0x03, /* 获取历史报文。请求：struct event_history；回复：32 字节事件数组 */
     CMD_DELETE_BIND    = 0x04, /* 删除绑定。请求：host_id；回复：1 成功 / 0 失败 */
     CMD_CREATE_BIND    = 0x05, /* 创建绑定。请求：host_id；回复：1 成功 / 0 失败 */
-    CMD_GET_BIND       = 0x06, /* 获取绑定状态。请求：link_id，255 为全部；回复：JSON 数组 */
+    CMD_GET_BIND       = 0x06, /* 获取绑定状态。请求：link_id，49 控制链路，255 为全部；回复：JSON 数组 */
     CMD_SWITCH_CONSOLE = 0x07, /* 切换控制台。请求：usb|uart|net；回复：1 成功 / 0 失败 */
 };
 typedef enum cmd_type cmd_type_t;

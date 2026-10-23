@@ -303,21 +303,21 @@ static int protocol_net_cmd_init(void)
         goto exit;
     }
 
-    struct upload_net_config config = { .number = 255 };
-    upload_obj_t upload_net_255 = net_parent->ops->create(net_parent, "upload_net_255", &config);
-    if (upload_net_255 == RT_NULL)
+    struct upload_net_config config = { .number = UPLOAD_NET_LINK_CMD };
+    upload_obj_t upload_net_cmd = net_parent->ops->create(net_parent, "upload_net_cmd", &config);
+    if (upload_net_cmd == RT_NULL)
     {
-        LOG_E("create error: upload net 255 create failed");
+        LOG_E("create error: upload net cmd create failed");
         goto exit;
     }
 
-    if (bind_create(custom_obj, (custom_obj_t)upload_net_255, RT_TRUE) != RT_EOK)
+    if (bind_create(custom_obj, (custom_obj_t)upload_net_cmd, RT_TRUE) != RT_EOK)
     {
         LOG_E("create error: rx_bind create failed");
         goto exit;
     }
 
-    if (bind_create(custom_obj, (custom_obj_t)upload_net_255, RT_FALSE) != RT_EOK)
+    if (bind_create(custom_obj, (custom_obj_t)upload_net_cmd, RT_FALSE) != RT_EOK)
     {
         LOG_E("create error: tx_bind create failed");
         goto exit;

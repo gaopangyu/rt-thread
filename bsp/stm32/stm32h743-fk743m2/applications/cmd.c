@@ -1,4 +1,5 @@
 #include "cmd.h"
+#include "protocol_net_cmd.h"
 #include "host.h"
 #include "param.h"
 #include "console.h"
@@ -35,10 +36,10 @@ static rt_bool_t cmd_link_bound(rt_uint8_t link_id)
         return host->ops->net_rx_bind_status(host);
     }
 
-    if (link_id == CMD_LINK_ALL)
+    if (link_id == UPLOAD_NET_LINK_CMD)
     {
         custom_obj_t cmd_obj = (custom_obj_t)rt_object_find(PROTOCOL_NET_CMD_NAME, RT_Object_Class_Custom);
-        custom_obj_t net = (custom_obj_t)rt_object_find("upload_net_255", RT_Object_Class_Custom);
+        custom_obj_t net = (custom_obj_t)rt_object_find("upload_net_cmd", RT_Object_Class_Custom);
 
         return bind_get_status(cmd_obj, net, RT_TRUE);
     }
@@ -89,7 +90,7 @@ static rt_size_t cmd_reply_bind(rt_uint8_t *reply, rt_size_t reply_size, rt_uint
         for (id = 0; id < HOST_MAX; id++)
             cmd_bind_add(arr, id);
         cmd_bind_add(arr, CMD_LINK_STATUS);
-        cmd_bind_add(arr, CMD_LINK_ALL);
+        cmd_bind_add(arr, UPLOAD_NET_LINK_CMD);
     }
     else
         cmd_bind_add(arr, link_id);
@@ -298,7 +299,7 @@ rt_size_t cmd_parse(enum cmd_obj_type obj_type, rt_uint8_t *buffer, rt_size_t le
                 break;
             }
 
-            /* 0~3 主机链路，254 状态链路，255 全部链路 */
+            /* 0~3 主机链路，49 控制链路，254 状态链路，255 全部链路 */
             link_id = buffer[1];
             reply_len = cmd_reply_bind(reply, reply_size, cmd, link_id);
             LOG_I("cmd return: get bind link=%d len=%d\r\n", link_id, (int)reply_len);
