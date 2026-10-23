@@ -1,4 +1,4 @@
-# applications/environment — board environment (rtc / auto_mount / usb)
+# applications/environment — board environment (rtc / mount / usb)
 
 from building import *
 import os

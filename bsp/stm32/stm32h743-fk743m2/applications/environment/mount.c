@@ -4,7 +4,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#define DBG_TAG "auto_mount"
+#define DBG_TAG "mount"
 #define DBG_LVL DBG_LOG
 #include <rtdbg.h>
 
@@ -331,7 +331,7 @@ static int mount_init_fs(void)
     return -RT_ERROR;
 }
 
-static int auto_mount(void)
+static int mount(void)
 {
     if(rt_device_find(FAL_USING_NOR_FLASH_DEV_NAME) == NULL)
     {
@@ -392,4 +392,4 @@ static int auto_mount(void)
     return RT_EOK;
 }
 
-INIT_ENV_EXPORT(auto_mount);
+INIT_ENV_EXPORT(mount);
