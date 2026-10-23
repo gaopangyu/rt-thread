@@ -177,7 +177,7 @@ static rt_err_t upload_net_handle_rx_bind_pre(upload_obj_t self, const void *buf
     obj = (upload_net_obj_t)self;
     custom_obj = (custom_obj_t)obj;
     sent = ppp_adapter_send(&net_ppp_adapter, &obj->link, buffer, size);
-    custom_obj_bind_ext_add_send(custom_obj, sent, RT_TRUE);
+    custom_obj_bind_add_ext_send(custom_obj, sent, RT_TRUE);
 
     return (sent == size) ? RT_EOK : -RT_ERROR;
 }
@@ -226,12 +226,12 @@ static void upload_net_recv(void *parameter)
         custom_obj_t fail_pre = RT_NULL;
         while(recv_event_flag != 0)
         {
-            custom_obj_t rx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->rxb.pre_obj_list, &recv_event_flag, RT_TRUE);
+            custom_obj_t rx_custom_obj = custom_obj_get_by_event_flag(custom_obj->rxb.pre_obj_list, &recv_event_flag, RT_TRUE);
             if(rx_custom_obj == RT_NULL)
                 break;
 
             LOG_D("%s recv from %s: %d\r\n", rt_obj->name, rx_custom_obj->parent.name, rx_custom_obj->rxb.len);
-            custom_obj_bind_link_xfer(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
+            custom_obj_bind_xfer_link(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
 
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;

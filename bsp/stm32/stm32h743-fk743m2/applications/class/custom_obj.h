@@ -8,11 +8,11 @@
 
 enum custom_object_class_type
 {
-    Custom_Object_Class_Null          = 0x00,      
-    Custom_Object_Class_Interface     = 0x01,      
-    Custom_Object_Class_Protocol      = 0x02,
-    Custom_Object_Class_Filter        = 0x03,
-    Custom_Object_Class_Upload        = 0x04,
+    Custom_Object_Class_Null      = 0x00,
+    Custom_Object_Class_Interface = 0x01,
+    Custom_Object_Class_Protocol  = 0x02,
+    Custom_Object_Class_Filter    = 0x03,
+    Custom_Object_Class_Upload    = 0x04,
 };
 
 typedef struct
@@ -63,9 +63,9 @@ struct custom_object_ops
     rt_err_t  (*gc) (custom_obj_t self);
 };
 
-rt_err_t apply_for_event_flag(custom_obj_t self);
-rt_err_t unapply_for_event_flag(custom_obj_t self);
-custom_obj_t get_obj_from_event_flag(custom_obj_t self, struct custom_obj **obj_list, rt_uint32_t *event_flag, rt_bool_t clear);
+rt_err_t custom_obj_apply_event_flag(custom_obj_t self);
+rt_err_t custom_obj_unapply_event_flag(custom_obj_t self);
+custom_obj_t custom_obj_get_by_event_flag(struct custom_obj **obj_list, rt_uint32_t *event_flag, rt_bool_t clear);
 
 const char *custom_obj_msh_get_opt(int argc, char *argv[], const char *opt);
 rt_bool_t custom_obj_msh_has_opt(int argc, char *argv[], const char *opt);
@@ -73,12 +73,9 @@ const char *custom_obj_msh_get_pos(int argc, char *argv[], int index, const char
 rt_err_t custom_obj_msh_check_create_name(const char *name, const char *type_prefix);
 rt_err_t custom_obj_msh_check_delete_name(const char *name);
 
-void custom_obj_bind_ext_add_recv(custom_obj_t obj, rt_size_t len, rt_bool_t is_rx);
-void custom_obj_bind_ext_add_send(custom_obj_t obj, rt_size_t len, rt_bool_t is_rx);
-void custom_obj_bind_link_xfer(custom_obj_t pre, custom_obj_t next, rt_size_t len, rt_bool_t is_rx);
-rt_size_t custom_obj_bind_path_recv_bytes(custom_obj_t obj, custom_obj_t parent,
-                                          custom_obj_t branch_child, rt_bool_t is_rx);
-rt_size_t custom_obj_bind_path_send_bytes(custom_obj_t obj, custom_obj_t parent, rt_bool_t is_rx);
+void custom_obj_bind_add_ext_recv(custom_obj_t obj, rt_size_t len, rt_bool_t is_rx);
+void custom_obj_bind_add_ext_send(custom_obj_t obj, rt_size_t len, rt_bool_t is_rx);
+void custom_obj_bind_xfer_link(custom_obj_t pre, custom_obj_t next, rt_size_t len, rt_bool_t is_rx);
 rt_size_t custom_obj_bind_format_path_label(char *buf, rt_size_t size, custom_obj_t obj,
                                             custom_obj_t parent, custom_obj_t branch_child,
                                             rt_bool_t is_rx);

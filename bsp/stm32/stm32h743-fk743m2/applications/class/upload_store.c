@@ -162,12 +162,12 @@ static void upload_store_recv(void *parameter)
 
         while(recv_event_flag != 0)
         {
-            custom_obj_t rx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->rxb.pre_obj_list, &recv_event_flag, RT_TRUE);
+            custom_obj_t rx_custom_obj = custom_obj_get_by_event_flag(custom_obj->rxb.pre_obj_list, &recv_event_flag, RT_TRUE);
             if(rx_custom_obj == RT_NULL)
                 break;
 
             LOG_D("%s recv from %s: %d\r\n", rt_obj->name, rx_custom_obj->parent.name, rx_custom_obj->rxb.len);
-            custom_obj_bind_link_xfer(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
+            custom_obj_bind_xfer_link(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
 
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;

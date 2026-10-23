@@ -28,10 +28,10 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
         }
 
         if( pre_obj->event_flag == 0 )
-            apply_for_event_flag(pre_obj);
+            custom_obj_apply_event_flag(pre_obj);
 
         if( next_obj->event_flag == 0 )
-            apply_for_event_flag(next_obj);
+            custom_obj_apply_event_flag(next_obj);
 
         if( pre_obj->event_flag != 0 && next_obj->event_flag != 0 )
         {
@@ -70,10 +70,10 @@ rt_err_t bind_create(custom_obj_t pre_obj, custom_obj_t next_obj, rt_bool_t is_r
         }
 
         if( pre_obj->event_flag == 0 )
-            apply_for_event_flag(pre_obj);
+            custom_obj_apply_event_flag(pre_obj);
 
         if( next_obj->event_flag == 0 )
-            apply_for_event_flag(next_obj);
+            custom_obj_apply_event_flag(next_obj);
 
         if( pre_obj->event_flag != 0 && next_obj->event_flag != 0 )
         {
@@ -253,7 +253,7 @@ static void bind_try_release_obj(custom_obj_t obj)
     obj->txb.next_obj_list = RT_NULL;
 
     if (obj->event_flag != 0)
-        unapply_for_event_flag(obj);
+        custom_obj_unapply_event_flag(obj);
 }
 
 static void bind_try_release_peers(custom_obj_t pre_obj, custom_obj_t next_obj)
@@ -278,7 +278,7 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
     while (self->rxb.pre_event_mask)
     {
-        peer = get_obj_from_event_flag(self, self->rxb.pre_obj_list, &self->rxb.pre_event_mask, RT_FALSE);
+        peer = custom_obj_get_by_event_flag(self->rxb.pre_obj_list, &self->rxb.pre_event_mask, RT_FALSE);
         if (peer == RT_NULL)
             break;
 
@@ -287,7 +287,7 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
     while (self->rxb.next_event_mask)
     {
-        peer = get_obj_from_event_flag(self, self->rxb.next_obj_list, &self->rxb.next_event_mask, RT_FALSE);
+        peer = custom_obj_get_by_event_flag(self->rxb.next_obj_list, &self->rxb.next_event_mask, RT_FALSE);
         if (peer == RT_NULL)
             break;
 
@@ -296,7 +296,7 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
     while (self->txb.next_event_mask)
     {
-        peer = get_obj_from_event_flag(self, self->txb.next_obj_list, &self->txb.next_event_mask, RT_FALSE);
+        peer = custom_obj_get_by_event_flag(self->txb.next_obj_list, &self->txb.next_event_mask, RT_FALSE);
         if (peer == RT_NULL)
             break;
 
@@ -305,7 +305,7 @@ void bind_delete_all_for_obj(custom_obj_t self)
 
     while (self->txb.pre_event_mask)
     {
-        peer = get_obj_from_event_flag(self, self->txb.pre_obj_list, &self->txb.pre_event_mask, RT_FALSE);
+        peer = custom_obj_get_by_event_flag(self->txb.pre_obj_list, &self->txb.pre_event_mask, RT_FALSE);
         if (peer == RT_NULL)
             break;
 

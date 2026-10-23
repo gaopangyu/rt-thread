@@ -228,12 +228,12 @@ static void protocol_ev1_recv(void *parameter)
 
         while(recv_event_flag != 0)
         {
-            custom_obj_t rx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->rxb.pre_obj_list, &recv_event_flag, RT_TRUE);
+            custom_obj_t rx_custom_obj = custom_obj_get_by_event_flag(custom_obj->rxb.pre_obj_list, &recv_event_flag, RT_TRUE);
             if(rx_custom_obj == RT_NULL)
                 break;
 
             LOG_D("%s recv from %s: %d\r\n", rt_obj->name, rx_custom_obj->parent.name, rx_custom_obj->rxb.len);
-            custom_obj_bind_link_xfer(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
+            custom_obj_bind_xfer_link(rx_custom_obj, custom_obj, rx_custom_obj->rxb.len, RT_TRUE);
 
             if(rx_custom_obj->rxb.pub_succ_event == RT_NULL)
                 continue;
@@ -296,7 +296,7 @@ static void protocol_ev1_send(void *parameter)
 
         while(recv_event_flag != 0)
         {
-            custom_obj_t tx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->txb.next_obj_list, &recv_event_flag, RT_TRUE);
+            custom_obj_t tx_custom_obj = custom_obj_get_by_event_flag(custom_obj->txb.next_obj_list, &recv_event_flag, RT_TRUE);
             if(tx_custom_obj == RT_NULL)
                 break;
 
@@ -308,7 +308,7 @@ static void protocol_ev1_send(void *parameter)
             {
                 custom_obj->txb.buffer = tx_custom_obj->txb.buffer;
                 custom_obj->txb.len = tx_custom_obj->txb.len;
-                custom_obj_bind_link_xfer(tx_custom_obj, custom_obj, tx_custom_obj->txb.len, RT_FALSE);
+                custom_obj_bind_xfer_link(tx_custom_obj, custom_obj, tx_custom_obj->txb.len, RT_FALSE);
 
                 LOG_D("%s send to %s: %d\r\n", tx_custom_obj->parent.name, rt_obj->name, tx_custom_obj->txb.len);
 

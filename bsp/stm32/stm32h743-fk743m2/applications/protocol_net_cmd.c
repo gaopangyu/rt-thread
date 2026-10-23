@@ -123,7 +123,7 @@ static void protocol_net_cmd_recv(void *parameter)
 
         while(recv_event_flag != 0)
         {
-            custom_obj_t tx_custom_obj = get_obj_from_event_flag(custom_obj, custom_obj->txb.next_obj_list, &recv_event_flag, RT_TRUE);
+            custom_obj_t tx_custom_obj = custom_obj_get_by_event_flag(custom_obj->txb.next_obj_list, &recv_event_flag, RT_TRUE);
             if(tx_custom_obj == RT_NULL)
                 break;
 
@@ -144,7 +144,7 @@ static void protocol_net_cmd_recv(void *parameter)
 
             rt_sem_release(obj->recv_sem);
 
-            custom_obj_bind_link_xfer(tx_custom_obj, custom_obj, tx_custom_obj->txb.len, RT_FALSE);
+            custom_obj_bind_xfer_link(tx_custom_obj, custom_obj, tx_custom_obj->txb.len, RT_FALSE);
 
             LOG_I("%s ---> %s send txb.pub_succ_event: 0x%X\r\n", rt_obj->name, tx_custom_obj->parent.name, custom_obj->event_flag);
             if( rt_event_send(tx_custom_obj->txb.pub_succ_event, custom_obj->event_flag) != RT_EOK )
