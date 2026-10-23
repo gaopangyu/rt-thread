@@ -1,5 +1,6 @@
 #include "cmd.h"
 #include "protocol_net_cmd.h"
+#include "protocol_net_status.h"
 #include "host.h"
 #include "param.h"
 #include "console.h"
@@ -8,8 +9,10 @@
 
 #include <string.h>
 
-#define CMD_LINK_STATUS     254
-#define CMD_LINK_ALL        255
+#define UPLOAD_UI_LINK_HOST     50
+#define UPLOAD_UI_LINK_STATUS   98
+#define UPLOAD_UI_LINK_CMD      99
+#define CMD_LINK_ALL            255
 
 #define DBG_TAG "cmd"
 #define DBG_LVL DBG_LOG
@@ -25,38 +28,72 @@ static rt_size_t cmd_reply_result(rt_uint8_t *reply, rt_size_t reply_size, rt_ui
     return 2;
 }
 
-static rt_bool_t cmd_link_bound(rt_uint8_t link_id)
+static rt_bool_t cmd_pair_bound(const char *pre_name, const char *next_name)
 {
-    if (link_id < HOST_MAX)
-    {
-        host_t host = g_host[link_id];
+    custom_obj_t pre = (custom_obj_t)rt_object_find(pre_name, RT_Object_Class_Custom);
+    custom_obj_t next = (custom_obj_t)rt_object_find(next_name, RT_Object_Class_Custom);
 
-        if (host == RT_NULL || host->ops == RT_NULL || host->ops->net_rx_bind_status == RT_NULL)
-            return RT_FALSE;
-        return host->ops->net_rx_bind_status(host);
-    }
+    return bind_get_status(pre, next, RT_TRUE);
+}
 
-    if (link_id == UPLOAD_NET_LINK_CMD)
-    {
-        custom_obj_t cmd_obj = (custom_obj_t)rt_object_find(PROTOCOL_NET_CMD_NAME, RT_Object_Class_Custom);
-        custom_obj_t net = (custom_obj_t)rt_object_find("upload_net_cmd", RT_Object_Class_Custom);
+static rt_bool_t cmd_net_host_bound(rt_uint8_t host_id)
+{
+    host_t host;
 
-        return bind_get_status(cmd_obj, net, RT_TRUE);
-    }
+    if (host_id >= HOST_MAX)
+        return RT_FALSE;
 
-    if (link_id == CMD_LINK_STATUS)
-    {
-        custom_obj_t net = (custom_obj_t)rt_object_find("upload_net_254", RT_Object_Class_Custom);
+    host = g_host[host_id];
+    if (host == RT_NULL || host->ops == RT_NULL || host->ops->net_rx_bind_status == RT_NULL)
+        return RT_FALSE;
+    return host->ops->net_rx_bind_status(host);
+}
 
-        if (net == RT_NULL)
-            return RT_FALSE;
-        return net->rxb.pre_event_mask != 0;
-    }
-
+/* UI 主机链路尚未接入，接口先留在这里。 */
+static rt_bool_t cmd_ui_host_bound(rt_uint8_t host_id)
+{
+    (void)host_id;
     return RT_FALSE;
 }
 
-static void cmd_bind_add(cJSON *arr, rt_uint8_t link_id)
+/* UI 状态链路、控制链路对象尚未创建。 */
+static rt_bool_t cmd_ui_status_bound(void)
+{
+    return RT_FALSE;
+}
+
+static rt_bool_t cmd_ui_cmd_bound(void)
+{
+    return RT_FALSE;
+}
+
+static rt_bool_t cmd_link_bound(enum cmd_obj_type obj_type, rt_uint8_t link_id)
+{
+    if (link_id == UPLOAD_NET_LINK_STATUS)
+        return cmd_pair_bound("protocol_net_status", "upload_net_status");
+    if (link_id == UPLOAD_NET_LINK_CMD)
+        return cmd_pair_bound(PROTOCOL_NET_CMD_NAME, "upload_net_cmd");
+    if (link_id == UPLOAD_UI_LINK_STATUS)
+        return cmd_ui_status_bound();
+    if (link_id == UPLOAD_UI_LINK_CMD)
+        return cmd_ui_cmd_bound();
+
+    /* 0~3 只属于 net 主机链路，ui 收到时按未绑定回复。 */
+    if (obj_type == CMD_OBJ_UI)
+    {
+        if (link_id < HOST_MAX)
+            return RT_FALSE;
+        if (link_id >= UPLOAD_UI_LINK_HOST && link_id < UPLOAD_UI_LINK_HOST + HOST_MAX)
+            return cmd_ui_host_bound(link_id - UPLOAD_UI_LINK_HOST);
+        return RT_FALSE;
+    }
+
+    if (link_id < HOST_MAX)
+        return cmd_net_host_bound(link_id);
+    return RT_FALSE;
+}
+
+static void cmd_bind_add(cJSON *arr, enum cmd_obj_type obj_type, rt_uint8_t link_id)
 {
     cJSON *item;
 
@@ -68,11 +105,12 @@ static void cmd_bind_add(cJSON *arr, rt_uint8_t link_id)
         return;
 
     cJSON_AddNumberToObject(item, "link_id", link_id);
-    cJSON_AddItemToObject(item, "status", cJSON_CreateBool(cmd_link_bound(link_id) ? 1 : 0));
+    cJSON_AddItemToObject(item, "status", cJSON_CreateBool(cmd_link_bound(obj_type, link_id) ? 1 : 0));
     cJSON_AddItemToArray(arr, item);
 }
 
-static rt_size_t cmd_reply_bind(rt_uint8_t *reply, rt_size_t reply_size, rt_uint8_t cmd, rt_uint8_t link_id)
+static rt_size_t cmd_reply_bind(rt_uint8_t *reply, rt_size_t reply_size, rt_uint8_t cmd,
+                                enum cmd_obj_type obj_type, rt_uint8_t link_id)
 {
     cJSON *arr;
     rt_size_t n;
@@ -87,13 +125,23 @@ static rt_size_t cmd_reply_bind(rt_uint8_t *reply, rt_size_t reply_size, rt_uint
 
     if (link_id == CMD_LINK_ALL)
     {
-        for (id = 0; id < HOST_MAX; id++)
-            cmd_bind_add(arr, id);
-        cmd_bind_add(arr, CMD_LINK_STATUS);
-        cmd_bind_add(arr, UPLOAD_NET_LINK_CMD);
+        if (obj_type == CMD_OBJ_UI)
+        {
+            for (id = 0; id < HOST_MAX; id++)
+                cmd_bind_add(arr, obj_type, UPLOAD_UI_LINK_HOST + id);
+            cmd_bind_add(arr, obj_type, UPLOAD_UI_LINK_STATUS);
+            cmd_bind_add(arr, obj_type, UPLOAD_UI_LINK_CMD);
+        }
+        else
+        {
+            for (id = 0; id < HOST_MAX; id++)
+                cmd_bind_add(arr, obj_type, id);
+            cmd_bind_add(arr, obj_type, UPLOAD_NET_LINK_STATUS);
+            cmd_bind_add(arr, obj_type, UPLOAD_NET_LINK_CMD);
+        }
     }
     else
-        cmd_bind_add(arr, link_id);
+        cmd_bind_add(arr, obj_type, link_id);
 
     n = json_print(arr, (char *)reply + 1, reply_size - 1);
     cJSON_Delete(arr);
@@ -299,9 +347,9 @@ rt_size_t cmd_parse(enum cmd_obj_type obj_type, rt_uint8_t *buffer, rt_size_t le
                 break;
             }
 
-            /* 0~3 主机链路，49 控制链路，254 状态链路，255 全部链路 */
+            /* net：0~3/48/49；ui：50~53/98/99，0~3 按未绑定；255 为当前侧全部 */
             link_id = buffer[1];
-            reply_len = cmd_reply_bind(reply, reply_size, cmd, link_id);
+            reply_len = cmd_reply_bind(reply, reply_size, cmd, obj_type, link_id);
             LOG_I("cmd return: get bind link=%d len=%d\r\n", link_id, (int)reply_len);
             break;
         }
